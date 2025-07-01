@@ -1,15 +1,16 @@
 import nodemailer from 'nodemailer';
 import { supabaseAdmin } from '@/utils/supabase/superbaseAdmin.js';
 import { generateTaskEmailHTML } from '@/lib/emailTemplates';
+import { NextResponse } from 'next/server';
 
 export async function GET(request) {
 
-  const url = new URL(request.url);
-  const secret = url.searchParams.get('secret');
-
-  if (secret !== process.env.CRON_SECRET) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return new Response('Unauthorized', {
+        status: 401,
+      });
+    }
 
   try {
     const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers();

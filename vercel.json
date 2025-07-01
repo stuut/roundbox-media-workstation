@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/send-daily-job-emails?secret=@CRON_SECRET",
+      "path": "/api/cron/send-daily-job-emails",
       "schedule": "0 8 * * *"
     }
   ]
