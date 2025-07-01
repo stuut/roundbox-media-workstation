@@ -6,8 +6,11 @@ import { taskStatusArray } from '@/lib/constants'
 import { baseKaban } from '@/lib/constants'
 import moment from "moment";
 import { checkDate } from '@/lib/utils'
+import { useSearchParams } from 'next/navigation'
 
 export default function KanbanView({workspaceId, boardId, tasks}) {
+  const searchParams = useSearchParams()
+  const taskFocus = searchParams.get('task-id')
 
   const [groupedItems, setGroupedItems] = useState({});
   const [activeColumn, setActiveColumn] = useState('');
@@ -105,7 +108,7 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
     <div className="kanban-container">
       <div className="kanban">
       {Object.entries(groupedItems).map(([status, tasks]) => (
-        <div key={status} className="kanban-col" onDrop={(e) => onDrop(e, status)} onDragOver={(e) => onDragOver(e, status)} style={{minHeight:'600px', padding:'0px 10px 0px 10px'}}>
+        <div key={status} className={`${"kanban-col"}`} onDrop={(e) => onDrop(e, status)} onDragOver={(e) => onDragOver(e, status)} style={{minHeight:'600px', padding:'0px 10px 0px 10px'}}>
           <div className="card" style={{height:'100%', padding:'15px'}}>
             <div style={{display:'flex', alignItems:'center'}}>
               <h3>{status}</h3>
@@ -131,7 +134,7 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
               }
             </div>
             {tasks.map(task => (
-              <Task key={task.id} task={task} onDragStart={onDragStart}/>
+              <Task taskFocus={taskFocus} key={task.id} task={task} onDragStart={onDragStart}/>
             ))}
           </div>
         </div>
@@ -142,11 +145,11 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
   )
 }
 
-export const Task = ({task, onDragStart}) => {
+export const Task = ({task, onDragStart, taskFocus}) => {
   const date = checkDate(task.due_date)
   return(
     <div
-      className={`${date?'':'overdue'} ${'kanban-task'}`}  style={{cursor:'pointer'}} draggable onDragStart={(e) => onDragStart(e, task)}>
+      className={`${date?'':'overdue'} ${'kanban-task'} ${taskFocus===task.id?'task-hilight': null}`}  style={{cursor:'pointer'}} draggable onDragStart={(e) => onDragStart(e, task)}>
       <h4><strong>{task.title}</strong></h4>
       {task.description&&
         <p className='task-description'>{task.description}</p>

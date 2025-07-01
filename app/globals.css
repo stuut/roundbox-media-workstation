@@ -67,6 +67,10 @@ h1, h2, h3, h4, h5, h6{
   margin-left: auto;
 }
 
+.header-links a.active{
+  color:var(--md-sys-color-primary);
+  font-weight:bold
+}
 
 
 .card{
@@ -75,6 +79,14 @@ h1, h2, h3, h4, h5, h6{
   padding:var(--card-padding);
   border-radius: var(--border-radius);
   margin: 10px 0
+}
+
+.task{
+  background:var(--md-sys-color-surface-container);
+  color:var(--md-sys-color-on-surface);
+  padding:var(--card-padding);
+  border-radius: var(--border-radius);
+  margin: 10px 0;
 }
 
 .workspace{
@@ -90,6 +102,16 @@ h1, h2, h3, h4, h5, h6{
   padding:var(--tab-padding);
   border-radius: var(--border-radius);
   margin: 10px 0;
+  transition: all 1s ease
+}
+
+.select-tab.hover:hover{
+  background:var(--md-sys-color-primary);
+  color:var(--md-sys-color-on-primary);
+}
+
+.select-tab.hover:hover p{
+  color:var(--md-sys-color-on-primary);
 }
 
 .column-item{
@@ -204,17 +226,34 @@ h1, h2, h3, h4, h5, h6{
   border: var(--input-border-width) solid var(--md-sys-color-error);
 }
 
+.task.overdue{
+  background-color:   var(--md-sys-color-error-container);
+}
+
 
 .board-table-cell.overdue{
   background-color:   var(--md-sys-color-error-container);
 }
 
+
 .board-table-cell.overdue.first-cell{
-    border-bottom-left-radius:var(--border-radius);
+    /*border-bottom-left-radius:var(--border-radius);*/
+}
+
+.board-table-cell.last-row.first-cell{
+  border-bottom-left-radius:var(--border-radius);
+}
+
+.board-table-cell.last-row.last-cell{
+  border-bottom-right-radius:var(--border-radius);
 }
 
 .board-table-cell.overdue.last-cell{
-    border-bottom-right-radius:var(--border-radius);
+    /*border-bottom-right-radius:var(--border-radius);*/
+}
+
+.board-table-cell.last-cell{
+  border-right:none;
 }
 
 
@@ -394,10 +433,10 @@ border: var(--input-border-width) solid var(--md-sys-color-surface-dim);
   background: transparent;
 }
 
-
+/*
 .column-drag:hover{
   background: var(--md-sys-color-primary);
-}
+}*/
 
 
 .form-input {
@@ -468,13 +507,41 @@ height:120px
   border-bottom: .5px solid var(--md-sys-color-outline)
 }
 
+.board-header-cell.last-header-cell{
+  border-right: none
+}
+
 .board-table-cell,
 .board-header-cell{
   border-right: .5px solid var(--md-sys-color-outline)
 }
 
-.last-header-cell{
-  border-right: 0px solid var(--md-sys-color-outline)!important;
+.task.overdue .select-tab,
+.board-table-cell.overdue .select-tab{
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error)
+}
+
+.task.overdue .form-input,
+.board-table-cell.overdue .form-input{
+  border-color: var(--md-sys-color-error);
+}
+
+.task.overdue .select-tab p{
+    color: var(--md-sys-color-on-error)
+}
+
+
+
+.task-text-input.title{
+  font-size:1.5em;
+  font-weight:bold;
+}
+
+.task-text-input:disabled{
+  border: none;
+  background-color: transparent;
+  padding-left: 0px;
 }
 
 .message{
@@ -482,6 +549,19 @@ height:120px
   border-radius: var(--border-radius);
   margin: 20px 0;
   position:relative
+}
+
+.fc-event.calendar-task.task-hilight{
+background: rgba(221, 188, 224, .5)
+}
+
+
+.task-hilight{
+background: rgba(221, 188, 224, .5)
+}
+
+.board-table-cell.task-hilight{
+background: rgba(221, 188, 224,, .5)
 }
 
 

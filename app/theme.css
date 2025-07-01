@@ -13,8 +13,8 @@
   --btn-border-radius:10px;
   --font-size:1rem;
   --sm-font-size:.8rem;
-  --sm-btn-padding-y:6px;
-  --sm-btn-padding-x:8px;
+  --sm-btn-padding-y:8px;
+  --sm-btn-padding-x:10px;
   --toastify-color-info: #4ccfe0;
   --toastify-color-success: #4ccfe0;
   --toastify-color-warning: #f1c40f;
@@ -23,9 +23,12 @@
   --toastify-icon-color-success: var(--toastify-color-success);
   --toastify-icon-color-warning: var(--toastify-color-warning);
   --toastify-icon-color-error: var(--toastify-color-error);
+
 }
 
 .light {
+  --toastify-color-dark: rgb(46 48 54);
+  --toastify-text-color-dark: rgb(240 240 247);
   --completed:#386663;
   --on-completed:#ffffff;
   --md-sys-color-primary: rgb(65 95 145);
@@ -81,6 +84,8 @@
   --md-sys-color-primary-focus: rgba(170, 199, 255, .5);
 }
 .dark {
+  --toastify-color-dark: rgb(226 226 233);
+  --toastify-text-color-dark: rgb(46 48 54);
   --completed:#a0d0cb;
   --on-completed:#003735;
   --md-sys-color-primary: rgb(170 199 255);

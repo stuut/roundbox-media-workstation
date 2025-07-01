@@ -4,8 +4,10 @@ import Link from "next/link"
 import { createClient } from "@/utils/supabase/server"
 import SetUserInfo from "@/components/setUserInfo"
 import UserHeader from "@/components/header-user"
-
+import HeaderLinks from "@/components/header-links"
 import User from "@/components/user"
+
+import NotificationsProvider from "@/components/notications-provider"
 
 export default async function AuthButton() {
   const supabase = await createClient()
@@ -43,10 +45,8 @@ export default async function AuthButton() {
   return user ? (
     <div style={{display:'flex', verticalAlign:'center', padding:'15px'}}>
       <SetUserInfo user={user}/>
-      <Link style={{marginRight:'10px'}} href='/dashboard'>Dashboard</Link>
-      <Link style={{marginRight:'10px'}} href='/my-workspaces'>My Workspaces</Link>
-      <Link style={{marginRight:'10px'}} href='/my-boards'>My Boards</Link>
-      <Link style={{marginRight:'10px'}} href='/my-tasks'>My Tasks</Link>
+      <NotificationsProvider user={user}/>
+      <HeaderLinks/>
       <div style={{marginLeft:'auto', display:'flex', verticalAlign:'center'}}>
         <UserHeader user={user} />
         <form action={signOutAction}>

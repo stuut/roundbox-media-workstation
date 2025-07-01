@@ -2,12 +2,16 @@
 import { useState, useEffect } from 'react';
 import { getAllUsersAssignedToWorkspace } from '@/lib/supabase'
 import { createTask } from '@/lib/supabase'
+import { insertNotification } from '@/lib/supabase'
 import { isInArray } from '@/lib/utils'
 import User from '@/components/user'
 import moment from "moment";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { taskStatusArray } from '@/lib/constants'
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 
 export default function CreateTask({userId, boardId, workspaceId}) {
 
@@ -24,8 +28,6 @@ export default function CreateTask({userId, boardId, workspaceId}) {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    setError('')
-    setSuccess('');
 
     try {
       const taskData = {
@@ -37,9 +39,19 @@ export default function CreateTask({userId, boardId, workspaceId}) {
       };
 
       const newTask = await createTask(taskData, boardId, workspaceId, selectedUsers)
-      setSuccess('Task created:', newTask);
+
+      const newTaskId = newTask.id
+
+      const message = `<span>A new task has been created for you: <a href="/task/${newTaskId}">View Task Here</a></span>`
+
+        selectedUsers.forEach(async(userId) => {
+          await insertNotification(userId, message)
+
+        });
+
+      showSuccess('Task created:', newTask);
     } catch (error) {
-      setError(error.message);
+      showError(error.message);
     }
   };
 
@@ -99,7 +111,7 @@ export default function CreateTask({userId, boardId, workspaceId}) {
           </div>
           <label className="form-label"><strong>Description</strong></label>
           <textarea
-            id="taskDescription"  
+            id="taskDescription"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="form-input" id="taskDescription" rows="3"
@@ -119,8 +131,6 @@ export default function CreateTask({userId, boardId, workspaceId}) {
             })
           }
           <button className="btn primary"  type="submit">Create</button>
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          {success && <p style={{ color: 'green' }}>{success}</p>}
         </form>
       </div>
     </div>

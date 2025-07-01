@@ -65,47 +65,21 @@ import { evaluate } from 'mathjs';
 import { aggregateColumnValues } from '@/lib/utils'
 import { displayFormulaFunction } from '@/lib/utils'
 import { sanitizeFormulaFunction } from '@/lib/utils'
-
 import { sanitizeColumnIdFormulaFunction } from "@/lib/utils";
-import { ToastContainer, toast, Slide } from 'react-toastify';
 import DropdownBuilder from '@/components/dropdown-builder';
-
-import "@/app/toast.css"
-
-const notify = (data) => toast.info(data, {
-  position: "bottom-left",
-  //autoClose: 5000,
-  theme:'dark',
-  transition: Slide,
-  hideProgressBar: true,
-  closeOnClick: true,
-  pauseOnHover: true,
-  //draggable: true,
-  progress: undefined,
-});
-
-const notifyError = (data) => toast.error(data, {
-position: "bottom-left",
-//autoClose: 5000,
-theme:'dark',
-transition: Slide,
-hideProgressBar: true,
-closeOnClick: true,
-pauseOnHover: true,
-draggable: true,
-progress: undefined,
-});
-
-
-
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 
 
 export default function Board({ boardId, userId }) {
   //dashboard?board-type=Table
   //dashboard?board-type=Kanban
   //dashboard?board-type=Calendar
+
   const searchParams = useSearchParams()
   const boardType = searchParams.get('board-type')
+  const taskFocus = searchParams.get('task-id')
   const supabase = createClient()
   const [boardView, setBoardView] = useState(boardType?boardType:boardViewOptions[0]);
   const [board, setBoard] = useState(null);
@@ -127,6 +101,8 @@ export default function Board({ boardId, userId }) {
   const [allTasksMembers, setAllTasksMembers] = useState([]);
   const [selectMembersFilter, setSelectMembersFilter] = useState([]);
   const [clearCheckBoxes, setClearCheckBoxes] = useState(false);
+
+
 
 
 
@@ -233,7 +209,7 @@ const generateUsers = (board) => {
       // Create headers from task fields
       let headers = Object.keys(boardData.tasks[0])
             // ✅ remove  users & column_values from supabase join
-        .filter(key => key !== "column_values" && key !== "users") // exclude key
+        .filter(key => key !== "column_values" && key !== "users" && key !== "created_by_user") // exclude key
         .map((key, index) => {
           let type
           if(key === 'description'){
@@ -250,7 +226,7 @@ const generateUsers = (board) => {
               field: key,
               index,
               type: type,
-              width: 175
+              width: 200
             }
           )
 
@@ -264,7 +240,7 @@ const generateUsers = (board) => {
           field: col.name,
           index: headers.length + index,
           type: col.type,
-          width: 175,
+          width: 200,
           id: col.id,
           column_select_options: col.column_select_options
         })),
@@ -278,13 +254,14 @@ const generateUsers = (board) => {
         // ✅ remove  users & column_values from supabase join
 
         delete base.users;
+        delete base.created_by_user;
         delete base.column_values;
 
         base.status = {...{value:base.status}, ...{array:taskStatusArray}}
 
         // ✅ Replace created_by UUID with actual user object
-        if (task.users) {
-          base.created_by = task.users; // overwrite UUID with user object
+        if (task.created_by_user) {
+          base.created_by = task.created_by_user; // overwrite UUID with user object
         }
         // Add dynamic column values
         boardData.columns.forEach((col) => {
@@ -308,6 +285,8 @@ const generateUsers = (board) => {
 
       const reorderedColumns = reorderSavedColumns(headers)
 
+      console.log('rowData', rowData)
+
       setColDefs(reorderedColumns)
       setRowData(rowData)
     }else{
@@ -328,7 +307,7 @@ const generateUsers = (board) => {
         console.log('setBoard init')
         setBoard(boardData[0])
     } catch (error) {
-      notifyError(error.message);
+      showError(error.message);
     }
   }
 
@@ -487,7 +466,6 @@ useEffect(() => {
 
               setBoard(prev => {
 
-                console.log('check if INSERT value exits', prev.board_fields.some((obj)=>{return obj.id === payload.new.board_field_id}))
 
                     console.log('INSERT NEW VALUE', prev)
                     const updatedBoardFields = prev.board_fields.map(boardField => {
@@ -1039,10 +1017,17 @@ const getFilteredTaskMembers = async () => {
 
  const selectMembersFunction = (user, taskId) => {
 
-   if (isUserInArrayBoardTable({user_id:user.id}, selectedTaskMembers)){
+    const isUserInArray = selectedTaskMembers.some((taskMember)=>{
+      return taskMember.userId === user.user_id
+
+    })
+
+   if (isUserInArray){
+
      const removed = selectedTaskMembers.filter(remove => {
-       return remove.userId !== user.id
+       return remove.userId !== user.user_id
      });
+
      setSelectedTaskMembers(removed);
    }else{
      setSelectedTaskMembers(selectedTaskMembers => [...selectedTaskMembers, {userId:user.user_id, taskId:taskId}])
@@ -1108,16 +1093,11 @@ setColDefs(prevItems => {
       return updatedItems;               // step 4
 });
 
-
-
-  //console.log('newWidths', newWidths)
-
  }
 
 
   return (
     <>
-      <ToastContainer />
       {(board && colDefs && rowData)&&
         <>
         <div style={{padding:'15px'}}>
@@ -1125,6 +1105,14 @@ setColDefs(prevItems => {
         </div>
         <div className='board-layout'>
           <div>
+            <div style={{display:'flex', alignItems:'center'}}>
+              <div style={{
+                background: 'var(--md-sys-color-error)',
+                width:'10px',
+                height:'10px'
+              }}></div>
+              <p style={{marginLeft:'5px'}}>Over Due</p>
+            </div>
             <div className='card'>
               <label className="form-label" style={{display:'block'}}><strong>View Filter</strong></label>
               <select className="form-input select"
@@ -1264,16 +1252,16 @@ setColDefs(prevItems => {
                       {rowData
                         .map((row, rowIndex) => {
                         const date = checkDate(row.due_date)
-
                         return(
                             //row = task
                           colDefs.map((col, colIndex) => {
                             //console.log('is object', typeof row[col.field])
                             const isCustomColumn = col?.id
 
+
                             return(
-                              <div key={`cell-${rowIndex}-${colIndex}`}
-                                className={`${colIndex} ${colIndex+1 === colDefs.length? 'board-table-cell last-header-cell' : 'board-table-cell'} ${rowIndex+1 === rowData.length?'last-row':''} ${date?'':'overdue'} ${colIndex===0?'first-cell':''} ${colIndex+1===colDefs.length?'last-cell':''}`}
+                              <div id={row?.id} key={`cell-${rowIndex}-${colIndex}`}
+                                className={`${taskFocus===row?.id?'task-hilight': null} ${colIndex} ${colIndex+1 === colDefs.length? 'board-table-cell last-header-cell' : 'board-table-cell'} ${rowIndex+1 === rowData.length?'last-row':''} ${date?'':'overdue'} ${colIndex===0?'first-cell':''} ${colIndex+1===colDefs.length?'last-cell':''}`}
                                 >
                                 <div className='board-table-cell-inner'>
 
@@ -1300,20 +1288,20 @@ setColDefs(prevItems => {
                                   }
                                   {(col.field === 'description' && col.type === "text") &&
                                     <>
-                                    <textarea
-                                      id={col.id}
-                                      className='form-input'
-                                      type="text"
-                                      defaultValue={row[col.field]}
-                                      disabled={col.field==='id'}
-                                      onBlur={(e) => {
-                                        const newValue = e.target.value;
-                                        if (newValue !== row[col.field]) {
-                                          updateTaskColumn(row.id, col.field, newValue);
-                                        }
-                                      }}
-                                    />
-                                  </>
+                                      <textarea
+                                        id={col.id}
+                                        className='form-input'
+                                        type="text"
+                                        defaultValue={row[col.field]}
+                                        disabled={col.field==='id'}
+                                        onBlur={(e) => {
+                                          const newValue = e.target.value;
+                                          if (newValue !== row[col.field]) {
+                                            updateTaskColumn(row.id, col.field, newValue);
+                                          }
+                                        }}
+                                      />
+                                    </>
                                   }
                                   {(col.field === 'created_at' && col.type === "date") &&
                                     <p>{moment(row[col.field]).format("MMMM D, YYYY h:mm A")}</p>
@@ -1567,12 +1555,10 @@ setColDefs(prevItems => {
                                                 <div style={{display:'flex', alignItems:'center', flexDirection:'row', width:'100%'}}>
                                                   <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
                                                   <FormulaBuilder item={item} rowData={row} boardData={board.board_fields} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-
                                                 </div>
                                             </div>
                                         )
                                       })}
-
                                       <FormulaBuilder item={null} rowData={row} boardData={board.board_fields} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
                                     </>
                                   }
@@ -1635,12 +1621,12 @@ const ColumnName = ({col, boardId}) => {
               const checkNewColumn = await checkColumnName(newValue, boardId)
 
               if (checkNewColumn.length>0){
-                notifyError('Column name must be unique')
+                showError('Column name must be unique')
                 return
               }
 
               await updateColumnName(newValue, col.id)
-              notify('Column name updated')
+              showSuccess('Column name updated')
               setDisabled(true)
 
 
@@ -1720,12 +1706,12 @@ const AddColumnCheckBox = ({data}) => {
             label: checkboxLabel
           });
 
-          notify('New Checkbox created')
+          showSuccess('New Checkbox created')
           setColumnCheckBox(null)
 
     } catch (error) {
       //setColumnError(error.message);
-      notifyError(error.message)
+      showError(error.message)
     }
 
   }
@@ -1968,9 +1954,9 @@ const DateItem = ({item}) => {
     try{
       await updateColumnValue(date, item.id)
       setSave(false)
-      notify('Date Updated')
+      showSuccess('Date Updated')
     }catch (error){
-      notifyError(error)
+      showError(error)
     }
   }
 
@@ -2014,9 +2000,9 @@ const AddDateItem = ({data}) => {
         });
       setSave(false)
       setAddDateItem(null)
-      notify('Date Saved')
+      showSuccess('Date Saved')
     }catch (error){
-      notifyError(error)
+      showError(error)
     }
   }
 
@@ -2158,7 +2144,7 @@ const AddDropdown = ({data}) => {
         e.preventDefault();
 
         if (dropDownList.length < 2){
-          notifyError('At least 2 dropdown options are required')
+          showError('At least 2 dropdown options are required')
           return
         }
 
@@ -2173,13 +2159,13 @@ const AddDropdown = ({data}) => {
             type:data.type
           }, dropDownList)
 
-          notify('Dropdown created')
+          showSuccess('Dropdown created')
 
           addDropdownItem(null)
 
         } catch (error) {
           //setColumnError(error.message);
-          notifyError(error.message)
+          showError(error.message)
         }
   }
 
@@ -2564,6 +2550,10 @@ const AddTaskMember = ({board, task, existingUsers}) => {
 
   const getUsersData = async () => {
     try {
+
+       //const users = await getAllUsers()
+
+
         const workspacesUsers = await getAllUsersAssignedToWorkspace(board.workspace_boards[0].workspace_id)
 
         const checkWorkspaceUsers = workspacesUsers.filter((user, index)=>{
@@ -2581,7 +2571,7 @@ const AddTaskMember = ({board, task, existingUsers}) => {
 
         setUsers(checkWorkspaceUsers);
     } catch (error) {
-      notifyError(error.message);
+      showError(error.message);
     }
   }
 
@@ -2910,7 +2900,7 @@ const NewCustomColumn = ({boardId, userId, colDefs}) => {
 
 
     if (checkNewColumn.length>0){
-      notifyError('Column name must be unique')
+      showError('Column name must be unique')
       return
     }
 
@@ -2926,11 +2916,11 @@ const NewCustomColumn = ({boardId, userId, colDefs}) => {
 
       const newCustomColumn = await insertNewColumn(newColumn)
       //setColumnSuccess('New Column created');
-      notify('New Column created')
+      showSuccess('New Column created')
       setNewColumn(false)
     } catch (error) {
       //setColumnError(error.message);
-      notifyError(error.message)
+      showError(error.message)
     }
   };
 
@@ -2990,7 +2980,7 @@ const NewBoardValueComponent = ({boardId, userId}) => {
     const checkNewBoardField = await checkBoardFieldName(newBoardValueName, boardId)
 
     if (checkNewBoardField.length>0){
-      notifyError('Board field name must be unique')
+      showError('Board field name must be unique')
       return
     }
 
@@ -3005,11 +2995,11 @@ const NewBoardValueComponent = ({boardId, userId}) => {
 
       const newFieldData = await insertNewBoardField(newField)
       //setColumnSuccess('New Column created');
-      notify('New Field created')
+      showSuccess('New Field created')
       setNewBoardValue(false)
     } catch (error) {
       //setColumnError(error.message);
-      notifyError(error.message)
+      showError(error.message)
     }
   };
 
@@ -3070,9 +3060,9 @@ const CustomBoardFields = ({board}) => {
   const removeBoardFields = async () => {
     try {
       await deleteBoardField(selectedBoardFields)
-      notify("Fields Removed")
+      showSuccess("Fields Removed")
     }catch (error){
-      notifyError(`Error removing field ${error}`)
+      showError(`Error removing field ${error}`)
     }
     setSelectedBoardFields([])
   }
@@ -3136,12 +3126,12 @@ const BoardFieldName = ({item, boardId}) => {
               const checkNewBoardField = await checkBoardFieldName(newValue, boardId)
 
               if (checkNewBoardField.length>0){
-                notifyError('Board field name must be unique')
+                showError('Board field name must be unique')
                 return
               }
 
               await updateBoardFieldName(newValue, item.id)
-              notify('Column name updated')
+              showSuccess('Column name updated')
               setDisabled(true)
 
 
@@ -3287,9 +3277,9 @@ useEffect(() => {
 
      try{
        await updateBoardFieldValue(formulaWithIdRef.current, item.board_field_values[0]?.id);
-       notify('Formula Updated')
+       showSuccess('Formula Updated')
      }catch(error){
-       notifyError(error)
+       showError(error)
      }
 
     }else{
@@ -3299,10 +3289,10 @@ useEffect(() => {
           value:formulaWithIdRef.current,
           type:item.type
         })
-        notify('New formula saved')
+        showSuccess('New formula saved')
 
       }catch(error){
-        notifyError(error)
+        showError(error)
       }
 
     }
@@ -3391,7 +3381,7 @@ useEffect(() => {
             </div>
             ):(
               <div style={{display:'flex', justifyContent: 'center', marginLeft:'5px'}}>
-                <button className='btn primary' onClick={addFormulaFunction}>Add Formula</button>
+                <button className='btn primary btn-sm' onClick={addFormulaFunction}>Add Formula</button>
               </div>
             )
           }

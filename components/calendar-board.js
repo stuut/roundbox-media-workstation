@@ -5,8 +5,12 @@ import dayGridPlugin from '@fullcalendar/daygrid' // a plugin!
 import listPlugin from '@fullcalendar/list';
 import timeGridPlugin from '@fullcalendar/timegrid';   // Week/Day
 import interactionPlugin from '@fullcalendar/interaction'; // Optional for click/drag
+import { useSearchParams } from 'next/navigation'
 
 export default function CalendarView({tasks, boardId, workspaceId}) {
+
+  const searchParams = useSearchParams()
+  const taskFocus = searchParams.get('task-id')
   const [events, setEvents] = useState([])
 
 
@@ -51,7 +55,8 @@ export default function CalendarView({tasks, boardId, workspaceId}) {
       events={events}
       eventClassNames={(arg) => {
         const status = arg.event.extendedProps.status || '';
-        return [`${'calendar-task'} ${status.toLowerCase().replace(/\s+/g, '-')}`];
+        const id = arg.event.id || '';
+        return [`${'calendar-task'} ${taskFocus===id?'task-hilight': null} ${status.toLowerCase().replace(/\s+/g, '-')}`];
       }}
 
     />

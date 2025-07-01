@@ -10,6 +10,7 @@ import { UserProvider } from '@/context/user-context'
 import { FilesProvider } from '@/context/files-context'
 import MyFiles from "@/components/my-files"
 import UserChat from "@/components/user-chat"
+import ToastProvider from "@/components/toast-provider"
 
 
 import "./globals.css"
@@ -42,6 +43,7 @@ export default function RootLayout({ children }) {
         <UserProvider>
           <FilesProvider>
           <TaskProvider>
+          <ToastProvider/>
             <main>
               <div>
                 <nav>

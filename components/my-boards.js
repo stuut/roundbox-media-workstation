@@ -31,7 +31,8 @@ export default function MyBoards({userId}) {
           <div key={index} key={index} className='workspace'>
             <Link href={`/board/${board.id}`}>
               <div key={index}>
-                {board.name}
+                <h3>{board.name}</h3>
+                <p>{board.description}</p>
               </div>
             </Link>
           </div>
