@@ -11,7 +11,6 @@ export default function MyTasks({userId}) {
 
   const getData = async () => {
     try {
-      console.log('my tasks userId', userId)
         const tasksData = await getTasksAssignedToUser(userId)
         setTasks(tasksData);
     } catch (error) {
@@ -45,7 +44,7 @@ export default function MyTasks({userId}) {
                 <div style={{display:'flex'}}>
                 {task.tasks.boards_assigned_to_task.map((board, index) => {
                   return(
-                    <div key={board.id}
+                    <div key={board.board_id}
                       style={{
                       marginRight:'5px'
                     }} className={`${'select-tab'} ${'select-tab-hover'}`}>
