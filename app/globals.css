@@ -552,16 +552,16 @@ height:120px
 }
 
 .fc-event.calendar-task.task-hilight{
-background: rgba(221, 188, 224, .5)
+background: rgba(65, 95, 145, .5)
 }
 
 
 .task-hilight{
-background: rgba(221, 188, 224, .5)
+background: rgba(65, 95, 145, .5)
 }
 
 .board-table-cell.task-hilight{
-background: rgba(221, 188, 224,, .5)
+background: rgba(65, 95, 145, .5)
 }
 
 

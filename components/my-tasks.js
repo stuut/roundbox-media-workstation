@@ -11,13 +11,14 @@ export default function MyTasks({userId}) {
 
   const getData = async () => {
     try {
+      console.log('my tasks userId', userId)
         const tasksData = await getTasksAssignedToUser(userId)
         setTasks(tasksData);
     } catch (error) {
       setError(error.message);
     }
   }
-  
+
 
   useEffect(() => {
     if (userId){
@@ -48,7 +49,7 @@ export default function MyTasks({userId}) {
                       style={{
                       marginRight:'5px'
                     }} className={`${'select-tab'} ${'select-tab-hover'}`}>
-                        <Link href={`/board/${board.board_id}#${task.tasks.id}`}>
+                        <Link href={`/board/${board.board_id}?task-id=${task.tasks.id}`}>
                           <p style={{margin:'0px'}}>{board.boards.name}</p>
                         </Link>
 

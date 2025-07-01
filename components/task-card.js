@@ -235,7 +235,7 @@ export default function TaskCard({
           return(
             <div key={board.board_id}>
               <div className={`${'select-tab'}`}>
-                  <Link href={`/board/${board.board_id}#${id}`}>
+                  <Link href={`/board/${board.board_id}?task-id=${id}`}>
                     <p>{board.boards.name}</p>
                   </Link>
 
@@ -346,12 +346,6 @@ const AddTaskMember = ({workspaceId, taskId, existingUsers, callback}) => {
           return base;
         });
 
-
-      //console.log('base', base)
-
-    console.log('newBaseUsers', newBaseUsers)
-
-    console.log('existingUsers', existingUsers)
 
 
       callback(newBaseUsers)
