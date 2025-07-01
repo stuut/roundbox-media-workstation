@@ -4,10 +4,12 @@ import { generateTaskEmailHTML } from '@/lib/emailTemplates';
 
 export async function GET(request) {
 
-  const secret = request.headers.get('x-cron-secret');
-    if (secret !== process.env.CRON_SECRET) {
-      return new Response('Unauthorized', { status: 401 });
-    }
+  const url = new URL(request.url);
+  const secret = url.searchParams.get('secret');
+
+  if (secret !== process.env.CRON_SECRET) {
+    return new Response('Unauthorized', { status: 401 });
+  }
 
   try {
     const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers();
