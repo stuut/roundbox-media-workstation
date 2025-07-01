@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import MyWorkspaces from "@/components/my-workspaces";
+import CreateWorkspace from "@/components/create-workspace";
 
 
 export default async function MyWorkspacesPage() {
@@ -14,9 +15,17 @@ export default async function MyWorkspacesPage() {
 
   const userId = user.id
   return (
-    <div style={{padding:'25px'}}>
+    <div style={{padding:'15px'}}>
       <h2>My Workspaces</h2>
-      <MyWorkspaces userId={userId }/>
+      <div className='dashboard-layout'>
+        <div>
+          <CreateWorkspace userId={userId}/>
+        </div>
+        <div>
+          <MyWorkspaces userId={userId}/>
+        </div>
+      {/*}<Chat/>*/}
+      </div>
     </div>
   );
 }

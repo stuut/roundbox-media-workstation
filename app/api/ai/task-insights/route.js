@@ -1,13 +1,11 @@
 // backend/api/ai/task-insights.js
 
-import { Configuration, OpenAIApi } from 'openai';
-import chrono from 'chrono-node';
+import OpenAI from 'openai';
+import * as chrono from 'chrono-node';
 import { supabaseAdmin } from '@/utils/supabase/superbaseAdmin.js';
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 
 /**
  * POST /api/ai/task-insights
@@ -43,7 +41,7 @@ export default async function handler(req, res) {
   const prompt = `You are helping fill out a task form based on previous tasks.\n\nPast tasks:\n${pastTaskSummaries}\n\nNow suggest field values for this task:\nTitle: ${title}\nDescription: ${description}\n\nFields to suggest:\n${fields.map(f => f.name).join(', ')}\n\nReturn a JSON object with keys matching the field names and values based on your suggestion.`;
 
   try {
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,

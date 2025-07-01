@@ -1,10 +1,10 @@
 'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export default function LinkedInSuccess() {
-  const router = useRouter();
-  const { token } = router.query;
+function LinkedInSuccessInner() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
 
   useEffect(() => {
     if (token) {
@@ -17,5 +17,14 @@ export default function LinkedInSuccess() {
       <h1>LinkedIn Connected!</h1>
       <p>Your token has been stored in localStorage.</p>
     </div>
+  );
+}
+
+// This is your actual page component
+export default function LinkedInSuccessPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LinkedInSuccessInner />
+    </Suspense>
   );
 }
