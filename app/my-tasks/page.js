@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import MyTasks from "@/components/my-tasks";
+import CreateTask from "@/components/create-task";
 
 
 export default async function MyTasksPage() {
@@ -18,7 +19,14 @@ export default async function MyTasksPage() {
   return (
     <div style={{padding:'25px'}}>
       <h2>My Tasks</h2>
-      <MyTasks userId={userId }/>
+      <div className='task-layout'>
+        <div>
+          <CreateTask userId={userId}/>
+        </div>
+        <div>
+          <MyTasks userId={userId }/>
+        </div>
+      </div>
     </div>
   );
 }

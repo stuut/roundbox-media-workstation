@@ -123,7 +123,7 @@ export default function CreateBoard({userId, workspaceId}) {
           </div>
           {!workspaceId&&
             <>
-            <p> Choose A Workspace </p>
+            <p><strong>Choose A Workspace</strong> </p>
             {workspaces.map((workspace, index)=>{
               return(
                 <div
@@ -139,7 +139,7 @@ export default function CreateBoard({userId, workspaceId}) {
             }
           </>
           }
-          <p> Choose Users </p>
+          <p><strong> Choose Users </strong></p>
             {users.map((user, index)=>{
               return(
                 <div

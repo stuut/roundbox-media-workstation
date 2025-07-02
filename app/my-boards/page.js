@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import MyBoards from "@/components/my-boards";
+import CreateBoard from "@/components/create-board";
 
 
 export default async function MyBoardsPage() {
@@ -18,7 +19,14 @@ export default async function MyBoardsPage() {
   return (
     <div style={{padding:'25px'}}>
       <h2>My Boards</h2>
-      <MyBoards userId={userId }/>
+      <div className='board-layout'>
+        <div>
+          <CreateBoard userId={user.id}/>
+        </div>
+        <div>
+          <MyBoards userId={userId }/>
+        </div>
+      </div>
     </div>
   );
 }

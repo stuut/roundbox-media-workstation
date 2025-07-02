@@ -25,10 +25,10 @@ export default function MyBoards({userId}) {
 }, [userId]);
 
   return (
-    <div style={{maxWidth:'600px'}}>
+    <div className="col-3">
       {boards.map((board, index) => {
         return(
-          <div key={index} key={index} className='workspace'>
+          <div key={index} className='board'>
             <Link href={`/board/${board.id}`}>
               <div key={index}>
                 <h3>{board.name}</h3>

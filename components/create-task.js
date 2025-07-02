@@ -130,7 +130,7 @@ export default function CreateTask({userId, boardId, workspaceId}) {
               )
             })
           }
-          <button className="btn primary"  type="submit">Create</button>
+          <button style={{display:'block'}} className="btn primary"  type="submit">Create</button>
         </form>
       </div>
     </div>

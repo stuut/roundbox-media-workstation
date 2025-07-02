@@ -25,13 +25,13 @@ export default function MyWorkspaces({userId}) {
 }, [userId]);
 
   return (
-    <div style={{maxWidth:'600px'}}>
+    <div className="col-3">
       {workspaces.map((workspace, index) => {
         return(
           <div key={index} className='workspace'>
             <Link href={`/workspace/${workspace.id}`}>
               <div key={index}>
-                {workspace.name}
+                <h3>{workspace.name}</h3>
               </div>
             </Link>
           </div>

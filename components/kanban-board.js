@@ -23,10 +23,6 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
 
   const calculateTotals = (tasks) => {
 
-
-
-    console.log('calculateTotals', calculateTotals)
-
     const totals = {
       Requested: 0,
       'In Progress': 0,
@@ -61,7 +57,6 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
     return acc;
   }, {});
 
-    console.log('groupedItems', groupedItems)
 
     setGroupedItems(groupedItems)
 
@@ -69,7 +64,6 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
 
 
   useEffect(() => {
-    console.log('kaban tasks', tasks)
 
 
     if (tasks){
@@ -84,15 +78,12 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
 
   const onDragStart = (e, item) => {
     e.dataTransfer.setData('item', JSON.stringify(item));
-    console.log('item', item)
-    console.log('e', e)
   };
 
 
   const onDrop = async (e, status) => {
       if (!e.dataTransfer.getData('item')) return;
       const item = JSON.parse(e.dataTransfer.getData('item'));
-      console.log('onDrop item', item, status)
       //await updateTaskStatus(workspaceId, item.id, status)
       updateTaskColumn(item.id, 'status', status)
   };

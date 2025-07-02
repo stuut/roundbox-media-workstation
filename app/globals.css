@@ -56,7 +56,12 @@ p{
 }
 
 h1, h2, h3, h4, h5, h6{
-  color:var(--md-sys-color-on-surface)
+  color:var(--md-sys-color-on-surface);
+  margin: 15px 0px
+}
+
+.task-date{
+  font-size:.8em
 }
 
 .kanban-count{
@@ -102,7 +107,7 @@ h1, h2, h3, h4, h5, h6{
   padding:var(--tab-padding);
   border-radius: var(--border-radius);
   margin: 10px 0;
-  transition: all 1s ease
+  transition: all .5s ease
 }
 
 .select-tab.hover:hover{
@@ -131,8 +136,27 @@ h1, h2, h3, h4, h5, h6{
   margin: 10px 0
 }
 .dashboard-layout,
+.task-layout,
+.board-layout,
 .workspace-layout{
   display:flex
+}
+
+.col-3{
+  display:flex;
+  flex-direction: row;
+}
+
+.col-3 > div{
+  flex:1;
+  margin: 0 10px
+}
+
+.status-bar{
+  font-size: .8em;
+  border-radius: 25px;
+  padding: 5px 10px;
+  display: inline-block;
 }
 
 .formula{
@@ -147,12 +171,14 @@ h1, h2, h3, h4, h5, h6{
 }
 
 .dashboard-layout > div,
+.task-layout > div,
 .board-layout > div,
 .workspace-layout > div{
   padding:15px
 }
 
 .dashboard-layout > div:nth-child(1),
+.task-layout > div:nth-child(1),
 .board-layout > div:nth-child(1),
 .workspace-layout > div:nth-child(1){
   width:20%;
@@ -160,6 +186,7 @@ h1, h2, h3, h4, h5, h6{
 }
 
 .dashboard-layout > div:nth-child(2),
+.task-layout > div:nth-child(2),
 .board-layout > div:nth-child(2),
 .workspace-layout > div:nth-child(2){
   width:80%;
