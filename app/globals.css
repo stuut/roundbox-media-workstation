@@ -60,6 +60,10 @@ h1, h2, h3, h4, h5, h6{
   margin: 15px 0px
 }
 
+h2{
+  font-size: 1.3em;
+}
+
 .task-date{
   font-size:.8em
 }
@@ -109,6 +113,10 @@ h1, h2, h3, h4, h5, h6{
   margin: 10px 0;
   transition: all .5s ease
 }
+.board-header-cell.no-rows{
+  border-bottom: none;
+
+}
 
 .select-tab.hover:hover{
   background:var(--md-sys-color-primary);
@@ -122,6 +130,41 @@ h1, h2, h3, h4, h5, h6{
 .column-item{
   /*border-bottom: var(--input-border-width) solid var(--md-sys-color-surface-dim);*/
 }
+.board,
+.task{
+  transition: all .5s ease
+}
+
+
+
+.board.selected{
+  background:var(--md-sys-color-primary);
+  color:var(--md-sys-color-on-primary);
+}
+
+.task.overdue.selected,
+.task.selected{
+  background:var(--md-sys-color-primary);
+  color:var(--md-sys-color-on-primary);
+}
+.board.selected h3,
+.task.overdue.selected h3,
+.task.selected h3,
+.board.selected a,
+.task.overdue.selected a,
+.task.selected a,
+.board.selected p,
+.task.overdue.selected p,
+.task.selected p {
+  color:var(--md-sys-color-on-primary);
+}
+
+.task.overdue.selected .select-tab p,
+.task.selected .select-tab p {
+  color: #000000;
+}
+
+
 
 .select-tab.active{
   background:var(--md-sys-color-primary);
@@ -142,14 +185,19 @@ h1, h2, h3, h4, h5, h6{
   display:flex
 }
 
+
+
 .col-3{
   display:flex;
   flex-direction: row;
+  flex-wrap: wrap;
 }
 
 .col-3 > div{
   flex:1;
-  margin: 0 10px
+  margin: 10px;
+  min-width: 30%;
+  max-width: 30%;
 }
 
 .status-bar{
@@ -170,6 +218,38 @@ h1, h2, h3, h4, h5, h6{
 
 }
 
+.form-input.board-name{
+     font-size: 1.3em;
+     font-weight:bold;
+     width:unset
+}
+
+.board-name:disabled{
+  border: none;
+}
+
+.board-description:disabled{
+  border: none;
+}
+
+.board-layout-float{
+
+}
+
+.board-layout-float > div{
+    padding:15px
+}
+
+.board-layout-float > div:nth-child(1){
+  width:20%;
+  float:left;
+}
+
+.board-layout-float > div:nth-child(2){
+  width:80%;
+  float:left;
+}
+
 .dashboard-layout > div,
 .task-layout > div,
 .board-layout > div,
@@ -182,7 +262,6 @@ h1, h2, h3, h4, h5, h6{
 .board-layout > div:nth-child(1),
 .workspace-layout > div:nth-child(1){
   width:20%;
-  float:left;
 }
 
 .dashboard-layout > div:nth-child(2),
@@ -190,7 +269,6 @@ h1, h2, h3, h4, h5, h6{
 .board-layout > div:nth-child(2),
 .workspace-layout > div:nth-child(2){
   width:80%;
-  float:left;
 }
 
 .table{
@@ -442,7 +520,24 @@ border: var(--input-border-width) solid var(--md-sys-color-surface-dim);
 
 }
 
+.drop-shadow{
+  box-shadow: 5px 5px 60px 0px rgba(0,0,0,0.25);
+-webkit-box-shadow: 5px 5px 60px 0px rgba(0,0,0,0.25);
+-moz-box-shadow: 5px 5px 60px 0px rgba(0,0,0,0.25);
+}
+
 .new-column{
+  background:var(--md-sys-color-surface);
+  color:var(--md-sys-color-on-surface);
+  padding:var(--card-padding);
+  border-radius: var(--border-radius);
+  max-width:250px;
+  position:absolute;
+  min-width:250px;
+  z-index:1
+}
+
+.new-element-board{
   background:var(--md-sys-color-surface);
   color:var(--md-sys-color-on-surface);
   padding:var(--card-padding);

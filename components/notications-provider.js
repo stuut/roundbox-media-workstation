@@ -14,8 +14,6 @@ export default function NotificationsProvider({user}) {
   useEffect(() => {
     if (!user.id) return;
 
-    console.log('NotificationsProvider', user.id)
-
     const channel = supabase
       .channel('notifications')
       .on(

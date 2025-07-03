@@ -7,7 +7,7 @@
   --btn-padding-y: 10px;
   --btn-padding-x: 15px;
   --btn-border-width:1px;
-  --card-padding:25px;
+  --card-padding:15px 25px 25px 25px;
   --tab-padding:10px 15px 10px 15px;
   --border-radius:25px;
   --btn-border-radius:10px;
@@ -15,14 +15,6 @@
   --sm-font-size:.8rem;
   --sm-btn-padding-y:8px;
   --sm-btn-padding-x:10px;
-  --toastify-color-info: #4ccfe0;
-  --toastify-color-success: #4ccfe0;
-  --toastify-color-warning: #f1c40f;
-  --toastify-color-error: #e74c3c;
-  --toastify-icon-color-info: var(--toastify-color-info);
-  --toastify-icon-color-success: var(--toastify-color-success);
-  --toastify-icon-color-warning: var(--toastify-color-warning);
-  --toastify-icon-color-error: var(--toastify-color-error);
 
 }
 

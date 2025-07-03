@@ -51,7 +51,6 @@ export async function GET(request) {
       if (pendingTasks.length === 0) continue;
 
       const htmlBody = generateTaskEmailHTML(pendingTasks, process.env.WEBSITE);
-      console.log('htmlBody', htmlBody)
 
       const transporter = nodemailer.createTransport({
         service: 'gmail',

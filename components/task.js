@@ -12,9 +12,6 @@ export default function Task({taskId, userId}) {
   const [task, setTask] = useState(null)
 
 
-
-
-
   const getData = async () => {
     try {
         const taskData = await getTask(taskId)
@@ -49,7 +46,7 @@ export default function Task({taskId, userId}) {
           taskMembers={task.task_members??[]}
           boards={task.boards_assigned_to_task??[]}
           boardColumns={task.boardColumns??[]}
-          workspaceId={task.boards_assigned_to_task[0].boards.workspace_id[0].workspace_id}
+          workspaceId={task.boards_assigned_to_task[0]?.boards.workspace_id[0]?.workspace_id}
           size={'large'}
         />
       }

@@ -79,8 +79,6 @@ export default function TaskCard({
 
     const selectUserFunction = (data) => {
 
-      console.log('selectUserFunction', data)
-
       if (data === createdBy.id){
         return
       }
@@ -96,18 +94,14 @@ export default function TaskCard({
     }
 
     const removeMembers = async() => {
-
       if (selectedUsers){
-
         setTaskMembersArray(prev => {
           return prev.filter((member)=> {
             return !selectedUsers.some((user)=> user === member.user_id)
           })
         })
       }
-
        await deleteMembersFromTask(id, selectedUsers)
-
     }
 
     const addMembers = async (newMembers) => {
@@ -261,7 +255,6 @@ export default function TaskCard({
           )
         })}
         {selectedUsers.length>0&&
-
           <button className='btn danger' onClick={removeMembers}>Remove Members</button>
         }
         <AddTaskMember workspaceId={workspaceId} taskId={id} existingUsers={taskMembersArray} callback={addMembers}/>
@@ -283,9 +276,14 @@ const AddTaskMember = ({workspaceId, taskId, existingUsers, callback}) => {
   const getUsersData = async () => {
     try {
 
+          let users
         //const users = await getAllUsers()
 
-        const users = await getAllUsersAssignedToWorkspace(workspaceId)
+        if (workspaceId){
+          users = await getAllUsersAssignedToWorkspace(workspaceId)
+        }else{
+          users = await getAllUsers()
+        }
 
 
         const checkedUsers = users.filter((user, index)=> {
@@ -350,6 +348,7 @@ const AddTaskMember = ({workspaceId, taskId, existingUsers, callback}) => {
 
       callback(newBaseUsers)
       setSelectedUsers([])
+        setUsers([])
       setAddMemberItem(false)
     }catch(error){
       showError(error)
@@ -366,10 +365,10 @@ const AddTaskMember = ({workspaceId, taskId, existingUsers, callback}) => {
             <div onClick={() => setAddMemberItem(false)} style={{position:'absolute', top:'2px', right:'2px'}}>
               <img src='/close-error.svg' style={{width:'20px'}}/>
             </div>
-            No Workspace Members To Add
+            No Members To Add
           </div>
         }
-        {users&&
+        {users && !noUsers&&
           <p><strong>Add Members</strong></p>
         }
         {users.map((user, index)=>{

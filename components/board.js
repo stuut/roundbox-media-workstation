@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getBoardWithWorkspace } from "@/lib/supabase";
 import { getBoardWithColumnsAndTasks } from "@/lib/supabase";
 import { insertNewColumn } from "@/lib/supabase";
+import { removeTasksFromBoard } from "@/lib/supabase";
 import { updateColumnValue } from "@/lib/supabase";
 import { updateColumnName } from "@/lib/supabase";
 import { updateBoardFieldName} from "@/lib/supabase";
@@ -16,6 +17,7 @@ import { deleteTasks } from "@/lib/supabase";
 import { deleteColumnValues } from "@/lib/supabase";
 import { updateTaskDueDate } from "@/lib/supabase";
 import { updateTaskColumn } from "@/lib/supabase";
+import { updateBoardColumn } from "@/lib/supabase";
 import { deleteCustomColumns } from "@/lib/supabase";
 import { uploadFilesPublic } from "@/lib/supabase";
 import { storeFileInfo } from "@/lib/supabase";
@@ -43,6 +45,7 @@ import { isObjectInArray } from '@/lib/utils'
 import { checkDate } from '@/lib/utils'
 import { formatToPostgresUTC } from '@/lib/utils'
 import { groupMembersByTaskId } from '@/lib/utils'
+import { isValidURL } from '@/lib/utils'
 import { sanitizeWord } from '@/lib/utils'
 import debounce from 'lodash.debounce';
 import moment from "moment";
@@ -70,6 +73,9 @@ import DropdownBuilder from '@/components/dropdown-builder';
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
+import AddTaskToBoard from '@/components/add-task-to-board';
+import BoardMembers from '@/components/board-members';
+import { FilterToggle } from '@/components/filter-toggle';
 
 
 export default function Board({ boardId, userId }) {
@@ -101,9 +107,10 @@ export default function Board({ boardId, userId }) {
   const [allTasksMembers, setAllTasksMembers] = useState([]);
   const [selectMembersFilter, setSelectMembersFilter] = useState([]);
   const [clearCheckBoxes, setClearCheckBoxes] = useState(false);
+  const [dateFilter, setDateFilter] = useState('due_date');
+  const [dateFilterDirection, setDateFilterDirection] = useState('');
 
-
-
+//desc
 
 
   const reorderSavedColumns = (defaultHeaders) => {
@@ -420,9 +427,9 @@ useEffect(() => {
         event: '*',
         schema: 'public',
         table: 'board_field_values',
+
       },
       (payload) => {
-        console.log('board_field_values', payload)
 
            if (payload.eventType === 'UPDATE'){
 
@@ -467,7 +474,6 @@ useEffect(() => {
               setBoard(prev => {
 
 
-                    console.log('INSERT NEW VALUE', prev)
                     const updatedBoardFields = prev.board_fields.map(boardField => {
                       if (boardField.id === payload.new.board_field_id) {
                         return {
@@ -478,7 +484,6 @@ useEffect(() => {
                       return boardField;
                     });
 
-                    console.log('updatedBoardFields', updatedBoardFields)
 
                     return {
                       ...prev,
@@ -510,9 +515,11 @@ useEffect(() => {
         event: '*',
         schema: 'public',
         table: 'board_fields',
+        /*filter: `board_id=eq.${boardId}`*/
       },
       (payload) => {
-        console.log('board-fields-update channel', payload)
+
+        console.log('board-fields-inserts', payload)
         if (payload.eventType === 'DELETE'){
           setBoard(prev => {
             const updatedBoardFields = prev.board_fields.filter(board_field => {
@@ -529,7 +536,6 @@ useEffect(() => {
 
               if (payload.eventType === 'INSERT'){
                 setBoard(prev => {
-
                   const combined = { ...payload.new,
                     board_field_values:[]
                   }
@@ -615,22 +621,73 @@ useEffect(() => {
  }, []);
 
 
+ useEffect(() => {
+   const channel = supabase
+     .channel('board-updates')
+     .on(
+       'postgres_changes',
+       {
+         event: 'UPDATE',
+         schema: 'public',
+         table: 'boards',
+         filter: `id=eq.${boardId}`
+       },
+       (payload) => {
+         console.log('board-updates', payload.new)
+
+         setBoard(prev => {
+
+           if (prev.name !== payload.new.name){
+             return {
+               ...prev,
+               name: payload.new.name,
+             };
+           }else{
+             return {
+               ...prev,
+               description: payload.new.description,
+             };
+           }
+
+         });
+
+       }
+     )
+     .subscribe();
+
+   // Cleanup on unmount
+   return () => {
+     supabase.removeChannel(channel);
+   };
+  }, []);
+
+
 useEffect(() => {
   const channel = supabase
     .channel('board-inserts')
     .on(
       'postgres_changes',
       {
-        event: 'DELETE',
+        event: '*',
         schema: 'public',
         table: 'board_tasks',
       },
       (payload) => {
-        console.log('board-inserts channel')
-        if (payload.new.board_id === boardId) {
-          getData()
+        console.log('board-inserts channel', payload)
+
+        if (payload.eventType === 'DELETE'){
+          setBoard(prev => {
+            const updatedTasks = prev.tasks.filter((task)=> {
+              return task.id !== payload.old.task_id
+            })
+
+            return {
+              ...prev,
+              tasks: updatedTasks
+            };
+
+          })
         }
-        // You could also call a callback or update state here
       }
     )
     .subscribe();
@@ -746,6 +803,8 @@ useEffect(() => {
                 payload.new.type === 'tags' ||
                 payload.new.type === 'number' ||
                 payload.new.type === 'checkbox' ||
+                payload.new.type === 'checkbox list' ||
+                payload.new.type === 'url' ||
                 payload.new.type === 'formula'){
 
 
@@ -968,7 +1027,8 @@ const getFilteredTaskMembers = async () => {
 
  const deleteTasksFunction = async () =>{
    try{
-      const deletedTasks = await deleteTasks(selectedTasks)
+     await removeTasksFromBoard(boardId, selectedTasks)
+
       setSelectedTasks([])
 
 
@@ -1095,15 +1155,21 @@ setColDefs(prevItems => {
 
  }
 
+ const dateFilterFunction = (direction, columnValue) => {
+   console.log('dateFilterFunction', direction, columnValue )
+   setDateFilter(columnValue)
+   setDateFilterDirection(direction)
+ }
+
 
   return (
     <>
       {(board && colDefs && rowData)&&
         <>
         <div style={{padding:'15px'}}>
-          <h2>{board.name}</h2>
+          <BoardTitle boardId={boardId} initValue={board.name}/>
         </div>
-        <div className='board-layout'>
+        <div className='board-layout-float'>
           <div>
             <div style={{display:'flex', alignItems:'center'}}>
               <div style={{
@@ -1114,7 +1180,7 @@ setColDefs(prevItems => {
               <p style={{marginLeft:'5px'}}>Over Due</p>
             </div>
             <div className='card'>
-              <label className="form-label" style={{display:'block'}}><strong>View Filter</strong></label>
+              <p className="form-label" style={{display:'block'}}><strong>View Filter</strong></p>
               <select className="form-input select"
                 onChange={(e) => {
                 setBoardView(e.target.value)
@@ -1131,64 +1197,75 @@ setColDefs(prevItems => {
                 })}
               </select>
             </div>
+              <div className='card'>
+                <BoardDescription boardId={boardId} initValue={board.description}/>
+              </div>
+
+              <div className='card'>
+                <p className="form-label" style={{display:'block'}}><strong>Task Filters</strong></p>
+                <p style={{fontSize:'.8em', margin:'15px 0px 5px 0px'}}>Task Status</p>
+                <select className="form-input select"
+                  onChange={async(e) => {
+                  setStatusFilter(e.target.value)
+                  if (e.target.value !== 'All'){
+                    const boardData = await getBoardWithColumnsAndTasksStatusFilter(boardId, e.target.value)
+                    setBoard(boardData)
+                  }else{
+                    const boardData = await getBoardWithColumnsAndTasks(boardId)
+                    setBoard(boardData[0])
+                  }
+                  //const memberTasks = await getBoardWithColumnsAndTasksMemberFilter(boardId, [userId])
+                  }}
+                  value={statusFilter}>
+                  {statusFilterArray.map(function(filter, index){
+                    return(
+                      <option key={index} value={filter}>{filter}</option>
+                    )
+                  })}
+                </select>
+                  {allTasksMembers.length>0&&
+                    <p style={{fontSize:'.8em', margin:'15px 0px 5px 0px'}}>Select Members</p>
+                  }
+                  {allTasksMembers.map(function(member, index){
+                    return(
+                      <div key={member.user_id} style={{display:'flex', alignItems:'center', marginTop:'5px'}}>
+                        <SelectCheckBox id={member.user_id} clearCheckBoxes={clearCheckBoxes} callBackFunction={selectMembersFilterFunction}/>
+                        {member.users.full_name &&
+                          <div style={{marginLeft:'5px', marginTop: '.25em'}}>
+                            {member.users.full_name}
+                          </div>
+                        }
+                      </div>
+                    )
+                  })}
+                  {selectMembersFilter.length>0&&
+                    <button onClick={() => {
+                      setSelectMembersFilter([])
+                      setClearCheckBoxes(true)
+                    }}
+                    className='btn secondary btn-sm' >Clear</button>
+                  }
+              </div>
+
             <div className='card'>
               <NewBoardValueComponent boardId={boardId} userId={userId}/>
               <CustomBoardFields board={board}/>
             </div>
-
-            <div className='card'>
-              <label className="form-label" style={{display:'block'}}><strong>Task Filters</strong></label>
-              <p style={{fontSize:'.8em', margin:'15px 0px 5px 0px'}}>Task Status</p>
-              <select className="form-input select"
-                onChange={async(e) => {
-                setStatusFilter(e.target.value)
-                if (e.target.value !== 'All'){
-                  const boardData = await getBoardWithColumnsAndTasksStatusFilter(boardId, e.target.value)
-                  console.log('boardData', boardData)
-                  setBoard(boardData)
-                }else{
-                  const boardData = await getBoardWithColumnsAndTasks(boardId)
-                  setBoard(boardData[0])
-                }
-                //const memberTasks = await getBoardWithColumnsAndTasksMemberFilter(boardId, [userId])
-                }}
-                value={statusFilter}>
-                {statusFilterArray.map(function(filter, index){
-                  return(
-                    <option key={index} value={filter}>{filter}</option>
-                  )
-                })}
-              </select>
-                <p style={{fontSize:'.8em', margin:'15px 0px 5px 0px'}}>Select Members</p>
-                {allTasksMembers.map(function(member, index){
-                  return(
-                    <div key={member.user_id} style={{display:'flex', alignItems:'center', marginTop:'5px'}}>
-                      <SelectCheckBox id={member.user_id} clearCheckBoxes={clearCheckBoxes} callBackFunction={selectMembersFilterFunction}/>
-                      {member.users.full_name &&
-                        <div style={{marginLeft:'5px', marginTop: '.25em'}}>
-                          {member.users.full_name}
-                        </div>
-                      }
-                    </div>
-                  )
-                })}
-                {selectMembersFilter.length>0&&
-                  <button onClick={() => {
-                    setSelectMembersFilter([])
-                    setClearCheckBoxes(true)
-                  }}
-                  className='btn secondary btn-sm' >Clear</button>
-                }
-              </div>
-            <CreateTask userId={userId}  boardId={ boardId}  workspaceId={board.workspace_boards[0].workspace_id}/>
-          </div>
+            <CreateTask userId={userId}  boardId={ boardId}  workspaceId={board.workspace_boards[0]?.workspace_id}/>
+            <BoardMembers boardId={ boardId} createdBy={board.created_by} boardMembers={null} workspaceId={board.workspace_boards[0]?.workspace_id}/>
+        </div>
           <div style={{overflowX:'auto'}}>
                 {boardView === 'Table' &&
                   <>
                   <div style={{display:'flex', position: 'sticky', left: 0, zIndex:1}}>
-                    <NewCustomColumn boardId={boardId} userId={userId} colDefs={colDefs}/>
+                    {rowData.length>0&&
+                      <>
+                        <NewCustomColumn boardId={boardId} userId={userId} colDefs={colDefs}/>
+                        <AddTaskToBoard boardId={boardId} userId={userId} existingBoardTasks={board.tasks}/>
+                      </>
+                    }
                     {selectedTasks.length > 0&&
-                      <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteTasksFunction}>Delete Tasks</button>
+                      <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteTasksFunction}>Remove Tasks</button>
                     }
                     {selectedColItems.length > 0&&
                       <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteColumnValuesFunction}>Delete Column Items</button>
@@ -1220,7 +1297,7 @@ setColDefs(prevItems => {
                             <div
                               key={index}
                               style={{ fontWeight: "bold", width: col.width }}
-                              className={index+1 === colDefs.length? 'board-table-cell board-header-cell last-header-cell' : 'board-table-cell board-header-cell'}
+                              className={`${index+1 === colDefs.length? 'board-table-cell board-header-cell last-header-cell' : 'board-table-cell board-header-cell'} ${rowData.length===0?'no-rows':''}`}
                             >
                               <div
                                 style={{height:'100%'}}
@@ -1238,8 +1315,21 @@ setColDefs(prevItems => {
                                         {col.id?(
                                           <ColumnName col={col} boardId={boardId}/>
                                         ):(
+                                          <>
+
                                           <p style={{marginLeft:'10px'}}>{col.field.replace('_', ' ')}</p>
+                                          {(col.field === 'due_date' || col.field === 'created_at') && (
+                                            <FilterToggle
+                                              dateFilterDirection={dateFilterDirection}
+                                              dateFilter={dateFilter}
+                                              columnValue={col.field}
+                                              callback={dateFilterFunction}
+                                            />
+                                          )}
+
+                                          </>
                                         )}
+
                                       </div>
                                     </ResizableColumns>
                                   }
@@ -1250,6 +1340,13 @@ setColDefs(prevItems => {
 
                       {/* Rows */}
                       {rowData
+                        .sort((a, b) => {
+                          if (dateFilterDirection === 'asc'){
+                            return new Date(a[dateFilter]) - new Date(b[dateFilter])
+                          }else{
+                            return new Date(b[dateFilter]) - new Date(a[dateFilter])
+                          }
+                        })
                         .map((row, rowIndex) => {
                         const date = checkDate(row.due_date)
                         return(
@@ -1356,7 +1453,7 @@ setColDefs(prevItems => {
                                             //custom column
                                             if (row[col.field]?.value){
                                                 //updateTaskColumn(row.id, col.field, new Date(date))
-                                               updateColumnValue(newValue, row[col.field].id);
+                                            updateColumnValue(newValue, row[col.field].id);
                                             }else{
                                               // insert new task column
                                               addNewColumnValue({
@@ -1376,6 +1473,7 @@ setColDefs(prevItems => {
                                     />
                                   </>
                                   }
+
                                   {col.type === 'select'&& col.field === "status" &&
                                     <>
                                     <select className="form-input select"
@@ -1423,6 +1521,14 @@ setColDefs(prevItems => {
                                         )
                                       })}
                                       <AddTextItem data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}} />
+                                    </>
+                                  }
+                                  {isCustomColumn && col.type === "url" &&
+                                    <>
+                                      <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                          {/*}<SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>*/}
+                                          <ColumnUrl item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                      </div>
                                     </>
                                   }
                                   {isCustomColumn && col.type === "number" &&
@@ -1514,6 +1620,14 @@ setColDefs(prevItems => {
                                   }
 
                                   {isCustomColumn && col.type === "checkbox" &&
+                                    <>
+                                      <div style={{display:'flex', alignItems:'center', flexDirection:'row', justifyContent: 'center'}}>
+                                        {/*}<SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>*/}
+                                        <SingleColumnCheckBox item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                      </div>
+                                    </>
+                                  }
+                                  {isCustomColumn && col.type === "checkbox list" &&
                                     <>
                                       {row[col.field]?.map((item, index)=>{
                                         return(
@@ -1755,21 +1869,81 @@ const AddColumnCheckBox = ({data}) => {
   )
 }
 
-const ColumnCheckBox = ({item}) => {
+const ColumnUrl = ({item, data}) => {
 
+  const [value, setValue] = useState(item?.value? item?.value : '');
+
+
+
+  useEffect(() => {
+    if (item?.value){
+          setValue(item?.value)
+    }
+  }, [item]);
+
+
+
+  return(
+    <div style={{display:'flex', justifyContent: 'center'}}>
+        <input
+            style={{marginTop:'0px'}}
+            id={item?.id?item.id:'checkbox'}
+            className="form-input"
+            type="url"
+            onChange={(e) => setValue(e.target.value)}
+            value={value}
+            onBlur={(e) => {
+              const newValue = e.target.value;
+              const isUrlValid = isValidURL(newValue)
+
+              if (!isUrlValid){
+                showError('Input is not a valid Url')
+                return
+              }
+
+              if (!item) {
+                addNewColumnValue({
+                  task_id: data.task_id,
+                  column_id: data.column_id,
+                  board_id: data.board_id,
+                  value: newValue,
+                  type:data.type
+                });
+              }else{
+                updateColumnValue(newValue, item.id);
+              }
+
+            }}
+         />
+   </div>
+  )
+}
+
+
+const SingleColumnCheckBox = ({item, data}) => {
 
   const [checkboxToggle, setCheckboxToggle] = useState(false);
 
-  const checkboxfunction = (data) =>{
+  const checkboxfunction = () =>{
     setCheckboxToggle(prevState => {
 
       const newState = !prevState;
       const stringValue = newState.toString(); // or String(newState)
-
       // Save stringValue somewhere
-
         // update value
-        updateColumnValue(stringValue, item.id);
+
+          if (item){
+            updateColumnValue(stringValue, item.id);
+          }else{
+
+             addNewColumnValue({
+              task_id: data.task_id,
+              column_id: data.column_id,
+              board_id: data.board_id,
+              value: stringValue,
+              type:data.type
+            });
+          }
 
 
       return newState;
@@ -1779,27 +1953,77 @@ const ColumnCheckBox = ({item}) => {
 
 
   useEffect(() => {
-    if (item.value){
+    if (item?.value){
 
         const bool = item.value === 'true'
         setCheckboxToggle(bool)
 
     }
-  }, [item.value]);
+  }, [item]);
 
 
 
   return(
-    <div className='checkbox-list-item' style={{display:'flex', alignItems:'center'}}>
+    <div style={{display:'flex', justifyContent: 'center'}}>
+      <div className='checkbox-list-item' style={{margin: '10px 0px 0px 0px', display:'flex', alignItems:'center'}}>
+        <input
+            style={{marginTop:'0px'}}
+            id={item?.id?item.id:'checkbox'}
+            className="form-check-input"
+            type="checkbox"
+            onChange={checkboxfunction}
+            checked={checkboxToggle}
+         />
+     </div>
+   </div>
+  )
+}
+
+const ColumnCheckBox = ({item}) => {
+
+  const [checkboxToggle, setCheckboxToggle] = useState(false);
+
+  const checkboxfunction = () =>{
+    setCheckboxToggle(prevState => {
+
+      const newState = !prevState;
+      const stringValue = newState.toString(); // or String(newState)
+      // Save stringValue somewhere
+        // update value
+        if (item){
+          updateColumnValue(stringValue, item.id);
+        }
+
+      return newState;
+    });
+
+  }
+
+
+  useEffect(() => {
+    if (item?.value){
+
+        const bool = item.value === 'true'
+        setCheckboxToggle(bool)
+
+    }
+  }, [item]);
+
+
+
+  return(
+    <div className='checkbox-list-item' style={{display:'flex', alignItems:'center', }}>
       <input
           style={{marginTop:'0px'}}
-          id={item.id}
+          id={item?.id?item.id:'checkbox'}
           className="form-check-input"
           type="checkbox"
-          onChange={(e) => checkboxfunction(e.target.value)}
+          onChange={checkboxfunction}
           checked={checkboxToggle}
        />
-        <p style={{marginLeft:'5px'}}>{item.label}</p>
+       {item?.label&&
+         <p style={{marginLeft:'5px'}}>{item.label}</p>
+        }
    </div>
   )
 }
@@ -2930,7 +3154,7 @@ const NewCustomColumn = ({boardId, userId, colDefs}) => {
     <div style={{position:'relative'}}>
       <button className='btn primary' onClick={() => setNewColumn(prevState => !prevState)}>New Column</button>
       {newColumn&&
-        <div className="new-column">
+        <div className="new-column drop-shadow">
             <form onSubmit={handleColumnCreate}>
             <label className="form-label" style={{display:'block'}}><strong>Column Name</strong></label>
             <input
@@ -3008,7 +3232,7 @@ const NewBoardValueComponent = ({boardId, userId}) => {
       <label className="form-label" style={{display:'block'}}><strong>Board Custom Fields</strong></label>
       <button className='btn primary btn-sm' onClick={() => setNewBoardValue(prevState => !prevState)}>New Field</button>
       {newBoardValue&&
-        <div className="new-column">
+        <div className="new-column drop-shadow">
           <form onSubmit={handleBoardValueCreate}>
           <label className="form-label" style={{display:'block'}}><strong>Value Name</strong></label>
           <input
@@ -3487,7 +3711,7 @@ const handleMouseDown = (side, e) => {
         right:'-5px',
         width:'10px',
         height: '100%',
-        cursor:'w-resize',
+        cursor:'col-resize',
       }}
       className="no-drag column-drag">
       </div>
@@ -3498,7 +3722,6 @@ const handleMouseDown = (side, e) => {
 const DropDown = ({items, data, value})=>{
 
   const [dropdownValue, setDropdownValue] = useState(value[0]?.value? value[0]?.value : 'choose')
-
 
   useEffect(() => {
     setDropdownValue(value[0]?.value? value[0]?.value : 'choose');
@@ -3545,5 +3768,116 @@ const DropDown = ({items, data, value})=>{
         }
       </select>
     </div>
+  )
+}
+
+const BoardTitle = ({boardId, initValue}) => {
+  const [inputValue, setInputValue] = useState(initValue)
+  const [disabled, setDisabled] = useState(true)
+  const inputRef = useRef(null);
+  const spanRef = useRef(null);
+  const [inputWidth, setInputWidth] = useState(1); // initial width
+
+  useEffect(() => {
+    if (initValue){
+        setInputValue(initValue);
+    }
+
+  }, [initValue]);
+
+  useEffect(() => {
+  if (spanRef.current) {
+    const spanWidth = spanRef.current.offsetWidth;
+    setInputWidth(spanWidth + 30); // small padding for cursor
+  }
+}, [inputValue]);
+
+//updateBoardColumn
+  return(
+    <div style={{display:'flex'}}>
+      <input
+        ref={inputRef}
+        id={'board-title'}
+        style={{marginBottom: '0px', marginTop:'0px', width: `${inputWidth}px`}}
+        className='form-input board-name'
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        disabled={disabled}
+        onBlur={async(e) => {
+            const newValue = e.target.value;
+            if (newValue !== initValue) {
+              try{
+                await updateBoardColumn(boardId, 'name', newValue)
+                showSuccess('Board name updated')
+              }catch(error){
+                showError(error)
+              }finally{
+                setDisabled(true)
+              }
+
+            }
+        }}
+      />
+      <span
+        ref={spanRef}
+        style={{
+          position: 'absolute',
+          visibility: 'hidden',
+          whiteSpace: 'pre',
+          font: 'inherit',
+          fontSize: '1.3em',
+          fontWeight: 'bold',
+        }}
+      >
+        {inputValue}
+      </span>
+      <img style={{width:'20px', marginLeft:'10px'}} src='/edit.svg' onClick={() => setDisabled(prevState => !prevState)} />
+  </div>
+  )
+}
+
+const BoardDescription = ({boardId, initValue}) => {
+  const [inputValue, setInputValue] = useState(initValue)
+  const [disabled, setDisabled] = useState(true)
+
+  useEffect(() => {
+    if (initValue){
+        setInputValue(initValue);
+    }
+  }, [initValue]);
+
+//updateBoardColumn
+  return(
+    <>
+      <div style={{display:'flex', marginBottom:'10px'}}>
+        <label className="form-label" style={{display:'block'}}><strong>Description</strong></label>
+        <img style={{width:'20px', marginLeft:'10px'}} src='/edit.svg' onClick={() => setDisabled(prevState => !prevState)} />
+     </div>
+        <textarea
+          id={'board-description'}
+          style={{marginBottom: '0px', marginTop:'0px', width:'100%'}}
+          className='form-input board-description'
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          disabled={disabled}
+          onBlur={async(e) => {
+              const newValue = e.target.value;
+              if (newValue !== initValue) {
+
+                try {
+                  await updateBoardColumn(boardId, 'description', newValue)
+                  showSuccess('Board description updated')
+                }catch (error){
+                  showError(error)
+                }finally{
+                  setDisabled(true)
+                }
+
+              }
+          }}
+        />
+      </>
   )
 }

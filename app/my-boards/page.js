@@ -18,7 +18,7 @@ export default async function MyBoardsPage() {
 
   return (
     <div style={{padding:'25px'}}>
-      <h2>My Boards</h2>
+      <h1>My Boards</h1>
       <div className='board-layout'>
         <div>
           <CreateBoard userId={user.id}/>
