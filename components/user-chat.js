@@ -49,12 +49,12 @@ const setAlertFunction = (data) => {
       </>
       }
       {openChat&&
-        <div className='card'
+        <div className='card drop-shadow'
           style={{
             padding:'10px',
             position:'absolute',
             transform: 'translate(-100%, -100%)',
-            minWidth: '400px',
+            minWidth: '600px',
             minHeight: '250px'
           }}>
           <ChatConversations alert={setAlertFunction}/>

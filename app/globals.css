@@ -724,6 +724,18 @@ height:120px
   position:relative
 }
 
+.message-avatar{
+  width: 40px;
+  height: 40px;
+  border-radius:50%
+
+}
+
+.message-avatar img{
+  object-fit:cover;
+  border-radius:50%
+}
+
 .fc-event.calendar-task.task-hilight{
 background: rgba(65, 95, 145, .5)
 }
@@ -737,45 +749,41 @@ background: rgba(65, 95, 145, .5)
 background: rgba(65, 95, 145, .5)
 }
 
-
-
-.message.message-right::after{
-  content: '';
-  width: 0px;
-  height: 0px;
-  border-style: solid;
-  border-width: 0 20px 20px 0;
-  border-color: transparent var(--md-sys-color-primary) transparent transparent;
-  transform: rotate(0deg);
-  position: absolute;
-  bottom: -15px;
-  right: 15px;
-}
-
-
-.message.message-left::after{
-  content:'';
-  width: 0px;
-    height: 0px;
-    border-style: solid;
-    border-width: 20px 20px 0 0;
-    border-color: var(--md-sys-color-secondary) transparent transparent transparent;
-    transform: rotate(0deg);
-    position: absolute;
-    bottom: -15px;
-    left: 15px;
+.message.secondary{
+  background-color: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-on-surface);
 }
 
 
 
-.message.message-right{
-
-  margin-left:20%
+.message-right .message-avatar{
+  position:absolute;
+  right:0px
 }
 
-.message.message-left{
+.message-left .message-avatar{
+  position:absolute;
+  left:0px
+}
 
-  margin-right:20%
+.message-avatar{
+  top: 50%;
+    transform: translateY(-50%);
+}
+
+
+
+
+.message-right{
+  position:relative;
+  margin-left:20%;
+  padding-right: 50px;
+}
+
+.message-left{
+  position:relative;
+  margin-right:20%;
+  padding-left: 50px;
 }
 
 input:-webkit-autofill {

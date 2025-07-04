@@ -16,6 +16,10 @@ export function useMessageListener(userId, onNewMessage) {
           table: 'messages',
         },
         async (payload) => {
+
+
+          console.log('payload', payload)
+
           const newMessage = payload.new;
 
           // Check if user is a member of the conversation

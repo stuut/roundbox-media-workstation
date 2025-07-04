@@ -19,7 +19,7 @@ import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 import { checkDate } from '@/lib/utils'
 import TaskMembers from '@/components/task-members'
-
+import { sendNotifications } from "@/lib/utils";
 
 
 export default function TaskCard({
@@ -214,6 +214,12 @@ export default function TaskCard({
             const newValue = e.target.value;
               if (newValue !==  status){
                 updateTaskColumn(id, 'status', newValue)
+                const userArray = taskMembers.map((user)=>{
+                  return user.id
+                })
+                const message = `<span>The status of one of your tasks has bee updated to <strong>${newValue}</strong> - <a href="/task/${id}"><strong>View Task Here<strong></a></span>`
+                 sendNotifications(userArray, message)
+
               }
           }}
           disabled={!editable}

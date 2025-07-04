@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getBoardWithWorkspace } from "@/lib/supabase";
 import { getBoardWithColumnsAndTasks } from "@/lib/supabase";
 import { insertNewColumn } from "@/lib/supabase";
+import { insertNotification } from "@/lib/supabase";
 import { removeTasksFromBoard } from "@/lib/supabase";
 import { updateColumnValue } from "@/lib/supabase";
 import { updateColumnName } from "@/lib/supabase";
@@ -76,7 +77,7 @@ import { showInfo } from '@/lib/toast';
 import AddTaskToBoard from '@/components/add-task-to-board';
 import BoardMembers from '@/components/board-members';
 import { FilterToggle } from '@/components/filter-toggle';
-
+import { sendNotifications } from "@/lib/utils";
 
 export default function Board({ boardId, userId }) {
   //dashboard?board-type=Table
@@ -1487,6 +1488,9 @@ setColDefs(prevItems => {
                                             if (row[col.field?.value]){
                                                 //updateTaskColumn(row.id, col.field, new Date(date))
                                               updateColumnValue(newValue, row[col.field].id);
+
+
+
                                             }else{
                                               // insert new task column
                                               addNewColumnValue({
@@ -1500,6 +1504,13 @@ setColDefs(prevItems => {
                                           }else{
                                             // default column
                                             updateTaskColumn(row.id, col.field, newValue)
+                                            console.log('status update')
+                                            const userArray = row.task_members.map((user)=>{
+                                              return user.user_id
+                                            })
+                                            console.log('userArray', userArray)
+                                            const message = `<span>The status of one of your tasks has bee updated to <strong>${newValue}</strong> - <a href="/task/${row.id}"><strong>View Task Here<strong></a></span>`
+                                              sendNotifications(userArray, message)
                                           }
                                       }}
                                       defaultValue={row[col.field]?.value || ''}>
@@ -1694,10 +1705,10 @@ setColDefs(prevItems => {
                   </>
                 }
                 {boardView === 'Kanban' &&
-                  <KanbanView tasks={board.tasks} boardId={ boardId}  workspaceId={board.workspace_boards[0].workspace_id}/>
+                  <KanbanView tasks={board.tasks} userId={userId} boardId={ boardId}  workspaceId={board.workspace_boards[0].workspace_id}/>
                 }
                 {boardView === 'Calendar' &&
-                  <CalendarView tasks={board.tasks} boardId={ boardId}  workspaceId={board.workspace_boards[0].workspace_id}/>
+                  <CalendarView tasks={board.tasks} userId={userId} boardId={ boardId}  workspaceId={board.workspace_boards[0].workspace_id}/>
                 }
           </div>
           <div className="clear_fix">

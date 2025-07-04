@@ -7,7 +7,9 @@ import { getAllConversationsforaUser } from "@/lib/supabase";
 import { isInArray } from '@/lib/utils'
 import User from "@/components/user";
 import { useMessageListener } from '@/components/use-message-listener';
-
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 
 export default function ChatConversations({alert}) {
   const [recipientId, setRecipientId] = useState('');
@@ -56,7 +58,6 @@ export default function ChatConversations({alert}) {
 
     try {
       const conversations = await getAllConversationsforaUser(user.id)
-      console.log('conversations', conversations)
       setMyConversations(conversations)
 
     } catch (error) {
@@ -161,12 +162,11 @@ export default function ChatConversations({alert}) {
 
   useMessageListener(user.id, (newMsg) => {
 
+
     if (newMsg.conversation_id === selectedConversation.id){
         setSelectedConversationMessages(prev => [...prev, newMsg])
 
     }
-
-
 
     alert(true)
 
@@ -187,7 +187,7 @@ export default function ChatConversations({alert}) {
                     setSelectedConversation(null)
                     setSelectedConversationMessages(null)
                   }else{
-                    console.log('convo.conversation', convo.conversation)
+
                     setSelectedConversation(convo.conversation)
                     setSelectedConversationMessages(convo.conversation.messages)
                   }
@@ -208,16 +208,31 @@ export default function ChatConversations({alert}) {
             )
         })}
       </div>
-      <div style={{padding:'0px 15px', flex:2}}>
+      <div style={{padding:'0px 15px', flex:3}}>
 
         {selectedConversation ?(
 
                 <div style={{display:'flex', flexDirection:'column'}}>
                   {selectedConversationMessages.map((message)=>{
                     return(
-                      <div key={message.id} className={`${message.sender_id===user.id?'message-right primary':'message-left secondary'} ${'message'}`}>
-                        {message.content}
-                      </div>
+                      <div key={message.id} className={`${message.sender_id===user.id?'message-right':'message-left'}`}>
+                        <div className={`${'message'} ${message.sender_id===user.id?'primary':'secondary'}`}>
+                          {message.content}
+                        </div>
+                        {message?.sender&&
+                          <>
+                          {message?.sender.avatar_url?(
+                            <div className={`${'message-avatar'} `}>
+                              <img src={message?.sender.avatar_url} />
+                            </div>
+                            ):(
+                            <div className={`${'message-avatar'}`}>
+                              <img src='/account.svg' />
+                            </div>
+                          )}
+                        </>
+                        }
+                    </div>
                     )
                   })}
                   <form onSubmit={sendMessage}>

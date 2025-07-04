@@ -59,10 +59,9 @@ export default function CreateTask({userId, boardId, workspaceId, accordionState
       }
 
       const newTask = await createTask(taskData, selectedUsers, selectedBoards, selectedWorkspaces)
-
       const newTaskId = newTask.id
 
-      const message = `<span>A new task has been created for you: <a href="/task/${newTaskId}">View Task Here</a></span>`
+      const message = `<span>A new task has been created for you: <a href="/task/${newTaskId}"><strong>View Task Here</strong></a></span>`
 
         selectedUsers.forEach(async(userId) => {
           await insertNotification(userId, message)

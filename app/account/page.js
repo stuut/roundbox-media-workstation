@@ -2,7 +2,7 @@ import AccountForm from '@/components/account-form'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Notifications from '@/components/notifications'
-
+import {FacebookConnection} from '@/components/connect-facebook'
 export default async function Account() {
   const supabase = await createClient()
 
@@ -19,6 +19,9 @@ export default async function Account() {
           <div>
             <h3>Notfications</h3>
             <Notifications userId={user.id} />
+          </div>
+          <div>
+            <FacebookConnection userId={user.id}/>
           </div>
         </div>
       )

@@ -7,8 +7,10 @@ import { baseKaban } from '@/lib/constants'
 import moment from "moment";
 import { checkDate } from '@/lib/utils'
 import { useSearchParams } from 'next/navigation'
+import { insertNotification } from '@/lib/supabase'
+import { sendNotifications } from "@/lib/utils";
 
-export default function KanbanView({workspaceId, boardId, tasks}) {
+export default function KanbanView({workspaceId, boardId, userId, tasks}) {
   const searchParams = useSearchParams()
   const taskFocus = searchParams.get('task-id')
 
@@ -64,10 +66,7 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
 
 
   useEffect(() => {
-
-
     if (tasks){
-
       sortTasks(tasks)
       calculateTotals(tasks)
     }else{
@@ -84,8 +83,19 @@ export default function KanbanView({workspaceId, boardId, tasks}) {
   const onDrop = async (e, status) => {
       if (!e.dataTransfer.getData('item')) return;
       const item = JSON.parse(e.dataTransfer.getData('item'));
+
+
       //await updateTaskStatus(workspaceId, item.id, status)
       updateTaskColumn(item.id, 'status', status)
+
+
+      const userArray = item.task_members.map((user)=>{
+        return user.user_id
+      })
+
+      const message = `<span>The status of one of your tasks has bee updated to <strong>${status}</strong> - <a href="/task/${item.id}"><strong>View Task Here<strong></a></span>`
+        sendNotifications(userArray, message)
+
   };
 
   const onDragOver = (e, status) => {
