@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/send-daily-job-emails",
-      "schedule": "0 8 * * *"
+      "schedule": "0 22 * * *"
     }
   ]
 }

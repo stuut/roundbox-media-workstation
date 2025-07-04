@@ -1252,7 +1252,7 @@ setColDefs(prevItems => {
               <CustomBoardFields board={board}/>
             </div>
             <CreateTask userId={userId}  boardId={ boardId}  workspaceId={board.workspace_boards[0]?.workspace_id}/>
-            <BoardMembers boardId={ boardId} createdBy={board.created_by} boardMembers={null} workspaceId={board.workspace_boards[0]?.workspace_id}/>
+            <BoardMembers boardId={ boardId} createdBy={board.created_by} boardMembers={null} workspaceId={board.workspace_boards[0]?.workspace_id} realtime={true} accordion={'closed'}/>
         </div>
           <div style={{overflowX:'auto'}}>
                 {boardView === 'Table' &&
@@ -1407,9 +1407,12 @@ setColDefs(prevItems => {
                                   {(col.field === 'task_members') &&
                                     <>
                                       {row[col.field]?.map((item, index)=>{
+
                                         return(
                                           <div key={item.user_id} style={{display:'flex', alignItems:'center'}}>
-                                            <SelectMemberCheckBox user={item} taskId={row.id} callBackFunction={selectMembersFunction}/>
+                                            {item.user_id !== row.created_by.id &&
+                                              <SelectMemberCheckBox user={item} taskId={row.id} callBackFunction={selectMembersFunction}/>
+                                            }
                                             <div className={`${'select-tab'}`}>
                                               {item.users&&
                                               <User userInfo={item.users} active={null}/>
@@ -1418,7 +1421,7 @@ setColDefs(prevItems => {
                                           </div>
                                         )
                                       })}
-                                      <AddTaskMember board={board} task={row} existingUsers={row[col.field]}/>
+                                      <AddTaskMember board={board} task={row} existingUsers={row[col.field]} selectedTaskMembers={selectedTaskMembers}/>
                                     </>
                                   }
 
@@ -1697,7 +1700,7 @@ setColDefs(prevItems => {
                   <CalendarView tasks={board.tasks} boardId={ boardId}  workspaceId={board.workspace_boards[0].workspace_id}/>
                 }
           </div>
-          <div>
+          <div className="clear_fix">
           </div>
         </div>
 
@@ -2764,7 +2767,7 @@ const ListItemNumber = ({item}) => {
   );
 }
 
-const AddTaskMember = ({board, task, existingUsers}) => {
+const AddTaskMember = ({board, task, existingUsers, selectedTaskMembers}) => {
 
     const [users, setUsers] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
@@ -2865,7 +2868,9 @@ const AddTaskMember = ({board, task, existingUsers}) => {
       </>
     ) : (
       <div style={{display:'flex', justifyContent: 'center'}}>
-        <button className='btn primary' onClick={setAddMemberItemFunction}>Add Member</button>
+        {selectedTaskMembers.length==0&&
+          <button className='btn primary' onClick={setAddMemberItemFunction}>Add Member</button>
+        }
       </div>
     )}
   </>

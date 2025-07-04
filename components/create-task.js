@@ -17,7 +17,7 @@ import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 
-export default function CreateTask({userId, boardId, workspaceId}) {
+export default function CreateTask({userId, boardId, workspaceId, accordionState}) {
 
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([userId]);
@@ -176,8 +176,8 @@ export default function CreateTask({userId, boardId, workspaceId}) {
   return (
     <div>
       <div style={{position:'relative', padding:'5px 25px 5px 25px'}} className="card">
-        <p className="form-label" style={{display:'block'}}><strong>Create Task</strong></p>
-        <Accordion initState={'closed'}>
+        <h3>Create Task</h3>
+        <Accordion initState={accordionState}>
           <form onSubmit={handleCreate}>
             <input
               id="taskName"

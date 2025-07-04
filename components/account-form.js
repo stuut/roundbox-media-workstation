@@ -2,6 +2,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import Avatar from './avatar'
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 
 
 export default function AccountForm({ user }) {
@@ -33,7 +36,7 @@ export default function AccountForm({ user }) {
         setAvatarUrl(data.avatar_url)
       }
     } catch (error) {
-      alert('Error loading user data!')
+      showError('Error loading user data!')
     } finally {
       setLoading(false)
     }
@@ -56,16 +59,16 @@ export default function AccountForm({ user }) {
         updated_at: new Date().toISOString(),
       })
       if (error) throw error
-      alert('Profile updated!')
+      showSuccess('Profile updated!')
     } catch (error) {
-      alert('Error updating the data!')
+      showError('Error updating the data!')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="card center-relative" style={{width:'100%', maxWidth:'600px'}}>
+    <div className="card" style={{width:'100%', maxWidth:'600px'}}>
       <Avatar
         uid={user?.id}
         url={avatar_url}

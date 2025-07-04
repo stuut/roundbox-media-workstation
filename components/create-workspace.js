@@ -27,7 +27,7 @@ export default function CreateWorkspace({userId}) {
   return (
     <div style={{maxWidth:'600px'}}>
       <div className="card">
-        <h2>Create Workspace</h2>
+        <h3>Create Workspace</h3>
         <form onSubmit={handleCreate}>
               <input
                 className='form-input'

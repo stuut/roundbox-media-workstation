@@ -3,6 +3,8 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  /*overflow-y: hidden;*/
+  height: 100%;
 
 }
 
@@ -33,6 +35,13 @@ body {
   font-family: var(--font-poppins), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+main{
+  height:100%
+}
+.clear_fix{
+      clear: left;
 }
 
 * {
@@ -81,6 +90,20 @@ h2{
   font-weight:bold
 }
 
+.card-light{
+  background:var(--md-sys-color-surface-container-low);
+  color:var(--md-sys-color-on-surface);
+  padding:var(--card-padding);
+  border-radius: var(--border-radius);
+  margin: 10px 0
+}
+
+.notification{
+  background:var(--md-sys-color-tertiary-container);
+  color:var(--md-sys-color-on-tertiary-container);
+  padding:var(--card-padding);
+  border-radius: var(--border-radius);
+}
 
 .card{
   background:var(--md-sys-color-surface-container);
@@ -88,6 +111,18 @@ h2{
   padding:var(--card-padding);
   border-radius: var(--border-radius);
   margin: 10px 0
+}
+
+.border_card{
+  border: 10px solid var(--md-sys-color-surface-container);
+  border-radius: var(--border-radius);
+  padding:15px
+}
+
+.border{
+  border: .5px solid var(--md-sys-color-outline);
+  border-radius: var(--border-radius);
+  padding:15px
 }
 
 .task{
@@ -135,7 +170,15 @@ h2{
   transition: all .5s ease
 }
 
+.workspace,
+.board{
+  cursor:pointer
+}
 
+.workspace.selected{
+  background:var(--md-sys-color-primary);
+  color:var(--md-sys-color-on-primary);
+}
 
 .board.selected{
   background:var(--md-sys-color-primary);
@@ -147,12 +190,16 @@ h2{
   background:var(--md-sys-color-primary);
   color:var(--md-sys-color-on-primary);
 }
+
+.workspace.selected h3,
 .board.selected h3,
 .task.overdue.selected h3,
 .task.selected h3,
+.workspace.selected a,
 .board.selected a,
 .task.overdue.selected a,
 .task.selected a,
+.workspace.selected p,
 .board.selected p,
 .task.overdue.selected p,
 .task.selected p {
@@ -218,12 +265,14 @@ h2{
 
 }
 
+.form-input.workspace-name,
 .form-input.board-name{
      font-size: 1.3em;
      font-weight:bold;
      width:unset
 }
 
+.workspace-name:disabled,
 .board-name:disabled{
   border: none;
 }
@@ -233,7 +282,7 @@ h2{
 }
 
 .board-layout-float{
-
+    height: calc(100% - 151px);
 }
 
 .board-layout-float > div{
@@ -243,6 +292,8 @@ h2{
 .board-layout-float > div:nth-child(1){
   width:20%;
   float:left;
+  overflow-y: scroll;
+  height:100%
 }
 
 .board-layout-float > div:nth-child(2){

@@ -7,16 +7,17 @@ import { isInArray } from '@/lib/utils'
 import { isUserInArray } from '@/lib/utils'
 import { insertWorkspaceMembers } from '@/lib/supabase'
 import { deleteMembersFromWorkspace } from '@/lib/supabase'
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 
 export default function WorkspaceMembers({workspaceId, userId, workspaceOwner }) {
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
-  const [selectedWorkspaceMembers, setSelectedWorkspaceMembers] = useState([])
 
   const getUsersData = async () => {
     try {
         const workspacesUsers = await getAllUsersAssignedToWorkspace(workspaceId)
-        console.log('workspacesUsers', workspacesUsers)
         setUsers(workspacesUsers);
     } catch (error) {
       setError(error.message);
@@ -31,52 +32,43 @@ export default function WorkspaceMembers({workspaceId, userId, workspaceOwner })
   }, [workspaceId]);
 
   const selectUserFunction = (data) => {
+
+    if (data === workspaceOwner){
+      showError('you cannot modify the creator of the Workspace')
+      return
+    }
+
     if (isInArray(data, selectedUsers)){
-      const removed = selectedUsers.filter(remove => {
-        return remove !== data
-      });
-      setSelectedUsers(removed);
+        setSelectedUsers(prev => prev.filter(remove => remove !== data))
     }else{
       setSelectedUsers(selectedUsers => [...selectedUsers, data])
     }
   }
 
-  const deleteMembersFromWorkspaceFunction = async () =>{
+  const removeMembers = async () =>{
     try{
-       await deleteMembersFromWorkspace(workspaceId, selectedWorkspaceMembers)
        //getUsersData()
 
        setUsers(prev => {
-         const updatedUsers = prev.filter((user)=>{
-           if (!isInArray(user.id, selectedWorkspaceMembers)){
-             return user
-           }
+         return prev.filter((member)=>{
+            return !selectedUsers.some((user)=> {
+              return user === member.id
+            })
          })
-
-         console.log('updatedUsers', updatedUsers)
-         return updatedUsers
        })
 
-       setSelectedWorkspaceMembers([])
+       await deleteMembersFromWorkspace(workspaceId, selectedUsers)
+
+
+       setSelectedUsers([])
     }catch (error){
       console.log(error)
     }
   }
 
-  const selectMembersFunction = (userId) => {
 
-    if (isInArray(userId, selectedWorkspaceMembers)){
-      const removed = selectedWorkspaceMembers.filter(remove => {
-        return remove !== userId
-      });
-      setSelectedWorkspaceMembers(removed);
-    }else{
-      setSelectedWorkspaceMembers(selectedWorkspaceMembers => [...selectedWorkspaceMembers, userId])
-    }
-  }
 
-  const addMembersCallBack  = (newUsers) => {
-    console.log('newUsers', newUsers)
+  const addMembers = (newUsers) => {
     setUsers(preState => [...preState, ...newUsers]);
   }
 
@@ -85,13 +77,13 @@ export default function WorkspaceMembers({workspaceId, userId, workspaceOwner })
       <div className="card">
         <h2>Workspace Members</h2>
         {users.map((user, index)=>{
-          console.log('user.id', user.id)
-          console.log('user', user)
+
             return(
               <div key={user.id} style={{display:'flex', alignItems:'center'}}>
+                {/*}
                 {(userId === workspaceOwner && user.id !== workspaceOwner) &&
                   <SelectMemberCheckBox user={user} callBackFunction={selectMembersFunction}/>
-                }
+                }*/}
                 <div
                   onClick={() => selectUserFunction(user.id)}
                   style={{cursor:'pointer'}}
@@ -103,10 +95,11 @@ export default function WorkspaceMembers({workspaceId, userId, workspaceOwner })
             )
           })
         }
-        <AddWorkspaceMember workspaceId={workspaceId} userId={userId} existingUsers={users} callback={addMembersCallBack}/>
-        {(selectedWorkspaceMembers.length > 0 && userId === workspaceOwner) &&
-          <button className='btn danger' onClick={deleteMembersFromWorkspaceFunction}>Remove Members</button>
+        {selectedUsers.length>0&&
+          <button className='btn danger' onClick={removeMembers}>Remove Members</button>
         }
+        <AddWorkspaceMember workspaceId={workspaceId} userId={userId} existingUsers={users} callback={addMembers}/>
+
       </div>
     </div>
   );
@@ -138,20 +131,16 @@ const AddWorkspaceMember = ({workspaceId, userId, existingUsers, callback}) => {
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [addMemberItem, setAddMemberItem] = useState(false)
     const [noUsers, setNoUsers] = useState(false)
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
 
 
   const getUsersData = async () => {
     try {
         const allUsers = await getAllUsers()
         // filter out current user because only members of workspace has access
-        const checkUsers = allUsers.filter((user, index)=>{
-
-          if (!isUserInArray(user.id, existingUsers)){
-            return user
-          }
-
+        const checkUsers = allUsers.filter((user)=>{
+          return !existingUsers.some((existingUser)=>{
+            return user.id === existingUser.id
+          })
         })
 
         if (checkUsers.length === 0){
@@ -162,7 +151,7 @@ const AddWorkspaceMember = ({workspaceId, userId, existingUsers, callback}) => {
 
         setUsers(checkUsers);
     } catch (error) {
-      setError(error.message);
+      showError(error.message);
     }
   }
 
@@ -172,10 +161,7 @@ const AddWorkspaceMember = ({workspaceId, userId, existingUsers, callback}) => {
     const isUserInArrayCheck = isUserInArray({user_id:data}, existingUsers)
 
     if (isInArray(data, selectedUsers)){
-      const removed = selectedUsers.filter(remove => {
-        return remove !== data
-      });
-      setSelectedUsers(removed);
+        setSelectedUsers(prev => prev.filter(remove => remove !== data))
     }else{
       setSelectedUsers(selectedUsers => [...selectedUsers, data])
     }
@@ -197,15 +183,12 @@ const AddWorkspaceMember = ({workspaceId, userId, existingUsers, callback}) => {
     try{
       await insertWorkspaceMembers(workspaceId, selectedUsers)
       //filter new users
-      const newUsers = users.filter((user)=>{
-        if (isInArray(user.id, selectedUsers)){
-          return user
-        }
-      })
+      const newUsers = users.filter(user => selectedUsers.includes(user.id))
+
       callback(newUsers)
       setAddMemberItem(false)
     }catch(error){
-      console.log(error)
+      showError(error)
     }
 
   }
@@ -214,7 +197,6 @@ const AddWorkspaceMember = ({workspaceId, userId, existingUsers, callback}) => {
     <>
     {addMemberItem? (
       <>
-        <p>Select Users</p>
         {noUsers &&
           <div className="warning" style={{position:'relative'}}>
             <div onClick={() => setAddMemberItem(false)} style={{position:'absolute', top:'2px', right:'2px'}}>
@@ -222,6 +204,9 @@ const AddWorkspaceMember = ({workspaceId, userId, existingUsers, callback}) => {
             </div>
             No Users To Add
           </div>
+        }
+        {users && !noUsers&&
+          <p><strong>Select Users</strong></p>
         }
         {users.map((user, index)=>{
             return(

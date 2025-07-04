@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
 import MyBoards from "@/components/my-boards";
 import CreateBoard from "@/components/create-board";
+import { redirect } from 'next/navigation'
 
 
 export default async function MyBoardsPage() {

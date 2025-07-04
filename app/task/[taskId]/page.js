@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import Task from "@/components/task";
+import { redirect } from 'next/navigation'
 
 
 

@@ -36,6 +36,31 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${poppins.variable}`} suppressHydrationWarning>
       <body className="bg-background text-foreground">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.fbAsyncInit = function() {
+                FB.init({
+                  appId      : '2837257096522631',
+                  cookie     : true,
+                  xfbml      : true,
+                  version    : 'v22.0'
+                });
+
+                FB.AppEvents.logPageView();
+              };
+
+              (function(d, s, id){
+                 var js, fjs = d.getElementsByTagName(s)[0];
+                 if (d.getElementById(id)) {return;}
+                 js = d.createElement(s); js.id = id;
+                 js.src = "https://connect.facebook.net/en_US/sdk.js";
+                 fjs.parentNode.insertBefore(js, fjs);
+               }(document, 'script', 'facebook-jssdk'));
+
+            `,
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -45,14 +70,14 @@ export default function RootLayout({ children }) {
           <TaskProvider>
           <ToastProvider/>
             <main>
-              <div>
+              <div style={{height:'100%'}}>
                 <nav>
                   <div>
                     {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                   </div>
                 </nav>
                 <MyFiles/>
-                <div>
+                <div style={{height:'100%'}}>
                   {children}
                 </div>
                 <UserChat/>

@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import User from "@/components/user";
 import { isInArray } from '@/lib/utils'
-import { getBoardMembers } from '@/lib/supabase'
+import { getTaskMembers } from '@/lib/supabase'
 import { getAllUsers } from '@/lib/supabase'
-import { deleteMembersFromBoard } from '@/lib/supabase'
-import { insertBoardMembers } from '@/lib/supabase'
+import { deleteMembersFromTask } from '@/lib/supabase'
+import { insertTaskMembers } from '@/lib/supabase'
 import { getAllUsersAssignedToWorkspace } from '@/lib/supabase'
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
@@ -14,18 +14,17 @@ import { Accordion } from '@/components/accordion'
 import { createClient } from '@/utils/supabase/client'
 import { isUserInArray } from '@/lib/utils'
 
-export default function BoardMembers({boardId, createdBy, boardMembers, workspaceId, realtime=true, accordion}) {
+export default function TaskMembers({taskId, createdBy, taskMembers, workspaceId, realtime=false, accordion}) {
   const supabase = createClient()
   const  [selectedUsers, setSelectedUsers] = useState([]);
   const [users, setUsers] = useState([]);
 
 
 
-const getBoardMembersData = async() => {
+const getTaskMembersData = async() => {
 
   try{
-    const usersData = await getBoardMembers(boardId)
-    console.log('usersData', usersData)
+    const usersData = await getTaskMembers(taskId)
       if (usersData){
         setUsers(usersData)
       }
@@ -40,18 +39,17 @@ const getBoardMembersData = async() => {
 useEffect(() => {
   if (realtime){
     const channel = supabase
-      .channel('board-members-update')
+      .channel('task-members-update')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'board_members',
-          filter: `board_id=eq.${boardId}`
+          table: 'task_members',
+          filter: `task_id=eq.${taskId}`
         },
         (payload) => {
 
-          console.log('payload', payload)
 
           if (payload.eventType === 'DELETE'){
             setUsers(prev => {
@@ -62,7 +60,7 @@ useEffect(() => {
            }
 
           if (payload.eventType === 'INSERT') {
-            getBoardMembersData()
+            getTaskMembersData()
           }
         }
       )
@@ -77,22 +75,22 @@ useEffect(() => {
  }, [realtime]);
 
 
-
   useEffect(()=>{
 
-    if (boardMembers){
-      setUsers(boardMembers)
+    if (taskMembers){
+      setUsers(taskMembers)
     }else{
 
-      getBoardMembersData()
+      getTaskMembersData()
     }
 
-  },[boardMembers])
+  },[taskMembers])
 
   const selectUserFunction = (data) => {
 
-    if (data === createdBy){
-      showError('you cannot modify the creator of the board')
+
+    if (data === createdBy.id){
+      showError('you cannot modify the creator of the task')
       return
     }
 
@@ -116,7 +114,7 @@ useEffect(() => {
       }
     }
 
-     await deleteMembersFromBoard(boardId, selectedUsers)
+     await deleteMembersFromTask(taskId, selectedUsers)
 
      setSelectedUsers([])
   }
@@ -126,8 +124,8 @@ useEffect(() => {
   }
 
   return(
-    <div style={{position:'relative', padding:'5px 25px 5px 25px'}} className="card">
-      <p className="form-label" style={{display:'block'}}><strong>Board members</strong></p>
+    <div style={{position:'relative'}}>
+      <h3>Task members</h3>
       <Accordion initState={accordion}>
       {users.map((user, index)=>{
         return(
@@ -142,14 +140,14 @@ useEffect(() => {
       {selectedUsers.length>0&&
         <button className='btn danger' onClick={removeMembers}>Remove Members</button>
       }
-      <AddBoardMember workspaceId={workspaceId} boardId={boardId} existingUsers={users} callback={addMembers} realtime={realtime}/>
+      <AddTaskMember workspaceId={workspaceId} taskId={taskId} existingUsers={users} callback={addMembers} realtime={realtime}/>
       </Accordion>
   </div>
   )
 }
 
 
-const AddBoardMember = ({workspaceId, boardId, existingUsers, callback, realtime}) => {
+const AddTaskMember = ({workspaceId, taskId, existingUsers, callback, realtime}) => {
 
     const [users, setUsers] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
@@ -213,12 +211,12 @@ const AddBoardMember = ({workspaceId, boardId, existingUsers, callback, realtime
   const addMembersFunction = async () => {
     try{
 
-      await insertBoardMembers(boardId, selectedUsers)
+      await insertTaskMembers(taskId, selectedUsers)
 
       if (!realtime){
           const newUsers = users.filter(user => selectedUsers.includes(user.id))
 
-          callback(newBaseUsers)
+          callback(newUsers)
       }
       setSelectedUsers([])
       setUsers([])

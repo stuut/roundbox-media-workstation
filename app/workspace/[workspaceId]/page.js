@@ -3,6 +3,7 @@ import Workspace from "@/components/work-space";
 import CreateBoard from "@/components/create-board";
 import MyBoards from "@/components/my-boards";
 import WorkspaceBoards from "@/components/workspace-boards";
+import { redirect } from 'next/navigation'
 
 
 export default async function WorkspacePage({ params }) {

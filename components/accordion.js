@@ -11,7 +11,7 @@ export const Accordion = ({children, initState}) => {
     <img onClick={() => setOpen(prevState => !prevState)} src="/chevron-backward.svg" style={{
       width: '30px',
       position: 'absolute',
-      top: '11px',
+      top: '15px',
       right: '3px',
       transform:open? 'rotate(-90deg)':'rotate(0deg)'
     }}/>

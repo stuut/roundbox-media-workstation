@@ -16,6 +16,8 @@ export default function Task({taskId, userId}) {
     try {
         const taskData = await getTask(taskId)
         console.log('taskData', taskData)
+
+
         setTask(taskData)
     } catch (error) {
       showError(error.message);
@@ -31,6 +33,13 @@ export default function Task({taskId, userId}) {
     },[taskId] )
 
 
+    const flattenMembers = (members) => {
+      return members.map((item) => ({
+        ...item.users,         // All task fields
+      }));
+    }
+
+
   return(
     <div style={{padding:'25px'}}>
       <ToastContainer />
@@ -43,7 +52,7 @@ export default function Task({taskId, userId}) {
           dueDate={task.due_date}
           createdBy={task.created_by_user}
           status={task.status}
-          taskMembers={task.task_members??[]}
+          taskMembers={task.task_members? flattenMembers(task.task_members):[]}
           boards={task.boards_assigned_to_task??[]}
           boardColumns={task.boardColumns??[]}
           workspaceId={task.boards_assigned_to_task[0]?.boards.workspace_id[0]?.workspace_id}

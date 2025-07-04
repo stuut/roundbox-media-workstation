@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getWorkspaceWithMembersAndBoards } from "@/lib/supabase";
 import CreateBoard from "@/components/create-board";
 import WorkspaceMembers from "@/components/workspace-members";
 import MyBoards from "@/components/my-boards";
 import WorkspaceBoards from "@/components/workspace-boards";
 import { boardFilterArray } from "@/lib/constants";
-
+import { updateWorkspaceColumn } from "@/lib/supabase";
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 export default function Workspace({ workspaceId, userId }) {
   const [workspace, setWorkspace] = useState(null);
   const [error, setError] = useState(null);
@@ -39,7 +42,7 @@ export default function Workspace({ workspaceId, userId }) {
       {workspace&&
         <>
         <div style={{padding:'15px'}}>
-          <h2>{workspace.name}</h2>
+          <WorkspaceTitle workspaceId={workspaceId} initValue={workspace.name}/>
         </div>
         <div className='workspace-layout'>
           <div>
@@ -74,4 +77,71 @@ export default function Workspace({ workspaceId, userId }) {
       }
     </>
   );
+}
+
+
+const WorkspaceTitle = ({workspaceId, initValue}) => {
+  const [inputValue, setInputValue] = useState(initValue)
+  const [disabled, setDisabled] = useState(true)
+  const inputRef = useRef(null);
+  const spanRef = useRef(null);
+  const [inputWidth, setInputWidth] = useState(1); // initial width
+
+  useEffect(() => {
+    if (initValue){
+        setInputValue(initValue);
+    }
+
+  }, [initValue]);
+
+  useEffect(() => {
+  if (spanRef.current) {
+    const spanWidth = spanRef.current.offsetWidth;
+    setInputWidth(spanWidth + 30); // small padding for cursor
+  }
+}, [inputValue]);
+
+//updateBoardColumn
+  return(
+    <div style={{display:'flex'}}>
+      <input
+        ref={inputRef}
+        id={'workspace-title'}
+        style={{marginBottom: '0px', marginTop:'0px', width: `${inputWidth}px`}}
+        className='form-input workspace-name'
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        disabled={disabled}
+        onBlur={async(e) => {
+            const newValue = e.target.value;
+            if (newValue !== initValue) {
+              try{
+                await updateWorkspaceColumn(workspaceId, 'name', newValue)
+                showSuccess('workspace name updated')
+              }catch(error){
+                showError(error)
+              }finally{
+                setDisabled(true)
+              }
+
+            }
+        }}
+      />
+      <span
+        ref={spanRef}
+        style={{
+          position: 'absolute',
+          visibility: 'hidden',
+          whiteSpace: 'pre',
+          font: 'inherit',
+          fontSize: '1.3em',
+          fontWeight: 'bold',
+        }}
+      >
+        {inputValue}
+      </span>
+      <img style={{width:'20px', marginLeft:'10px'}} src='/edit.svg' onClick={() => setDisabled(prevState => !prevState)} />
+  </div>
+  )
 }

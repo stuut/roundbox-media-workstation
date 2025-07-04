@@ -23,24 +23,23 @@ export default async function ProtectedPage() {
 
   return (
     <div style={{padding:'15px'}}>
-      <h2>Dashboard</h2>
       <div className='dashboard-layout'>
         <div>
           <CreateWorkspace userId={user.id}/>
-          <CreateBoard userId={user.id}/>
-          <CreateTask userId={userId}/>
+          <CreateBoard userId={user.id} accordionState={'open'}/>
+          <CreateTask userId={userId} accordionState={'open'} />
         </div>
-        <div>
-          <div style={{padding:'0px 10px'}}>
-            <h2> Workspaces </h2>
+        <div style={{paddingTop:'25px'}}>
+          <div className="border_card" style={{marginBottom:'25px'}}>
+            <h2 style={{paddingLeft:'10px'}}> Workspaces </h2>
             <MyWorkspaces userId={user.id}/>
           </div>
-          <div style={{padding:'0px 10px'}}>
-            <h2> Boards </h2>
+          <div className="border_card" style={{marginBottom:'25px'}}>
+            <h2 style={{paddingLeft:'10px'}}> Boards </h2>
             <MyBoards userId={userId }/>
           </div>
-          <div style={{padding:'0px 10px'}}>
-            <h2> Tasks </h2>
+          <div className="border_card" style={{marginBottom:'25px'}}>
+            <h2 style={{paddingLeft:'10px'}}> Tasks </h2>
             <MyTasks userId={userId }/>
           </div>
           </div>

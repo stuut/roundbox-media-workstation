@@ -16,7 +16,7 @@ import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 
-export default function CreateBoard({userId, workspaceId}) {
+export default function CreateBoard({userId, workspaceId, accordionState}) {
   const [title, setTitle] = useState('');
   const [selectedWorkspaces, setSelectedWorkspaces] = useState(workspaceId?[workspaceId]:[]);
   const [workspaces, setWorkspaces] = useState([]);
@@ -125,8 +125,8 @@ export default function CreateBoard({userId, workspaceId}) {
   return (
     <div>
       <div style={{position:'relative', padding:'5px 25px 5px 25px'}} className="card">
-        <p className="form-label" style={{display:'block'}}><strong>Create Board</strong></p>
-        <Accordion initState={'closed'}>
+        <h3>Create Board</h3>
+        <Accordion initState={accordionState}>
           <form onSubmit={handleCreate}>
             <input
               className='form-input'

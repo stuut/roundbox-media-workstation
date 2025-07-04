@@ -1,5 +1,7 @@
 import AccountForm from '@/components/account-form'
 import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+import Notifications from '@/components/notifications'
 
 export default async function Account() {
   const supabase = await createClient()
@@ -8,5 +10,16 @@ export default async function Account() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  return <AccountForm user={user} />
+  return (
+        <div className='col-3'>
+          <div>
+            <h3>Account Details</h3>
+            <AccountForm user={user} />
+          </div>
+          <div>
+            <h3>Notfications</h3>
+            <Notifications userId={user.id} />
+          </div>
+        </div>
+      )
 }
