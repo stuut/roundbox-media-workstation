@@ -1,5 +1,4 @@
 import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
 import ImageGeneration from "components/image-generation"
 import { redirect } from 'next/navigation'
 

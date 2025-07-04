@@ -1,6 +1,7 @@
 'use client'
 import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import axios from "axios";
 
 
 export const FacebookConnection = ({userId}) => {
@@ -49,7 +50,7 @@ export const FacebookConnection = ({userId}) => {
       window.FB.login((loginResponse) => {
         setFacebookConnectionStatus(loginResponse.status);
         const app_id = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-        const app_secret = process.env.NEXT_PUBLIC_NEXT_PUBLIC_FACEBOOK_APP_SECRET;
+        const app_secret = process.env.NEXT_PUBLIC_FACEBOOK_APP_SECRET;
         if(loginResponse.authResponse?.accessToken != null){
 
         let user_access_token = loginResponse.authResponse.accessToken
@@ -111,7 +112,7 @@ export const FacebookConnection = ({userId}) => {
 
       },
       {
-        scope: 'read_insights,pages_show_list,ads_management,business_management,pages_messaging,pages_messaging_subscriptions,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_manage_metadata,pages_read_user_content,pages_manage_posts,pages_manage_engagement,public_profile,pages_messaging_phone_number,ads_read'
+        scope: 'read_insights,pages_show_list,ads_management,business_management,pages_messaging,pages_messaging_subscriptions,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_manage_metadata,pages_read_user_content,pages_manage_posts,pages_manage_engagement,public_profile'
       })
 }
 
@@ -147,11 +148,10 @@ export const FacebookConnection = ({userId}) => {
             facebook_page_id: account.id,
             facebook_page_name: account.name,
             access_token: account.access_token,
-            category: account.category,
             instagram_business_account_id: instagramBusinessAccountId,
             connected_at: new Date().toISOString(),
             user_id:userId
-          }], { onConflict: 'user_id' });
+          }], { onConflict: ['user_id', 'facebook_page_id'] });
 
         if (error) throw error;
         return data;
@@ -167,11 +167,12 @@ export const FacebookConnection = ({userId}) => {
           .from('instagram_accounts') // your Supabase table name
           .upsert([{
             facebook_page_id: account.id,
+            connected_facebook_page_name: account.name,
             access_token: account.access_token,
             instagram_account_id: instagramBusinessAccountId,
             connected_at: new Date().toISOString(),
             user_id:userId
-          }], { onConflict: 'user_id' });
+          }], { onConflict: ['user_id', 'instagram_account_id'] });
 
         if (error) throw error;
         return data;
@@ -193,7 +194,6 @@ export const FacebookConnection = ({userId}) => {
       Promise.all(promises).then(function(results) {
       })
 
-
     }
 
 
@@ -211,9 +211,6 @@ export const FacebookConnection = ({userId}) => {
         <>
         <button onClick={logInToFB} className="btn btn-primary">
           Connect Facebook
-        </button>
-        <button onClick={rerequest} className="btn btn-primary">
-          Rerequest Permissions
         </button>
         </>
       )}
