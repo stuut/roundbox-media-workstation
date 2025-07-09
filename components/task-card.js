@@ -47,8 +47,10 @@ export default function TaskCard({
   const  [taskDueDate, setTaskDueDate] = useState(new Date(dueDate));
   const [overdue, setOverDue] = useState(checkDate(dueDate));
 
-
-  const date = checkDate(dueDate)
+  let date = true
+  if (dueDate){
+    date = checkDate(dueDate)
+  }
 
 
   useEffect(()=>{

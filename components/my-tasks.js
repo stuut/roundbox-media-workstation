@@ -200,10 +200,13 @@ export default function MyTasks({userId}) {
 
         })
         .map((task, index) => {
-        const date = checkDate(task.due_date)
+        let date = true
+        if (task.due_date){
+          date = checkDate(task.due_date)
+        }
           return(
             <div key={task.id} className={`${date?'':'overdue'} ${'task'} ${isInArray(task.id, selectedTasks)? 'selected': ''}`} onClick={selectTasks? () => selectTasksFunction(task.id): null}>
-              <div className={`${generateSlug(task.status)} ${'status-bar'}`}>{task.status}</div>
+              <div style={{marginTop:'15px'}} className={`${generateSlug(task.status)} ${'status-bar'}`}>{task.status}</div>
               {selectTasks?(
                   <h3>{task.title}</h3>
               ):(
@@ -213,16 +216,18 @@ export default function MyTasks({userId}) {
               )}
 
                 <p>{task.description}</p>
+                {task.due_date &&
                 <div style={{display:'flex', alignItems:'center'}} className='task-date'>
                   {isInArray(task.id, selectedTasks)?(
                     <img style={{maxWidth:'20px', marginRight:'5px'}} src='/calendar-white.svg'/>
                   ):(
                     <img style={{maxWidth:'20px', marginRight:'5px'}} src='/calendar.svg'/>
                   )}
-                  <p>{moment(task.due_date).format("MMMM D, YYYY")}</p>
+                    <p>{moment(task.due_date).format("MMMM D, YYYY")}</p>
                 </div>
+                }
                 <p style={{marginTop:'25px'}}><strong> Boards Assigned to Task</strong></p>
-                <div style={{display:'flex'}}>
+                <div style={{display:'flex', flexDirection:'column'}}>
                 {task.boards_assigned_to_task.map((board, index) => {
                   return(
                     <div key={board.board_id}

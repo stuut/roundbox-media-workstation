@@ -78,7 +78,9 @@ import AddTaskToBoard from '@/components/add-task-to-board';
 import BoardMembers from '@/components/board-members';
 import { FilterToggle } from '@/components/filter-toggle';
 import { sendNotifications } from "@/lib/utils";
-
+import { handleFileDownload }  from "@/lib/utils";
+import { DateItem } from '@/components/task-components';
+import { AddDateItem } from '@/components/task-components';
 export default function Board({ boardId, userId }) {
   //dashboard?board-type=Table
   //dashboard?board-type=Kanban
@@ -209,15 +211,12 @@ const generateUsers = (board) => {
 }
 
 
-
-
-
   const generateColumns = (boardData) => {
     if (boardData && boardData.tasks.length>0){
       // Create headers from task fields
       let headers = Object.keys(boardData.tasks[0])
             // ✅ remove  users & column_values from supabase join
-        .filter(key => key !== "column_values" && key !== "users" && key !== "created_by_user") // exclude key
+        .filter(key => key !== "column_values" && key !== "users" && key !== "created_by_user" && key !== "created_by_user" && key !== "is_recurring" && key !== "recurrence_days" && key !== "boards_assigned_to_task") // exclude key
         .map((key, index) => {
           let type
           if(key === 'description'){
@@ -688,6 +687,8 @@ useEffect(() => {
             };
 
           })
+        }else if (payload.eventType === 'INSERT'){
+          addNewTask(payload.new.task_id)
         }
       }
     )
@@ -771,8 +772,6 @@ useEffect(() => {
          table: 'column_values',
        },
        (payload) => {
-
-        console.log('column-value-inserts channel', payload)
 
          if (payload.eventType === 'DELETE'){
 
@@ -1255,16 +1254,17 @@ setColDefs(prevItems => {
             <CreateTask userId={userId}  boardId={ boardId}  workspaceId={board.workspace_boards[0]?.workspace_id}/>
             <BoardMembers boardId={ boardId} createdBy={board.created_by} boardMembers={null} workspaceId={board.workspace_boards[0]?.workspace_id} realtime={true} accordion={'closed'}/>
         </div>
-          <div style={{overflowX:'auto'}}>
+          <div style={{overflow:'scroll'}}>
                 {boardView === 'Table' &&
                   <>
                   <div style={{display:'flex', position: 'sticky', left: 0, zIndex:1}}>
                     {rowData.length>0&&
                       <>
                         <NewCustomColumn boardId={boardId} userId={userId} colDefs={colDefs}/>
-                        <AddTaskToBoard boardId={boardId} userId={userId} existingBoardTasks={board.tasks}/>
                       </>
                     }
+                    <AddTaskToBoard boardId={boardId} userId={userId} existingBoardTasks={board.tasks}/>
+
                     {selectedTasks.length > 0&&
                       <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteTasksFunction}>Remove Tasks</button>
                     }
@@ -1349,7 +1349,12 @@ setColDefs(prevItems => {
                           }
                         })
                         .map((row, rowIndex) => {
-                        const date = checkDate(row.due_date)
+
+                          let date = true
+                          if (row.due_date){
+                            date = checkDate(row.due_date)
+                          }
+
                         return(
                             //row = task
                           colDefs.map((col, colIndex) => {
@@ -1441,7 +1446,23 @@ setColDefs(prevItems => {
                                       className={'form-input'}
                                     />
                                   }
-
+                                  {(!isCustomColumn && col.field === 'recurrence' && row.is_recurring && row.recurrence_days !== null) &&
+                                    <>
+                                      {row[col.field]}
+                                      {row.recurrence_days.map((value, index)=>{
+                                        return <div key={value}>{value}</div>
+                                      })}
+                                    </>
+                                  }
+                                  {(!isCustomColumn && col.field === 'recurrence_days' && row.is_recurring && row[col.field] !== null) &&
+                                    <>
+                                      {row.recurrence}
+                                      {console.log('row[col.field].value', row[col.field])}
+                                      {row[col.field].map((value, index)=>{
+                                        return <div key={value}>{value}</div>
+                                      })}
+                                    </>
+                                  }
                                   {col.field !== "id" && col.type === "string" &&
                                     <>
                                     <input
@@ -1602,10 +1623,12 @@ setColDefs(prevItems => {
                                                   <div  key={item.id}  style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
                                                     <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
                                                     <div className='table-file' style={{margin: '10px 0px 10px 10px', position:'relative'}}>
-                                                      {item.files.file_type === 'image/jpeg' &&
+                                                      {(item.files.file_type === 'image/jpeg' || item.files.file_type === 'image/png') &&
                                                         <>
                                                           <img src={item.files.file_url} style={{width:'100%'}}/>
-                                                          <div className="table-file-options"> image options</div>
+                                                          <div  className="table-file-options" style={{cursor:'pointer'}}>
+                                                            <p style={{fontSize:'.8em', color:'#ffffff'}}onClick={() => handleFileDownload(item.files.file_url, item.files.file_name)}>Download image</p>
+                                                          </div>
                                                         </>
                                                       }
                                                     </div>
@@ -1614,7 +1637,7 @@ setColDefs(prevItems => {
                                             })
                                           }
                                           <FilePicker
-                                            callBackFunction={handleFileFunction}
+
                                             columnId={col.id}
                                             taskId={row.id}
                                             boardId={board.id}
@@ -1623,7 +1646,6 @@ setColDefs(prevItems => {
                                       ):(
                                         <>
                                           <FilePicker
-                                            callBackFunction={handleFileFunction}
                                             columnId={col.id}
                                             taskId={row.id}
                                             boardId={board.id}
@@ -1663,10 +1685,12 @@ setColDefs(prevItems => {
                                       {row[col.field]?.map((item, index)=>{
                                         return(
                                             <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
-                                                <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
-                                                  <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                    <DateItem item={item}
-                                                  />
+                                                <div style={{display:'flex', alignItems:'top', flexDirection:'row'}}>
+                                                  <SelectCheckBox style={{marginTop:'22px'}} callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                  <div>
+                                                    <DateItem item={item} />
+                                                  </div>
+
                                                 </div>
                                             </div>
                                         )
@@ -1786,7 +1810,7 @@ const SelectMemberCheckBox = ({user, taskId, callBackFunction}) => {
   )
 }
 
-const SelectCheckBox = ({id, callBackFunction, clearCheckBoxes}) => {
+const SelectCheckBox = ({style, id, callBackFunction, clearCheckBoxes}) => {
   const [checkboxToggle, setCheckboxToggle] = useState(false);
 
   const checkboxfunction = (id) =>{
@@ -1804,6 +1828,7 @@ const SelectCheckBox = ({id, callBackFunction, clearCheckBoxes}) => {
 
   return(
     <input
+      style={style}
       id={id}
       className="form-check-input"
       type="checkbox"
@@ -2042,8 +2067,8 @@ const ColumnCheckBox = ({item}) => {
   )
 }
 
-const FilePicker = ({callBackFunction, columnId, taskId, boardId}) => {
-  const { showFiles, setShowFiles, selectedFiles } = useFilesContext();
+const FilePicker = ({columnId, taskId, boardId}) => {
+  const { showFiles, setShowFiles, selectedFiles, setSelectedFiles } = useFilesContext();
   const { user } = useUserContext();
   const supabase = createClient()
   const [show, setShow] = useState(false);
@@ -2052,60 +2077,6 @@ const FilePicker = ({callBackFunction, columnId, taskId, boardId}) => {
   const [googleImageUrl, setGoogleImageUrl] = useState()
 
 
-  const uploadFile = async (event) => {
-    try {
-      setUploading(true)
-
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('You must select an image to upload.')
-      }
-
-      const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/${Math.random()}.${fileExt}`;
-      const fileType = file.type;
-      //const filePath = `public/${Math.random()}.${fileExt}`;
-
-      const formData = new FormData()
-      formData.append('file', file)
-
-      try{
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
-
-        const result = await res.json()
-
-        if (res.ok) {
-
-          const fileData={
-            file_url:result.url,
-            file_type:fileType
-          }
-
-          callBackFunction(fileData, columnId, taskId, boardId)
-
-        } else {
-          alert(result.error)
-        }
-
-        //setImageUrl(fileData.publicUrl)
-
-
-      }catch(error){
-        console.log('file upload error', error)
-      }
-
-    } catch (error) {
-      console.log(error)
-      alert('Error uploading image!')
-    } finally {
-      setUploading(false)
-    }
-
-
-  }
 
   const storeGoogleDriveFile = (file) => {
   //  callBackFunction(fileId, columnId)
@@ -2114,70 +2085,42 @@ const FilePicker = ({callBackFunction, columnId, taskId, boardId}) => {
 
 
   useEffect(() => {
-  if (!showFiles && selectedFiles.length > 0) {
-    console.log("Files selected:", selectedFiles);
+  if (!showFiles && show &&  selectedFiles.length > 0) {
 
-    selectedFiles.forEach((element) => {
+      selectedFiles.forEach((element) => {
 
       return addNewColumnValue({
-           task_id: taskId,
-           column_id: columnId,
-           board_id: boardId,
-           value: null,
-           type:'file',
-           file_id: element.id
-         });
-    });
+             task_id: taskId,
+             column_id: columnId,
+             board_id: boardId,
+             value: null,
+             type:'file',
+             file_id: element.id
+           });
+      });
 
-
-    // Handle the selected files here
   }
+
   }, [showFiles, selectedFiles]);
 
   return(
     <>
-      {imageUrl&&
         <>
-          <div className='table-image' style={{margin: '10px 0px'}}>
-            <img src={imageUrl}/>
-          </div>
-        </>
-      }
-      {googleImageUrl&&
-        <iframe
-          src={googleImageUrl}
-          width="640"
-          height="480"
-          allow="autoplay"
-        />
-    }
-      <div style={{display:'flex', justifyContent: 'center'}}>
-        <button className='btn primary' onClick={() => setShow(prevState => !prevState)}>{imageUrl? 'Replace File' : 'Add File'}</button>
-      </div>
-      {show&&
-        <>
-          <div style={{width:'100%'}}>
-            <input
-              style={{marginBottom:'10px'}}
-              type="file"
-              id="single"
-              accept="image/*"
-              onChange={uploadFile}
-              disabled={uploading}
-            />
+          <div style={{width:'100%', display:'flex', justifyContent:'center'}}>
             {/*}<GoogleDrivePicker callBackFunction={storeGoogleDriveFile}/>*/}
-            <button className="btn secondary sml" onClick={() => setShowFiles(prevState => !prevState)}>My Files</button>
-
+            <button className="btn secondary sml" onClick={() => {
+              setSelectedFiles([])
+              setShowFiles(prevState => !prevState)
+              setShow(prevState => !prevState)
+            }}>Add Files</button>
           </div>
-
         </>
-
-      }
     </>
 
   )
 }
 
+{/*}
 const DateItem = ({item}) => {
   const [date, setDate] = useState(new Date(item.value))
   const [save, setSave] = useState(false)
@@ -2220,8 +2163,8 @@ const DateItem = ({item}) => {
       }
     </div>
   );
-}
-
+}*/}
+{/*}
 const AddDateItem = ({data}) => {
   const [date, setDate] = useState(new Date())
   const [save, setSave] = useState(false)
@@ -2270,6 +2213,7 @@ const AddDateItem = ({data}) => {
 </>
   )
 }
+*/}
 
 const AddTextItem = ({data}) => {
   const [addTextItem, setAddTextItem] = useState(null)
@@ -2373,7 +2317,6 @@ const AddDropdown = ({data}) => {
 
 
   const dropdownBuilderCallback = (data) => {
-    console.log('dropdownBuilderCallback', data)
     setDropDownList(data)
   }
 

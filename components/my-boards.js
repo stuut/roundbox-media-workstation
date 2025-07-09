@@ -9,8 +9,11 @@ import { isInArray } from '@/lib/utils'
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
-
+import { createClient } from '@/utils/supabase/client'
+import { getBoardWithUserIdBoardId } from "@/lib/supabase"
 export default function MyBoards({userId}) {
+  const supabase = createClient()
+
   const [boards, setBoards] = useState([]);
   const [success, setSuccess] = useState('');
   const [boardFilter, setBoardFilter] = useState(boardFilterOptions[0]);
@@ -19,12 +22,40 @@ export default function MyBoards({userId}) {
   const [selectedBoards, setSelectedBoards] = useState([]);
 
 
-useEffect(()=>{
-  if (!selectBoards){
-    setSelectedBoards([])
-  }
+  useEffect(()=>{
+    if (!selectBoards){
+      setSelectedBoards([])
+    }
 
-},[selectBoards])
+  },[selectBoards])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('board-insert')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'boards',
+        },
+        async(payload) => {
+
+          const boardId = payload.new.id
+          const newBoard = await getBoardWithUserIdBoardId(userId, boardId)
+          if (newBoard){
+            setBoards(prev => [newBoard, ...prev])
+          }
+
+        }
+      )
+      .subscribe();
+
+    // Cleanup on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+   }, []);
 
 
 
@@ -96,30 +127,30 @@ const deleteBoardsFunction = async () => {
   return (
     <div>
       <div style={{display:'flex', paddingLeft: '10px', alignItems: 'end'}}>
-        <div>
-          <p><strong>Board Filter</strong></p>
-          <select id="board_filter" style={{minWidth:'200px'}} className="form-input select"
-            onChange={(e) => {
-              setSelectBoards(false)
-              setSelectedBoards([])
-              setBoardFilter(e.target.value)
-              const newValue = e.target.value;
+          <div>
+            <p><strong>Board Filter</strong></p>
+            <select id="board_filter" style={{minWidth:'200px'}} className="form-input select"
+              onChange={(e) => {
+                setSelectBoards(false)
+                setSelectedBoards([])
+                setBoardFilter(e.target.value)
+                const newValue = e.target.value;
 
-                  if (newValue === 'All'){
-                    getData()
-                  }else{
-                    getMyBoards()
-                  }
+                    if (newValue === 'All'){
+                      getData()
+                    }else{
+                      getMyBoards()
+                    }
 
-            }}
-            value={boardFilter}>
-              {boardFilterOptions.map(function(item, index){
-                return(
-                  <option key={index} value={item}>{item}</option>
-                )
-              })}
-          </select>
-        </div>
+              }}
+              value={boardFilter}>
+                {boardFilterOptions.map(function(item, index){
+                  return(
+                    <option key={index} value={item}>{item}</option>
+                  )
+                })}
+            </select>
+          </div>
         <button style={{marginLeft:'10px', background:selectBoards?'var(--md-sys-color-primary)':'var(--md-sys-color-surface-container)', color:selectBoards?'#ffffff':'#000000' }} onClick={() => setSelectBoards(prev => !prev)} className={`${selectBoards?'primary':'secondary'} ${'btn'}`}>
           Select Boards
         </button>

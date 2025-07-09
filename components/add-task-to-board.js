@@ -22,13 +22,19 @@ export default function AddTaskToBoard({ boardId, userId, existingBoardTasks}) {
   const getTaskData = async () => {
     try {
         const tasksData = await getTasksAssignedToUser(userId)
+
+        console.log('tasksData', tasksData)
+
+
         if (tasksData){
 
           const filteredTasks = tasksData.filter((task)=>{
-            return existingBoardTasks.some((existingBoardTask)=>{
-              return existingBoardTask.id !== task.id
+            return !existingBoardTasks.some((existingBoardTask)=>{
+              return existingBoardTask.id === task.id
             })
           })
+
+          console.log('filteredTasks', filteredTasks)
 
           if (filteredTasks.length===0){
             setNoTasks(true)
@@ -91,11 +97,19 @@ export default function AddTaskToBoard({ boardId, userId, existingBoardTasks}) {
                 <div onClick={() => setAddTask(false)} style={{position:'absolute', top:'2px', right:'2px'}}>
                   <img src='/close-error.svg' style={{width:'20px'}}/>
                 </div>
-                You have no avaialble tasks To add to this board
+                You have no available tasks to add to this board
               </div>
             }
             {tasks.map((task)=>{
-              const date = checkDate(task.due_date)
+              let date = true
+
+              console.log('task.due_date', task.due_date)
+              if (task.due_date){
+                date = checkDate(task.due_date)
+              }
+
+              console.log(date)
+
               return(
                 <div style={{padding: '10px 20px', cursor:'pointer'}} key={task.id} className={`${date?'':'overdue'} ${'task'} ${isInArray(task.id, selectedTasks)? 'selected': ''}`} onClick={() => selectTasksFunction(task.id)}>
                   <h3 style={{margin: 0}}>{task.title}</h3>

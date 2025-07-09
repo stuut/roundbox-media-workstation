@@ -211,6 +211,16 @@ h2{
   color: #000000;
 }
 
+.ad-card{
+  cursor:pointer
+}
+
+.ad-card.active h3,
+.ad-card.active p,
+.ad-card.active{
+  background:var(--md-sys-color-primary);
+  color:var(--md-sys-color-on-primary);
+}
 
 
 .select-tab.active{
@@ -299,6 +309,7 @@ h2{
 .board-layout-float > div:nth-child(2){
   width:80%;
   float:left;
+  height: calc(100% - 10px);
 }
 
 .dashboard-layout > div,
@@ -329,7 +340,6 @@ h2{
   border-radius: var(--border-radius);
 
 }
-
 
 
 .table-row .table-cell:first-child{
@@ -446,7 +456,7 @@ h2{
   width:100%;
   background:var(--md-sys-color-primary);
   padding:10px;
-  cursor:pointr;
+  cursor:pointer;
   color:var(--md-sys-color-on-primary);
   border-bottom-right-radius:var(--border-radius);
   border-bottom-left-radius:var(--border-radius);
@@ -754,7 +764,23 @@ background: rgba(65, 95, 145, .5)
     color: var(--md-sys-color-on-surface);
 }
 
+.media-image.active{
+  border: var(--active-border-width) solid var(--md-sys-color-primary);
+}
 
+.media-image{
+  object-fit:cover;
+  height:100px;
+  border-radius: var(--media-image-border-radius)
+}
+
+.generated-image{
+  border-radius: var(--media-image-border-radius)
+}
+
+.media-image-selected{
+  border-radius: var(--media-image-border-radius)
+}
 
 .message-right .message-avatar{
   position:absolute;

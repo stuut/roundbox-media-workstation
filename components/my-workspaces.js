@@ -6,18 +6,57 @@ import { deleteWorkspaces } from "@/lib/supabase"
 import Link from "next/link"
 import { workspaceFilterOptions } from "@/lib/constants"
 import { isInArray } from '@/lib/utils'
+
+import { getWorkspaceWithUserIdWorkspaceId } from "@/lib/supabase"
+import { createClient } from '@/utils/supabase/client'
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 
 
 export default function MyWorkspaces({userId}) {
+  const supabase = createClient()
+
   const [workspaces, setWorkspaces] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [workspaceFilter, setWorkspaceFilter] = useState(workspaceFilterOptions[0]);
   const [selectWorkspaces, setSelectWorkspaces] = useState(false);
   const [selectedWorkspaces, setSelectedWorkspaces] = useState([]);
+
+
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('workspace-insert')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'workspaces',
+        },
+        async(payload) => {
+          console.log('payload', payload)
+
+          const workspaceId = payload.new.id
+          const newWorkspace = await getWorkspaceWithUserIdWorkspaceId(userId, workspaceId)
+          if (newWorkspace){
+            setWorkspaces(prev => [newWorkspace, ...prev])
+          }
+
+        }
+      )
+      .subscribe();
+
+    // Cleanup on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+   }, []);
+
+
+
+
+
 
   const getData = async () => {
     try {
@@ -85,9 +124,8 @@ const deleteWorkspacesFunction = async () => {
        })
      })
 
-
   }catch (error){
-    console.log(error)
+    showError(error)
   }
 
 }
@@ -124,7 +162,7 @@ const deleteWorkspacesFunction = async () => {
         </button>
         {selectedWorkspaces.length >0 && workspaceFilter === 'Created by me' &&
           <button style={{marginLeft:'10px'}} onClick={deleteWorkspacesFunction} className='btn danger'>
-            Delete Boards
+            Delete Workspaces
           </button>
         }
 

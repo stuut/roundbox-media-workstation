@@ -3,7 +3,9 @@ import { useState } from "react"
 import { ImageUpload } from "@/components/image-upload"
 import { ImagePromptInput } from "@/components/image-prompt-input"
 import { ImageResultDisplay } from "@/components/image-result-display"
-
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 export default function ImageGeneration() {
   const [image, setImage] = useState(null)
   const [generatedImage, setGeneratedImage] = useState(null)
@@ -20,7 +22,6 @@ export default function ImageGeneration() {
   const handlePromptSubmit = async prompt => {
     try {
       setLoading(true)
-      setError(null)
 
       // If we have a generated image, use that for editing, otherwise use the uploaded image
       const imageToEdit = generatedImage || image
@@ -73,10 +74,10 @@ export default function ImageGeneration() {
         // Update history with both messages
         setHistory(prevHistory => [...prevHistory, userMessage, aiResponse])
       } else {
-        setError("No image returned from API")
+        showError("No image returned from API")
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      showError(error instanceof Error ? error.message : "An error occurred")
       console.error("Error processing request:", error)
     } finally {
       setLoading(false)
@@ -88,7 +89,6 @@ export default function ImageGeneration() {
     setGeneratedImage(null)
     setDescription(null)
     setLoading(false)
-    setError(null)
     setHistory([])
   }
 
@@ -102,21 +102,6 @@ export default function ImageGeneration() {
   return (
     <main>
       <div>
-        <div>
-          <div>
-            <div/>
-            Image Creation & Editing
-          </div>
-          <span>
-            powered by Google DeepMind Gemini 2.0 Flash
-          </span>
-        </div>
-        <div>
-          {error && (
-            <div>
-              {error}
-            </div>
-          )}
 
           {!displayImage && !loading ? (
             <>
@@ -154,7 +139,6 @@ export default function ImageGeneration() {
               />
             </>
           )}
-        </div>
       </div>
     </main>
   )

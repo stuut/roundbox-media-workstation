@@ -6,6 +6,7 @@ import SetUserInfo from "@/components/setUserInfo"
 import UserHeader from "@/components/header-user"
 import HeaderLinks from "@/components/header-links"
 import User from "@/components/user"
+import {FacebookConnectionStatus} from "@/components/facebook-connection-status"
 
 import NotificationsProvider from "@/components/notications-provider"
 
@@ -46,6 +47,7 @@ export default async function AuthButton() {
     <div style={{display:'flex', verticalAlign:'center', padding:'15px'}}>
       <SetUserInfo user={user}/>
       <NotificationsProvider user={user}/>
+      <FacebookConnectionStatus userId={user.id}/>
       <HeaderLinks/>
       <div style={{marginLeft:'auto', display:'flex', verticalAlign:'center'}}>
         <UserHeader user={user} />

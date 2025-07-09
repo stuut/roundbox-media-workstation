@@ -7,7 +7,7 @@ export function useMessageListener(userId, onNewMessage) {
     if (!userId) return;
 
     const channel = supabase
-      .channel('messages')
+      .channel(`messages-for-${userId}`)
       .on(
         'postgres_changes',
         {
@@ -15,29 +15,9 @@ export function useMessageListener(userId, onNewMessage) {
           schema: 'public',
           table: 'messages',
         },
-        async (payload) => {
-
-
+        (payload) => {
           console.log('payload', payload)
-
-          const newMessage = payload.new;
-
-          // Check if user is a member of the conversation
-          const { data: members, error } = await supabase
-            .from('conversation_members')
-            .select('user_id')
-            .eq('conversation_id', newMessage.conversation_id);
-
-          if (error) {
-            console.error('Error checking members:', error);
-            return;
-          }
-
-          const isInConversation = members.some(m => m.user_id === userId);
-
-          if (isInConversation) {
-            onNewMessage(newMessage);
-          }
+          onNewMessage(payload.new);
         }
       )
       .subscribe();

@@ -24,7 +24,7 @@ export function ImagePromptInput({ onSubmit, isEditing, isLoading }) {
 
       <input
         id="prompt"
-        className="border-secondary resize-none"
+        className="form-input"
         placeholder={
           isEditing
             ? "Example: Remove all text, logos, dates, headlines, and graphic overlays from this poster. Keep the background image intact and undistorted. Do not blur or replace the background — just cleanly remove the overlaid design elements so I can rebuild them in Illustrator later."
@@ -36,6 +36,7 @@ export function ImagePromptInput({ onSubmit, isEditing, isLoading }) {
 
       <button
         type="submit"
+        className='btn primary'
         disabled={!prompt.trim() || isLoading}
       >
 

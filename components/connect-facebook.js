@@ -2,7 +2,9 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import axios from "axios";
-
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 
 export const FacebookConnection = ({userId}) => {
   const supabase = createClient()
@@ -68,8 +70,23 @@ export const FacebookConnection = ({userId}) => {
               "&fb_exchange_token=" +
               user_access_token
           )
-          .then(response => {
+          .then (async(response) => {
             obj.token = response.data.access_token;
+
+            const { data, error } = await supabase
+              .from('facebook_api') // your Supabase table name
+              .upsert([{
+                access_token : response.data.access_token? response.data.access_token : loginResponse.authResponse.accessToken,
+                data_access_expiration_time : loginResponse.authResponse.data_access_expiration_time ? loginResponse.authResponse.data_access_expiration_time : '',
+                expires_in : loginResponse.authResponse.expiresIn ? loginResponse.authResponse.expiresIn : '',
+                graph_domain : loginResponse.authResponse.graphDomain ? loginResponse.authResponse.graphDomain : '',
+                signed_request : loginResponse.authResponse.signedRequest ? loginResponse.authResponse.signedRequest : '',
+                facebook_user_id : loginResponse.authResponse.userID ? loginResponse.authResponse.userID : '' ,
+                user_id:userId
+              }], { onConflict: ['user_id', 'facebook_user_id'] });
+
+            if (error) throw error;
+
             return obj;
           })
           .then(obj => {
@@ -86,33 +103,32 @@ export const FacebookConnection = ({userId}) => {
                   )
                   .then(response => {
 
-                      console.log('response.data.data', response.data.data)
                       FacebookDataSort(response.data.data)
 
                     }).catch((error) => {
                       console.log(error.message)
-                      notifyError(error.message)
+                      showError(error.message)
 
                   })
                   .catch(error => {
                       console.log(error.message)
-                      notifyError(error.message)
+                      showError(error.message)
                   });
               })
               .catch(error => {
                   console.log(error.message)
-                  notifyError(error.message)
+                  showError(error.message)
               });
           })
           .catch(function(error) {
             console.log(error.message)
-            notifyError(error.message)
+            showError(error.message)
           });
         }
 
       },
       {
-        scope: 'read_insights,pages_show_list,ads_management,business_management,pages_messaging,pages_messaging_subscriptions,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_manage_metadata,pages_read_user_content,pages_manage_posts,pages_manage_engagement,public_profile'
+        scope: 'read_insights,pages_show_list,ads_management,business_management,pages_messaging,pages_messaging_subscriptions,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_manage_metadata,pages_read_user_content,pages_manage_posts,pages_manage_engagement,public_profile, ads_read, ads_management'
       })
 }
 
@@ -157,7 +173,7 @@ export const FacebookConnection = ({userId}) => {
         return data;
       } catch (err) {
         console.error('Supabase insert error (Facebook):', err.message);
-        notifyError(err.message);
+        showError(err.message);
       }
     }
 
@@ -178,7 +194,7 @@ export const FacebookConnection = ({userId}) => {
         return data;
       } catch (err) {
         console.error('Supabase insert error (Instagram):', err.message);
-        notifyError(err.message);
+        showError(err.message);
       }
     }
 

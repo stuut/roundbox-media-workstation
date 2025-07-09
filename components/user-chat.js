@@ -1,11 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import ChatConversations from "@/components/chat-conversations"
+import { useEffect, useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import { ChatConversations } from "@/components/chat-conversations"
+import { useMessageListener } from '@/components/use-message-listener';
+import { useUserContext } from '@/context/user-context'
+import { createClient } from '@/utils/supabase/client'
+
 
 export default function UserChat({}) {
   const [openChat, setOpenChat] = useState(false);
   const [alert, setAlert] = useState(false);
+  const { user } = useUserContext();
+  const supabase = createClient()
+  const childRef = useRef(null);
+
+  const handleTriggerChild = async (data) => {
+    if (childRef.current) {
+       childRef.current.childFunction(data); // ✅ Safe to call
+    }
+  };
+
+
+useEffect(() => {
+
+      const channel = supabase
+        .channel(`messages`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+          },
+          (payload) => {
+            console.log('payload', payload)
+
+            if (payload.new.sender_id !== user.id){
+              setAlertFunction(true)
+
+            }else{
+              handleTriggerChild(payload.new)
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [user]);
+
+
 
 const setAlertFunction = (data) => {
 
@@ -20,6 +65,7 @@ const setAlertFunction = (data) => {
       position:'fixed',
       right:'5px',
       bottom:'5px',
+      zIndex:1,
     }}>
       {alert&&
         <>
@@ -57,7 +103,7 @@ const setAlertFunction = (data) => {
             minWidth: '600px',
             minHeight: '250px'
           }}>
-          <ChatConversations alert={setAlertFunction}/>
+          <ChatConversations ref={childRef} alert={setAlertFunction}/>
         </div>
       }
       <div

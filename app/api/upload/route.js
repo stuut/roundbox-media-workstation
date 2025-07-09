@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import { r2Client } from '@/lib/r2'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 
+//Cloudflare R2
+
 export async function POST(req) {
   const formData = await req.formData()
   const file = formData.get('file')
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
-
-  console.log('r2Client', r2Client)
 
   const arrayBuffer = await file.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)

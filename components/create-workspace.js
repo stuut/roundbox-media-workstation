@@ -2,25 +2,26 @@
 
 import { useState } from 'react';
 import { createWorkspaceWithMember } from "@/lib/supabase"
+import { showSuccess } from '@/lib/toast';
+import { showError } from '@/lib/toast';
+import { showInfo } from '@/lib/toast';
 
 export default function CreateWorkspace({userId}) {
   const [title, setTitle] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+
 
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    setError('')
-    setSuccess('');
+
 
     const workspaceData = { name: title, created_by: userId };
 
     try {
       const newWorkspace = await createWorkspaceWithMember(workspaceData, userId);
-      setSuccess('Workspace created:', newWorkspace);
+       showSuccess('Workspace created:', newWorkspace);
     } catch (error) {
-      setError(error.message);
+      showError(error.message);
     }
   };
 
@@ -38,8 +39,6 @@ export default function CreateWorkspace({userId}) {
                 required
               />
           <button className="btn primary"  type="submit">Create</button>
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          {success && <p style={{ color: 'green' }}>{success}</p>}
         </form>
       </div>
     </div>

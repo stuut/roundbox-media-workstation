@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { createClient } from '@/utils/supabase/client'
 const supabase = createClient()
 import { useUserContext } from '@/context/user-context'
@@ -6,12 +6,11 @@ import { getAllUsers } from "@/lib/supabase";
 import { getAllConversationsforaUser } from "@/lib/supabase";
 import { isInArray } from '@/lib/utils'
 import User from "@/components/user";
-import { useMessageListener } from '@/components/use-message-listener';
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 
-export default function ChatConversations({alert}) {
+export const ChatConversations = forwardRef(({alert}, ref) =>{
   const [recipientId, setRecipientId] = useState('');
   const [message, setMessage] = useState('');
   const [initMessage, setInitMessage] = useState('');
@@ -23,10 +22,16 @@ export default function ChatConversations({alert}) {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [selectedConversationMessages, setSelectedConversationMessages] = useState(null);
 
-
-
-
   const { user } = useUserContext();
+
+
+  useImperativeHandle(ref, () => ({
+        childFunction: (data) => {
+          console.log('new message', data)
+          setSelectedConversationMessages(prev => [...prev, data])
+        },
+
+      }));
 
   const getUsersData = async () => {
     try {
@@ -71,20 +76,24 @@ export default function ChatConversations({alert}) {
 
     try{
 
-      const { error: messageError } = await supabase
+      const { data, error} = await supabase
         .from('messages')
         .insert([{
           conversation_id: selectedConversation.id,
           sender_id: user.id,
           content: message
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (messageError) throw messageError;
+      //  setSelectedConversationMessages(prev => [...prev, data])
 
+      if (error) throw error;
+      showSuccess('message sent')
 
     }catch(error){
       console.error('Error:', error);
-      alert(error.message || 'Something went wrong');
+      showError(error.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -130,20 +139,25 @@ export default function ChatConversations({alert}) {
       if (membersError) throw membersError;
 
       // 3. Send initial message
-      const { error: messageError } = await supabase
+      const { data, error} = await supabase
         .from('messages')
         .insert([{
           conversation_id: conversationId,
           sender_id: user.id,
           content: message
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (messageError) throw messageError;
+      if (error) throw error;
 
-      alert('Conversation started!');
+      console.log('new_message', data)
+
+
+       showSuccess('Conversation started!');
     } catch (error) {
       console.error('Error:', error);
-      alert(error.message || 'Something went wrong');
+      showError(error.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -160,19 +174,7 @@ export default function ChatConversations({alert}) {
     }
   }
 
-  useMessageListener(user.id, (newMsg) => {
 
-
-    if (newMsg.conversation_id === selectedConversation.id){
-        setSelectedConversationMessages(prev => [...prev, newMsg])
-
-    }
-
-    alert(true)
-
-
-  console.log('🔔 New message:', newMsg);
-});
 
   return (
     <div style={{display:'flex'}}>
@@ -291,4 +293,4 @@ export default function ChatConversations({alert}) {
       </div>
     </div>
   );
-}
+})

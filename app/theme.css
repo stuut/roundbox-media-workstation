@@ -15,7 +15,8 @@
   --sm-font-size:.8rem;
   --sm-btn-padding-y:8px;
   --sm-btn-padding-x:10px;
-
+  --active-border-width:5px;
+  --media-image-border-radius:25px;
 }
 
 .light {
