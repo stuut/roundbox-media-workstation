@@ -230,7 +230,7 @@ export default function CreateTask({userId, boardId, workspaceId, accordionState
   return (
     <div>
       <div style={{position:'relative', padding:'5px 25px 5px 25px'}} className="card">
-        <h3>Create Task</h3>
+        <h3>Create Item</h3>
         <Accordion initState={accordionState}>
           <form onSubmit={handleCreate}>
             <input

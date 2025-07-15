@@ -24,6 +24,8 @@ export const FacebookConnection = ({userId}) => {
   useEffect(() => {
     window.FB.getLoginStatus((authResponse) => {
         if (authResponse) {
+
+          //
           console.log('authResponse', authResponse)
           setFacebookConnectionStatus(authResponse.status)
         }

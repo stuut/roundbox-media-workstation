@@ -39,17 +39,25 @@ const refreshToken = (user_access_token) => {
 
 
 
-  useEffect(() => {
-    window.FB.getLoginStatus((authResponse) => {
-
+useEffect(() => {
+  // Wait for FB to be available
+  const checkFB = () => {
+    if (window.FB) {
+      window.FB.getLoginStatus((authResponse) => {
         if (authResponse.status === 'connected') {
-          
-
+          console.log('User is logged in.');
         } else {
-            console.log('User is not logged in.');
+          console.log('User is not logged in.');
         }
-    });
-  },[]);
+      });
+    } else {
+      // FB not ready yet, check again in 100ms
+      setTimeout(checkFB, 100);
+    }
+  };
+
+  checkFB();
+}, []);
 
 
 return null

@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import FacebookAds from "components/facebook-ads"
+import FacebookMarketing from "components/facebook-marketing"
 import { redirect } from 'next/navigation'
 
 
@@ -17,7 +17,7 @@ export default async function Page() {
 
   return (
     <div style={{padding:'25px'}}>
-      <FacebookAds userId={userId}/>
+      <FacebookMarketing userId={userId}/>
     </div>
   );
 }

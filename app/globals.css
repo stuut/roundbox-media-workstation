@@ -148,6 +148,13 @@ h2{
   margin: 10px 0;
   transition: all .5s ease
 }
+
+.transition{
+    transition: all .5s ease
+}
+
+
+
 .board-header-cell.no-rows{
   border-bottom: none;
 
@@ -191,6 +198,20 @@ h2{
   color:var(--md-sys-color-on-primary);
 }
 
+.drop-zone{
+  border:4px dashed var(--md-sys-color-surface-dim);
+  border-radius:var(--border-radius);
+  padding: var(--tab-padding);
+}
+
+.drop-zone.active{
+  border:4px dashed var(--md-sys-color-primary);
+}
+
+.drop-zone-input.active input{
+  border:4px dashed var(--md-sys-color-primary);
+}
+
 .workspace.selected h3,
 .board.selected h3,
 .task.overdue.selected h3,
@@ -204,6 +225,12 @@ h2{
 .task.overdue.selected p,
 .task.selected p {
   color:var(--md-sys-color-on-primary);
+}
+
+.field-drop-zone{
+  background:#ffffff;
+  padding:15px;
+  width:100%
 }
 
 .task.overdue.selected .select-tab p,
@@ -360,8 +387,18 @@ h2{
   top: 0px;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, .7);
+  background: rgba(0, 0, 0, .5);
   z-index: 2;
+}
+
+.ai-overlay{
+  position: fixed;
+  left: 0px;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  background: rgba(0, 0, 0, .5);
 }
 
 
@@ -448,18 +485,41 @@ h2{
 
 }
 
+.ai-sidebar{
+  height: 100%;
+  position: absolute;
+  width: 40%;
+  background: var(--md-sys-color-surface-container);
+  right:-100%;
+  transition: all 1s ease;
+  z-index:10;
+  top: 0px;
+}
+
+.ai-sidebar.active{
+  right:0%
+}
+
+.download-file{
+  max-width: 70px;
+  margin-left: 50%;
+  margin-top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .table-file-options{
-  display:none;
   position:absolute;
   bottom:0px;
   left:0px;
   width:100%;
-  background:var(--md-sys-color-primary);
+  height:100%;
+  background:rgba(237, 237, 244, .8);
   padding:10px;
   cursor:pointer;
   color:var(--md-sys-color-on-primary);
-  border-bottom-right-radius:var(--border-radius);
-  border-bottom-left-radius:var(--border-radius);
+  visibility:hidden;
+  opacity:0
+
 }
 
 .kanban-col{
@@ -509,8 +569,8 @@ h2{
 }
 
 .table-file:hover > .table-file-options{
-  display:block;
-
+  visibility:visible;
+  opacity:1
 }
 
 .checkbox-list-item{
@@ -677,10 +737,10 @@ border: var(--input-border-width) solid var(--md-sys-color-surface-dim);
 
 .table-file{
 margin-left:10px;
-height:120px
+max-width:90px
 }
 
-.table-file img{
+.table-file table-image{
   border-radius: var(--border-radius);
   object-fit: cover;
   height: 100%;
@@ -764,6 +824,7 @@ background: rgba(65, 95, 145, .5)
     color: var(--md-sys-color-on-surface);
 }
 
+.media-file.active,
 .media-image.active{
   border: var(--active-border-width) solid var(--md-sys-color-primary);
 }
@@ -772,6 +833,10 @@ background: rgba(65, 95, 145, .5)
   object-fit:cover;
   height:100px;
   border-radius: var(--media-image-border-radius)
+}
+
+.media-file{
+  width:80px;
 }
 
 .generated-image{

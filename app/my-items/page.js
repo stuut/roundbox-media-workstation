@@ -18,7 +18,7 @@ export default async function MyTasksPage() {
 
   return (
     <div style={{padding:'25px'}}>
-      <h2>My Tasks</h2>
+      <h2>My Items</h2>
       <div className='task-layout'>
         <div>
           <CreateTask userId={userId}/>

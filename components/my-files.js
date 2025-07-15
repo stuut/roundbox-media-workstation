@@ -177,7 +177,7 @@ const deleteSelectedFiles = async () => {
                           style={{marginBottom:'10px'}}
                           type="file"
                           id="single"
-                          accept="image/*"
+                          accept="image/*,.pdf,.doc"
                           onChange={uploadFile}
                           disabled={uploading}
                         />
@@ -190,7 +190,16 @@ const deleteSelectedFiles = async () => {
                         return (
                           <div key={file.id} style={{width:'18%', margin:'1%'}}>
                             <div>
-                              <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+                              {console.log('file.file_type ', file.file_type )}
+                              {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
+                                <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+                              }
+                              {file.file_type === 'application/pdf'&&
+                                <>
+                                  <img className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={'/pdf-icon.png'}/>
+                                </>
+                              }
+                              <p style={{fontSize:'.8em'}}>{file.file_name}</p>
                             </div>
                           </div>
                         )

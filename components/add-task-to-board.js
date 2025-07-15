@@ -23,7 +23,6 @@ export default function AddTaskToBoard({ boardId, userId, existingBoardTasks}) {
     try {
         const tasksData = await getTasksAssignedToUser(userId)
 
-        console.log('tasksData', tasksData)
 
 
         if (tasksData){
@@ -34,7 +33,6 @@ export default function AddTaskToBoard({ boardId, userId, existingBoardTasks}) {
             })
           })
 
-          console.log('filteredTasks', filteredTasks)
 
           if (filteredTasks.length===0){
             setNoTasks(true)
@@ -89,7 +87,7 @@ export default function AddTaskToBoard({ boardId, userId, existingBoardTasks}) {
 
   return(
     <div style={{position:'relative'}}>
-      <button onClick={() => setAddTask(prev => !prev)} style={{marginLeft:'10px'}} className='btn primary'>Add Tasks To Board</button>
+      <button onClick={() => setAddTask(prev => !prev)} style={{marginLeft:'10px'}} className={`${'btn'} ${addTask?'primary':'secondary'}`}>Add Items To Board</button>
       {addTask&&
         <div className="new-element-board drop-shadow">
             {noTasks &&
@@ -118,7 +116,7 @@ export default function AddTaskToBoard({ boardId, userId, existingBoardTasks}) {
               )
             })}
             {selectedTasks.length>0&&
-              <button className="btn primary" onClick={addTasksFunction}>Add Tasks</button>
+              <button className="btn primary" onClick={addTasksFunction}>Add Items</button>
             }
         </div>
       }

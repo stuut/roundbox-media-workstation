@@ -5,12 +5,15 @@ import { hasEnvVars } from "@/utils/supabase/check-env-vars"
 import { Poppins } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import Link from "next/link"
-import { TaskProvider } from '@/context/task-context'
+import { ItemProvider } from '@/context/item-context'
 import { UserProvider } from '@/context/user-context'
 import { FilesProvider } from '@/context/files-context'
+import { AIProvider } from '@/context/ai-context'
+import AISideBar from "@/components/ai-sidebar"
 import MyFiles from "@/components/my-files"
 import UserChat from "@/components/user-chat"
 import ToastProvider from "@/components/toast-provider"
+import ImportItems from "@/components/import-items"
 
 
 import "./globals.css"
@@ -22,8 +25,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase"
+  title: "RoundBox Media Task Manager",
+  description: "RoundBox Media Task Manager"
 }
 
 const poppins = Poppins({
@@ -67,7 +70,8 @@ export default function RootLayout({ children }) {
         >
         <UserProvider>
           <FilesProvider>
-          <TaskProvider>
+          <AIProvider>
+          <ItemProvider>
           <ToastProvider/>
             <main>
               <div style={{height:'100%'}}>
@@ -77,6 +81,8 @@ export default function RootLayout({ children }) {
                   </div>
                 </nav>
                 <MyFiles/>
+                <AISideBar/>
+                <ImportItems/>
                 <div style={{height:'100%'}}>
                   {children}
                 </div>
@@ -86,7 +92,8 @@ export default function RootLayout({ children }) {
                 </footer>
               </div>
             </main>
-          </TaskProvider>
+          </ItemProvider>
+        </AIProvider>
         </FilesProvider>
       </UserProvider>
         </ThemeProvider>

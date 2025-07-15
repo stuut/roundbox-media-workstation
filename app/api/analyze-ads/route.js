@@ -9,23 +9,12 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    const { ads, prompt } = body;
+    const { messages } = body;
 
-    if (!ads || !prompt) {
+    if (!messages) {
       return NextResponse.json({ error: "Missing ads or prompt" }, { status: 400 });
     }
 
-    const messages = [
-      {
-        role: "system",
-        content:
-          "You are a helpful and insightful marketing assistant who specializes in Facebook ad performance. You provide clear, data-driven recommendations to optimize campaigns. Prioritize cost-efficiency, conversion rates, and real-world outcomes (like ticket sales).",
-      },
-      {
-        role: "user",
-        content: `Here is a list of Facebook ads and ticket sales data:\n\n${JSON.stringify(ads, null, 2)}\n\n${prompt}`,
-      },
-    ];
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4-0613",

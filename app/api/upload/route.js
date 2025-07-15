@@ -26,19 +26,9 @@ export async function POST(req) {
   try {
     await r2Client.send(command)
 
-    //const fileUrl = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET}/${fileName}`
     const fileUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`
 
     return NextResponse.json({ url: fileUrl })
-
-    /*
-    await supabase.from('files').insert([
-      {
-        file_name: fileName,
-        file_url: fileUrl,
-        uploaded_at: new Date().toISOString(),
-      },
-    ])*/
 
   } catch (err) {
     console.error(err)

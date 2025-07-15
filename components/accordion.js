@@ -13,7 +13,8 @@ export const Accordion = ({children, initState}) => {
       position: 'absolute',
       top: '15px',
       right: '3px',
-      transform:open? 'rotate(-90deg)':'rotate(0deg)'
+      transform:open? 'rotate(-90deg)':'rotate(0deg)',
+      zIndex: 1
     }}/>
     <div style={{
       height: open? 'auto' : 0,

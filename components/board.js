@@ -27,6 +27,7 @@ import { queryColumnValues } from "@/lib/supabase";
 import { deleteMembersFromTask } from "@/lib/supabase"
 import { getAllUsersAssignedToWorkspace } from "@/lib/supabase";
 import { useFilesContext } from "@/context/files-context"
+import { useAIContext } from "@/context/ai-context"
 import { insertTaskMembers } from "@/lib/supabase"
 import { getUserBoardUpdate } from "@/lib/supabase"
 import GoogleDrivePicker from "@/components/google-drive-picker";
@@ -81,10 +82,20 @@ import { sendNotifications } from "@/lib/utils";
 import { handleFileDownload }  from "@/lib/utils";
 import { DateItem } from '@/components/task-components';
 import { AddDateItem } from '@/components/task-components';
+import { ListItemData } from '@/components/task-components';
+import { AddListItemData } from '@/components/task-components';
+import { AddTextItem } from '@/components/task-components';
+import { TextItem } from '@/components/task-components';
+import { convertFormulaFunctionToIds } from '@/lib/utils'
+
+
+
 export default function Board({ boardId, userId }) {
   //dashboard?board-type=Table
   //dashboard?board-type=Kanban
   //dashboard?board-type=Calendar
+  const { setDisplayAI, setAIData } = useAIContext();
+
 
   const searchParams = useSearchParams()
   const boardType = searchParams.get('board-type')
@@ -104,12 +115,15 @@ export default function Board({ boardId, userId }) {
   const [selectedRows, setSelectedRows] = useState([])
   const [addListItem, setAddListItem] = useState(null)
   const [selectedTaskMembers, setSelectedTaskMembers] = useState([])
-  const STORAGE_KEY = "columnOrder";
+  const COL_ORDER_STORAGE_KEY = "columnOrder";
+  const COL_VISIBLE_STORAGE_KEY = "columnVisible";
+
   const pendingTaskMembers = useRef([]);
   const [statusFilter, setStatusFilter] = useState('All');
   const [allTasksMembers, setAllTasksMembers] = useState([]);
   const [selectMembersFilter, setSelectMembersFilter] = useState([]);
   const [clearCheckBoxes, setClearCheckBoxes] = useState(false);
+  const [clearColumnCheckBoxes, setClearColumnCheckBoxes] = useState(false);
   const [dateFilter, setDateFilter] = useState('due_date');
   const [dateFilterDirection, setDateFilterDirection] = useState('');
 
@@ -117,10 +131,10 @@ export default function Board({ boardId, userId }) {
 
 
   const reorderSavedColumns = (defaultHeaders) => {
-    const savedOrder = localStorage.getItem(STORAGE_KEY);
+    const savedOrder = localStorage.getItem(COL_ORDER_STORAGE_KEY+boardId);
       if (savedOrder) {
         const order = JSON.parse(savedOrder);
-
+        console.log('order', order)
         // 1. Restore saved columns
         const ordered = order
           .map((field) => defaultHeaders.find((h) => h.field === field))
@@ -136,6 +150,34 @@ export default function Board({ boardId, userId }) {
       } else {
         return defaultHeaders; // Fallback to default
       }
+  }
+
+  const checkColumnsVisibility = (defaultHeaders) => {
+    const savedVisibility = localStorage.getItem(COL_VISIBLE_STORAGE_KEY+boardId);
+      if (savedVisibility) {
+        const headerVisibility = JSON.parse(savedVisibility);
+
+        const newHeaders = defaultHeaders.map((header) =>{
+          if (headerVisibility.some((hv) => hv.field === header.field)){
+            const newObject = {...header}
+            const visibleValue = headerVisibility.find((hv)=> hv.field === header.field)
+            if (visibleValue){
+              newObject.visible = visibleValue.visible
+            }
+
+            return newObject
+          }else{
+            return header
+          }
+
+        })
+
+        return newHeaders
+
+      }else{
+        return defaultHeaders
+      }
+
   }
 
 
@@ -154,11 +196,9 @@ export default function Board({ boardId, userId }) {
     setDragIndex(null);
 
     localStorage.setItem(
-      STORAGE_KEY,
+      COL_ORDER_STORAGE_KEY+boardId,
       JSON.stringify(newCols.map((col) => col.field))
     );
-
-
   };
 
  function getType(value) {
@@ -233,12 +273,15 @@ const generateUsers = (board) => {
               field: key,
               index,
               type: type,
-              width: 200
+              width: 200,
+              visible:true
             }
           )
 
         }
     );
+
+
 
       // Add dynamic columns from board.columns
       headers = [
@@ -249,6 +292,7 @@ const generateUsers = (board) => {
           type: col.type,
           width: 200,
           id: col.id,
+          visible:true,
           column_select_options: col.column_select_options
         })),
       ];
@@ -277,7 +321,8 @@ const generateUsers = (board) => {
           if (colVals.length > 0) {
             base[col.name] = colVals.map((val) => ({
               ...val,
-              custom_column: true
+              custom_column: true,
+              visible:true,
             }));
           } else {
             base[col.name] = [];
@@ -288,18 +333,22 @@ const generateUsers = (board) => {
       });
 
 
-      headers = [{ field: "select-task", type: "checkbox", width: 50 }, ...headers]
+      headers = [{ field: "select-task", type: "checkbox", width: 50, visible:true }, ...headers]
 
       const reorderedColumns = reorderSavedColumns(headers)
 
-      console.log('rowData', rowData)
+      const visibleColumns = checkColumnsVisibility(reorderedColumns)
 
-      setColDefs(reorderedColumns)
+
+      setColDefs(visibleColumns)
       setRowData(rowData)
+
     }else{
-      let headers = [{ field: "select-task", type: "checkbox", width: 50 }, ...baseHeaders]
+      let headers = [{ field: "select-task", type: "checkbox", width: 50, visible:true }, ...baseHeaders]
       const reorderedColumns = reorderSavedColumns(headers)
-      setColDefs(reorderedColumns)
+      const visibleColumns = checkColumnsVisibility(reorderedColumns)
+
+      setColDefs(visibleColumns)
       setRowData([])
     }
 
@@ -311,7 +360,7 @@ const generateUsers = (board) => {
        //const taskData = await getTasksForBoard(boardId)
         const boardData = await getBoardWithColumnsAndTasks(boardId)
         //generateColumns(boardData[0])
-        console.log('setBoard init')
+
         setBoard(boardData[0])
     } catch (error) {
       showError(error.message);
@@ -341,14 +390,14 @@ const addMemberToTask = async (task_id, user_id) => {
 
     setBoard(prev => {
       const updatedTasks = prev.tasks.map(task => {
-        const isAlreadyMember = task.task_members.some(
+        const isAlreadyMember = task.members.some(
           member => member.user_id === user_id
         );
 
         if (task.id === task_id && !isAlreadyMember) {
           return {
             ...task,
-            task_members: [...task.task_members, newMemberObject]
+            members: [...task.members, newMemberObject]
           };
         }
 
@@ -362,7 +411,7 @@ const addMemberToTask = async (task_id, user_id) => {
     });
 
   } catch (error) {
-    console.error('Error adding member to task:', error);
+    showError('Error adding member to task:', error);
   }
 };
 
@@ -372,13 +421,16 @@ const addNewTask = async(taskId) => {
   try{
     const newTask = await getTask(taskId)
 
-    setBoard(prev => ({
-      ...prev,
-      tasks: [...prev.tasks, newTask]
-    }));
+    if (!board.tasks.some((task)=>task.id === taskId)){
+      setBoard(prev => ({
+        ...prev,
+        tasks: [...prev.tasks, newTask]
+      }));
+
+    }
 
   }catch (error){
-    console.log(error)
+    showError(error)
   }
 }
 
@@ -386,7 +438,7 @@ const updateTask = async(task_id) => {
   try{
     const newTask = await getTask(task_id)
   }catch (error){
-    console.log(error)
+    showError(error)
   }
 }
 
@@ -413,7 +465,7 @@ const updateTaskColumnValues = async(data) => {
     });
 
   }catch (error){
-    console.log(error)
+    showError(error)
   }
 
 }
@@ -430,12 +482,13 @@ useEffect(() => {
 
       },
       (payload) => {
+        console.log('board_field_values payload', payload)
+
 
            if (payload.eventType === 'UPDATE'){
 
             setBoard(prev => {
 
-              console.log('board_field_values UPDATE')
 
               const updatedBoardFields = prev.board_fields.map(boardField => {
                 if (boardField.id === payload.new.board_field_id) {
@@ -519,7 +572,7 @@ useEffect(() => {
       },
       (payload) => {
 
-        console.log('board-fields-inserts', payload)
+        console.log('board_fields payload', payload)
         if (payload.eventType === 'DELETE'){
           setBoard(prev => {
             const updatedBoardFields = prev.board_fields.filter(board_field => {
@@ -569,7 +622,7 @@ useEffect(() => {
         table: 'task_members',
       },
       (payload) => {
-        console.log('task-members channel')
+        console.log('task-members payload', payload)
 
         if (payload.eventType === 'UPDATE'){
 
@@ -633,7 +686,7 @@ useEffect(() => {
          filter: `id=eq.${boardId}`
        },
        (payload) => {
-         console.log('board-updates', payload.new)
+         console.log('boards payload', payload)
 
          setBoard(prev => {
 
@@ -673,7 +726,7 @@ useEffect(() => {
         table: 'board_tasks',
       },
       (payload) => {
-        console.log('board-inserts channel', payload)
+        console.log('board_tasks payload', payload)
 
         if (payload.eventType === 'DELETE'){
           setBoard(prev => {
@@ -712,7 +765,7 @@ useEffect(() => {
          table: 'tasks',
        },
        (payload) => {
-         console.log('new-tasks channel')
+         console.log('new-tasks payload', payload)
 
          //const update = columns.find(c => c.id === rawValue.column_id);
          if (payload.eventType === 'UPDATE'){
@@ -804,7 +857,9 @@ useEffect(() => {
                 payload.new.type === 'number' ||
                 payload.new.type === 'checkbox' ||
                 payload.new.type === 'checkbox list' ||
+                payload.new.type === 'dropdown' ||
                 payload.new.type === 'url' ||
+                payload.new.type === 'data' ||
                 payload.new.type === 'formula'){
 
 
@@ -892,6 +947,8 @@ useEffect(() => {
         },
         (payload) => {
 
+          console.log('columns payload', payload)
+
 
           if (payload.eventType === 'DELETE'){
 
@@ -912,7 +969,7 @@ useEffect(() => {
 
             if (payload.eventType === 'INSERT') {
 
-              console.log('custom-columns ', payload)
+
               if (payload.new.type === "dropdown"){
                 getData()
               }else{
@@ -964,7 +1021,7 @@ const getFilteredTaskMembers = async () => {
     setBoard(memberFilterData)
 
   }catch(error){
-    console.log(error)
+    showError(error)
   }
 }
 
@@ -1011,7 +1068,7 @@ const getFilteredTaskMembers = async () => {
 
      setSelectedTaskMembers([])
    }catch (error){
-     console.log(error)
+     showError(error)
    }
  }
 
@@ -1020,8 +1077,9 @@ const getFilteredTaskMembers = async () => {
    try{
      const deletedColumns = await deleteCustomColumns(selectedColumns)
      setSelectedColumns([])
+     setClearColumnCheckBoxes(true)
    }catch (error){
-     console.log(error)
+     showError(error)
    }
  }
 
@@ -1033,7 +1091,7 @@ const getFilteredTaskMembers = async () => {
 
 
    }catch (error){
-     console.log(error)
+     showError(error)
    }
 
 
@@ -1044,7 +1102,7 @@ const getFilteredTaskMembers = async () => {
       const deletedColumnValues= await deleteColumnValues(selectedColItems)
 
    }catch (error){
-     console.log(error)
+     showError(error)
    }
 
 
@@ -1129,15 +1187,19 @@ const getFilteredTaskMembers = async () => {
         });
 
    }catch (error){
-     console.log('Error updating task due date: ', error)
+     showError('Error updating task due date: ', error)
    }
  }
 
 
  const calculateWidth = () => {
-   return colDefs.reduce((sum, col) => sum + col.width, 0);
- }
-
+   return colDefs.reduce((sum, col) => {
+     if (col.visible) {
+       return sum + (Number(col.width) || 0);
+     }
+     return sum;
+   }, 0);
+ };
  const statusFilterArray = ['All', ...taskStatusArray]
 
 
@@ -1156,9 +1218,40 @@ setColDefs(prevItems => {
  }
 
  const dateFilterFunction = (direction, columnValue) => {
-   console.log('dateFilterFunction', direction, columnValue )
    setDateFilter(columnValue)
    setDateFilterDirection(direction)
+ }
+
+ const analyzeFunction = () => {
+
+
+
+
+
+   const items = rowData
+    .filter((item) => selectedTasks.includes(item.id))
+    .map((item) => {
+      const newItem = {};
+
+      const keys = Object.keys(item);
+      for (const key of keys) {
+
+
+        if (Array.isArray(item[key]) && selectedColumns.includes(item[key][0]?.column_id)) {
+            newItem[key] = item[key][0]?.value;
+        }
+        if (key === 'title') {
+            newItem[key] = item[key]
+        }
+      }
+      return newItem;
+
+    });
+
+      console.log('items', items)
+
+   setDisplayAI(true)
+   setAIData(items)
  }
 
 
@@ -1202,8 +1295,8 @@ setColDefs(prevItems => {
               </div>
 
               <div className='card'>
-                <p className="form-label" style={{display:'block'}}><strong>Task Filters</strong></p>
-                <p style={{fontSize:'.8em', margin:'15px 0px 5px 0px'}}>Task Status</p>
+                <p className="form-label" style={{display:'block'}}><strong>Item Filters</strong></p>
+                <p style={{fontSize:'.8em', margin:'15px 0px 5px 0px'}}>Item Status</p>
                 <select className="form-input select"
                   onChange={async(e) => {
                   setStatusFilter(e.target.value)
@@ -1257,7 +1350,8 @@ setColDefs(prevItems => {
           <div style={{overflow:'scroll'}}>
                 {boardView === 'Table' &&
                   <>
-                  <div style={{display:'flex', position: 'sticky', left: 0, zIndex:1}}>
+                  <div style={{display:'flex', position: 'sticky', left: 0, zIndex:1, alignItems:'center'}}>
+                    <ColumnVisibility styles={{marginRight:'10px'}} columnsData={colDefs} callback={setColDefs} boardId={boardId}/>
                     {rowData.length>0&&
                       <>
                         <NewCustomColumn boardId={boardId} userId={userId} colDefs={colDefs}/>
@@ -1266,7 +1360,7 @@ setColDefs(prevItems => {
                     <AddTaskToBoard boardId={boardId} userId={userId} existingBoardTasks={board.tasks}/>
 
                     {selectedTasks.length > 0&&
-                      <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteTasksFunction}>Remove Tasks</button>
+                      <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteTasksFunction}>Remove Items</button>
                     }
                     {selectedColItems.length > 0&&
                       <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteColumnValuesFunction}>Delete Column Items</button>
@@ -1277,23 +1371,29 @@ setColDefs(prevItems => {
                     {selectedTaskMembers.length > 0&&
                       <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteMembersFromTaskFunction}>Remove Members</button>
                     }
+                    {(selectedTasks.length > 1 && selectedColumns.length > 0 )&&
+                      <button style={{marginLeft:'10px'}} className='btn secondary' onClick={analyzeFunction}>Analyze</button>
+                    }
                   </div>
-                  <div className="card" style={{width: 'max-content'}}>
+                  <div className="card" style={{width: 'max-content', paddingTop:'25px'}}>
                     <div style={{width: calculateWidth() }}>
-
                       <div
                         style={{
                           display: 'grid',
                           gridTemplateColumns: colDefs
-                            .map((col, index) => (`${col.width}px`))
+                            .map((col, index) => {
+                              if (col.visible){
+                                return (`${col.width}px`)
+                              }
+                            })
                             .join(' ')
                         }}
                         className='board-table'
                       >
                       {/* Header */}
                       {colDefs.map((col, index) => {
-
                         const isCustomColumn = col?.id
+                        if (col.visible){
                           return(
                             <div
                               key={index}
@@ -1311,14 +1411,14 @@ setColDefs(prevItems => {
                                     <ResizableColumns col={col} index={index} callback={resizeColumnsCallback}>
                                       <div style={{display:'flex', alignItems:'center'}} className='board-table-cell-inner'>
                                         {col.id &&
-                                          <SelectCheckBox id={col.id} callBackFunction={selectColumnsFunction}/>
+                                          <SelectCheckBox id={col.id} callBackFunction={selectColumnsFunction} clearCheckBoxes={clearColumnCheckBoxes}/>
                                         }
                                         {col.id?(
                                           <ColumnName col={col} boardId={boardId}/>
                                         ):(
                                           <>
 
-                                          <p style={{marginLeft:'10px'}}>{col.field.replace('_', ' ')}</p>
+                                          <p style={{marginLeft:'10px'}}>{col.field.replaceAll('_', ' ')}</p>
                                           {(col.field === 'due_date' || col.field === 'created_at') && (
                                             <FilterToggle
                                               dateFilterDirection={dateFilterDirection}
@@ -1337,6 +1437,9 @@ setColDefs(prevItems => {
                               </div>
                             </div>
                           )
+                        }else{
+                          return null
+                        }
                       })}
 
                       {/* Rows */}
@@ -1358,365 +1461,401 @@ setColDefs(prevItems => {
                         return(
                             //row = task
                           colDefs.map((col, colIndex) => {
-                            //console.log('is object', typeof row[col.field])
                             const isCustomColumn = col?.id
+                            if (col.visible){
+                              return(
+                                  <div id={row?.id} key={`cell-${rowIndex}-${colIndex}`}
+                                    className={`${taskFocus===row?.id?'task-hilight': null} ${colIndex} ${colIndex+1 === colDefs.length? 'board-table-cell last-header-cell' : 'board-table-cell'} ${rowIndex+1 === rowData.length?'last-row':''} ${date?'':'overdue'} ${colIndex===0?'first-cell':''} ${colIndex+1===colDefs.length?'last-cell':''}`}
+                                    >
+                                    <div className='board-table-cell-inner'>
+                                      {col.field === "select-task"&&
+                                        <>
+                                          <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            checked={selectedTasks.includes(row.id)}
+                                            onChange={() => selectTaskFunction(row.id)}
+                                          />
+                                        </>
+                                      }
 
+                                      {col.field === "id"&&
+                                        <>
+                                          {row[col.field]}
+                                        </>
+                                      }
+                                      {col.field === 'created_by' &&
+                                        <div className={`${'select-tab'}`}>
+                                          <User userInfo={row[col.field]} active={null}/>
+                                        </div>
+                                      }
+                                      {(col.field === 'description' && col.type === "text") &&
+                                        <>
+                                          <textarea
+                                            id={col.id}
+                                            className='form-input'
+                                            type="text"
+                                            defaultValue={row[col.field]}
+                                            disabled={col.field==='id'}
+                                            onBlur={(e) => {
+                                              const newValue = e.target.value;
+                                              if (newValue !== row[col.field]) {
+                                                updateTaskColumn(row.id, col.field, newValue);
+                                              }
+                                            }}
+                                          />
+                                        </>
+                                      }
+                                      {(col.field === 'created_at' && col.type === "date") &&
+                                        <p>{moment(row[col.field]).format("MMMM D, YYYY h:mm A")}</p>
+                                      }
 
-                            return(
-                              <div id={row?.id} key={`cell-${rowIndex}-${colIndex}`}
-                                className={`${taskFocus===row?.id?'task-hilight': null} ${colIndex} ${colIndex+1 === colDefs.length? 'board-table-cell last-header-cell' : 'board-table-cell'} ${rowIndex+1 === rowData.length?'last-row':''} ${date?'':'overdue'} ${colIndex===0?'first-cell':''} ${colIndex+1===colDefs.length?'last-cell':''}`}
-                                >
-                                <div className='board-table-cell-inner'>
+                                      {(col.field === 'members') &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=>{
 
-                                  {(col.field === "select-task" && !isCustomColumn) &&
-                                    <>
+                                            return(
+                                              <div key={item.user_id} style={{display:'flex', alignItems:'center'}}>
+                                                {item.user_id !== row.created_by.id &&
+                                                  <SelectMemberCheckBox user={item} taskId={row.id} callBackFunction={selectMembersFunction}/>
+                                                }
+                                                <div className={`${'select-tab'}`}>
+                                                  {item.users&&
+                                                  <User userInfo={item.users} active={null}/>
+                                                }
+                                                </div>
+                                              </div>
+                                            )
+                                          })}
+                                          <AddTaskMember board={board} task={row} existingUsers={row[col.field]} selectedTaskMembers={selectedTaskMembers}/>
+                                        </>
+                                      }
 
-                                    <input
-                                      className="form-check-input"
-                                      type="checkbox"
-                                      checked={selectedTasks.includes(row.id)}
-                                      onChange={() => selectTaskFunction(row.id)}
-                                    />
-                                  </>
-                                  }
-                                  {col.field === "id"&&
-                                    <>
-                                      {row[col.field]}
-                                    </>
-                                  }
-                                  {col.field === 'created_by' &&
-                                    <div className={`${'select-tab'}`}>
-                                      <User userInfo={row[col.field]} active={null}/>
-                                    </div>
-                                  }
-                                  {(col.field === 'description' && col.type === "text") &&
-                                    <>
-                                      <textarea
-                                        id={col.id}
-                                        className='form-input'
-                                        type="text"
-                                        defaultValue={row[col.field]}
-                                        disabled={col.field==='id'}
-                                        onBlur={(e) => {
-                                          const newValue = e.target.value;
-                                          if (newValue !== row[col.field]) {
-                                            updateTaskColumn(row.id, col.field, newValue);
-                                          }
-                                        }}
-                                      />
-                                    </>
-                                  }
-                                  {(col.field === 'created_at' && col.type === "date") &&
-                                    <p>{moment(row[col.field]).format("MMMM D, YYYY h:mm A")}</p>
-                                  }
+                                      {(col.field === 'due_date' && col.type === "date") &&
+                                        <DatePicker
+                                          //minDate={moment().toDate()}
+                                          selected={row[col.field]?new Date(row[col.field]):''}
+                                          onChange={(date) => {
+                                              if (new Date(date).getTime() !== new Date(row[col.field]).getTime()) {
+                                                   updateTaskColumn(row.id, col.field, new Date(date))
 
-                                  {(col.field === 'task_members') &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=>{
-
-                                        return(
-                                          <div key={item.user_id} style={{display:'flex', alignItems:'center'}}>
-                                            {item.user_id !== row.created_by.id &&
-                                              <SelectMemberCheckBox user={item} taskId={row.id} callBackFunction={selectMembersFunction}/>
+                                                }
+                                          }}
+                                          showTimeSelect
+                                          dateFormat="MMMM d, yyyy h:mm aa"
+                                          className={'form-input'}
+                                        />
+                                      }
+                                      {(!isCustomColumn && col.field === 'recurrence' && row.is_recurring && row.recurrence_days !== null) &&
+                                        <>
+                                          {row[col.field]}
+                                          {row.recurrence_days.map((value, index)=>{
+                                            return <div key={value}>{value}</div>
+                                          })}
+                                        </>
+                                      }
+                                      {(!isCustomColumn && col.field === 'recurrence_days' && row.is_recurring && row[col.field] !== null) &&
+                                        <>
+                                          {row.recurrence}
+                                          {row[col.field].map((value, index)=>{
+                                            return <div key={value}>{value}</div>
+                                          })}
+                                        </>
+                                      }
+                                      {col.field !== "id" && col.type === "string" &&
+                                        <>
+                                        <input
+                                          id={col.id}
+                                          className='table-cell-input'
+                                          type="text"
+                                          defaultValue={!isCustomColumn?row[col.field]:row[col.field].value?row[col.field].value:''}
+                                          disabled={col.field==='id'}
+                                          onBlur={(e) => {
+                                            const newValue = e.target.value;
+                                            if (newValue !== row[col.field]) {
+                                              if (isCustomColumn){
+                                                //custom column
+                                                if (row[col.field]?.value){
+                                                    //updateTaskColumn(row.id, col.field, new Date(date))
+                                                updateColumnValue(newValue, row[col.field].id);
+                                                }else{
+                                                  // insert new task column
+                                                  addNewColumnValue({
+                                                    task_id: row.id,
+                                                    column_id: col.id,
+                                                    board_id: board.id,
+                                                    value: newValue,
+                                                    type:'string'
+                                                  });
+                                                }
+                                              }else{
+                                                // default column
+                                                updateTaskColumn(row.id, col.field, newValue)
+                                              }
                                             }
-                                            <div className={`${'select-tab'}`}>
-                                              {item.users&&
-                                              <User userInfo={item.users} active={null}/>
-                                            }
-                                            </div>
+                                          }}
+                                        />
+                                      </>
+                                      }
+
+                                      {col.type === 'select'&& col.field === "status" &&
+                                        <>
+                                        <select className="form-input select"
+                                          onChange={(e) => {
+                                            //setTaskStatus(e.target.value)
+                                            const newValue = e.target.value;
+                                              if (isCustomColumn){
+                                                if (row[col.field?.value]){
+                                                    //updateTaskColumn(row.id, col.field, new Date(date))
+                                                  updateColumnValue(newValue, row[col.field].id);
+
+
+
+                                                }else{
+                                                  // insert new task column
+                                                  addNewColumnValue({
+                                                    task_id: row.id,
+                                                    column_id: col.id,
+                                                    board_id: board.id,
+                                                    value: newValue,
+                                                    type:'select'
+                                                  });
+                                                }
+                                              }else{
+                                                // default column
+                                                updateTaskColumn(row.id, col.field, newValue)
+                                                const userArray = row.task_members.map((user)=>{
+                                                  return user.user_id
+                                                })
+                                                const message = `<span>The status of one of your tasks has bee updated to <strong>${newValue}</strong> - <a href="/task/${row.id}"><strong>View Task Here<strong></a></span>`
+                                                  sendNotifications(userArray, message)
+                                              }
+                                          }}
+                                          defaultValue={row[col.field]?.value || ''}>
+                                          {row[col.field]?.array.map(function(status, index){
+                                            return(
+                                              <option key={index} value={status}>{status}</option>
+                                            )
+                                          })}
+                                        </select>
+                                      </>
+                                      }
+                                      {(isCustomColumn && col.field !== 'description' && col.type === "text") &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=> {
+                                            return(
+                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                                    <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <TextItem item={item}/>
+                                                    </div>
+                                                </div>
+                                            )
+                                          })}
+                                          <AddTextItem data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}} />
+                                        </>
+                                      }
+                                      {isCustomColumn && col.type === "url" &&
+                                        <>
+                                          <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                              {/*}<SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>*/}
+                                              <ColumnUrl item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
                                           </div>
-                                        )
-                                      })}
-                                      <AddTaskMember board={board} task={row} existingUsers={row[col.field]} selectedTaskMembers={selectedTaskMembers}/>
-                                    </>
-                                  }
-
-                                  {(col.field === 'due_date' && col.type === "date") &&
-                                    <DatePicker
-                                      //minDate={moment().toDate()}
-                                      selected={row[col.field]?new Date(row[col.field]):''}
-                                      onChange={(date) => {
-                                          if (new Date(date).getTime() !== new Date(row[col.field]).getTime()) {
-                                               updateTaskColumn(row.id, col.field, new Date(date))
-
-                                            }
-                                      }}
-                                      showTimeSelect
-                                      dateFormat="MMMM d, yyyy h:mm aa"
-                                      className={'form-input'}
-                                    />
-                                  }
-                                  {(!isCustomColumn && col.field === 'recurrence' && row.is_recurring && row.recurrence_days !== null) &&
-                                    <>
-                                      {row[col.field]}
-                                      {row.recurrence_days.map((value, index)=>{
-                                        return <div key={value}>{value}</div>
-                                      })}
-                                    </>
-                                  }
-                                  {(!isCustomColumn && col.field === 'recurrence_days' && row.is_recurring && row[col.field] !== null) &&
-                                    <>
-                                      {row.recurrence}
-                                      {console.log('row[col.field].value', row[col.field])}
-                                      {row[col.field].map((value, index)=>{
-                                        return <div key={value}>{value}</div>
-                                      })}
-                                    </>
-                                  }
-                                  {col.field !== "id" && col.type === "string" &&
-                                    <>
-                                    <input
-                                      id={col.id}
-                                      className='table-cell-input'
-                                      type="text"
-                                      defaultValue={!isCustomColumn?row[col.field]:row[col.field].value?row[col.field].value:''}
-                                      disabled={col.field==='id'}
-                                      onBlur={(e) => {
-                                        const newValue = e.target.value;
-                                        if (newValue !== row[col.field]) {
-                                          if (isCustomColumn){
-                                            //custom column
-                                            if (row[col.field]?.value){
-                                                //updateTaskColumn(row.id, col.field, new Date(date))
-                                            updateColumnValue(newValue, row[col.field].id);
-                                            }else{
-                                              // insert new task column
-                                              addNewColumnValue({
-                                                task_id: row.id,
-                                                column_id: col.id,
-                                                board_id: board.id,
-                                                value: newValue,
-                                                type:'string'
-                                              });
-                                            }
-                                          }else{
-                                            // default column
-                                            updateTaskColumn(row.id, col.field, newValue)
-                                          }
-                                        }
-                                      }}
-                                    />
-                                  </>
-                                  }
-
-                                  {col.type === 'select'&& col.field === "status" &&
-                                    <>
-                                    <select className="form-input select"
-                                      onChange={(e) => {
-                                        //setTaskStatus(e.target.value)
-                                        const newValue = e.target.value;
-                                          if (isCustomColumn){
-                                            if (row[col.field?.value]){
-                                                //updateTaskColumn(row.id, col.field, new Date(date))
-                                              updateColumnValue(newValue, row[col.field].id);
-
-
-
-                                            }else{
-                                              // insert new task column
-                                              addNewColumnValue({
-                                                task_id: row.id,
-                                                column_id: col.id,
-                                                board_id: board.id,
-                                                value: newValue,
-                                                type:'select'
-                                              });
-                                            }
-                                          }else{
-                                            // default column
-                                            updateTaskColumn(row.id, col.field, newValue)
-                                            console.log('status update')
-                                            const userArray = row.task_members.map((user)=>{
-                                              return user.user_id
-                                            })
-                                            console.log('userArray', userArray)
-                                            const message = `<span>The status of one of your tasks has bee updated to <strong>${newValue}</strong> - <a href="/task/${row.id}"><strong>View Task Here<strong></a></span>`
-                                              sendNotifications(userArray, message)
-                                          }
-                                      }}
-                                      defaultValue={row[col.field]?.value || ''}>
-                                      {row[col.field]?.array.map(function(status, index){
-                                        return(
-                                          <option key={index} value={status}>{status}</option>
-                                        )
-                                      })}
-                                    </select>
-                                  </>
-                                  }
-                                  {(isCustomColumn && col.field !== 'description' && col.type === "text") &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=> {
-                                        return(
-                                            <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
-                                                <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
-                                                  <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                  <TextItem item={item}/>
-                                                </div>
-                                            </div>
-                                        )
-                                      })}
-                                      <AddTextItem data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}} />
-                                    </>
-                                  }
-                                  {isCustomColumn && col.type === "url" &&
-                                    <>
-                                      <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
-                                          {/*}<SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>*/}
-                                          <ColumnUrl item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-                                      </div>
-                                    </>
-                                  }
-                                  {isCustomColumn && col.type === "number" &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=>{
-                                        return(
-                                            <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
-                                                <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
-                                                  <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                  <ListItemNumber item={item} />
-                                                </div>
-                                            </div>
-                                        )
-                                      })}
-                                      <AddListItemNumber data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-                                    </>
-                                  }
-
-                                  {(isCustomColumn && col.type === "dropdown") &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=> {
-                                        return(
-                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'row', marginTop:'15px'}}>
-                                                  <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                  <Dropdown item={item}/>
-                                                </div>
-                                        )
-                                      })}
-                                      <AddDropdown data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-                                    </>
-                                  }
-
-
-                                  {(isCustomColumn && col.type === "tags") &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=> {
-                                        return(
-                                            <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
-                                                <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
-                                                  <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                  <ListItemSuggest item={item}/>
-                                                </div>
-                                            </div>
-                                        )
-                                      })}
-                                      <AddListItemSuggest data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-                                    </>
-                                  }
-
-                                  {isCustomColumn && col.type === "file" &&
-                                    <>
-                                    {/*}  {console.log('file', row[col.field])}*/}
-                                      {row[col.field].length>0 && isCustomColumn? (
-                                        <div style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                        </>
+                                      }
+                                      {isCustomColumn && col.type === "number" &&
+                                        <>
                                           {row[col.field]?.map((item, index)=>{
                                             return(
-                                                  <div  key={item.id}  style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
-                                                    <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                    <div className='table-file' style={{margin: '10px 0px 10px 10px', position:'relative'}}>
-                                                      {(item.files.file_type === 'image/jpeg' || item.files.file_type === 'image/png') &&
-                                                        <>
-                                                          <img src={item.files.file_url} style={{width:'100%'}}/>
-                                                          <div  className="table-file-options" style={{cursor:'pointer'}}>
-                                                            <p style={{fontSize:'.8em', color:'#ffffff'}}onClick={() => handleFileDownload(item.files.file_url, item.files.file_name)}>Download image</p>
-                                                          </div>
-                                                        </>
-                                                      }
+                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                                    <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <ListItemNumber item={item} />
                                                     </div>
-                                                  </div>
+                                                </div>
                                             )
-                                            })
-                                          }
-                                          <FilePicker
-
-                                            columnId={col.id}
-                                            taskId={row.id}
-                                            boardId={board.id}
-                                          />
-                                     </div>
-                                      ):(
+                                          })}
+                                          <AddListItemNumber data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                        </>
+                                      }
+                                      {isCustomColumn && col.type === "data" &&
                                         <>
-                                          <FilePicker
-                                            columnId={col.id}
-                                            taskId={row.id}
-                                            boardId={board.id}
-                                        />
-                                       </>
-                                      )}
-                                  </>
-                                  }
-
-                                  {isCustomColumn && col.type === "checkbox" &&
-                                    <>
-                                      <div style={{display:'flex', alignItems:'center', flexDirection:'row', justifyContent: 'center'}}>
-                                        {/*}<SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>*/}
-                                        <SingleColumnCheckBox item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-                                      </div>
-                                    </>
-                                  }
-                                  {isCustomColumn && col.type === "checkbox list" &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=>{
-                                        return(
-                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
-                                                  <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                  <ColumnCheckBox item={item} />
+                                          {row[col.field]?.map((item, index)=>{
+                                            return(
+                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                                    <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <ListItemData item={item} />
+                                                    </div>
                                                 </div>
+                                            )
+                                          })}
+                                          <AddListItemData data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                        </>
+                                      }
 
-                                        )
-                                      })}
-                                    <div style={{display:'flex', justifyContent: 'center'}}>
-                                      <AddColumnCheckBox value={row[col.field]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                      {(isCustomColumn && col.type === "dropdown") &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=> {
+                                            return(
+                                                    <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'row', marginTop:'15px'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <Dropdown item={item}/>
+                                                    </div>
+                                            )
+                                          })}
+                                          <AddDropdown data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                        </>
+                                      }
+
+                                      {(isCustomColumn && col.type === "tags") &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=> {
+                                            return(
+                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                                    <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <ListItemSuggest item={item}/>
+                                                    </div>
+                                                </div>
+                                            )
+                                          })}
+                                          <AddListItemSuggest data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                        </>
+                                      }
+
+                                      {(isCustomColumn && col.type === "list") &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=> {
+                                            return(
+                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                                    <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <ListItemSuggest item={item}/>
+                                                    </div>
+                                                </div>
+                                            )
+                                          })}
+                                          <AddListItemSuggest data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                        </>
+                                      }
+
+                                      {isCustomColumn && col.type === "file" &&
+                                        <>
+
+                                          {row[col.field].length>0 && isCustomColumn? (
+                                            <div style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                              {row[col.field]?.map((item, index)=>{
+                                                console.log('item', item)
+                                                return(
+                                                      <div  key={item.id}  style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                                        <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                        <div className='table-file' style={{margin: '10px 0px 10px 10px', position:'relative'}}>
+                                                          {(item.files.file_type === 'image/jpeg' || item.files.file_type === 'image/png') &&
+                                                            <>
+                                                              <img className="table-image" src={item.files.file_url} style={{width:'100%'}}/>
+                                                              <div  className="table-file-options transition" style={{cursor:'pointer'}}>
+                                                                <img className="download-file" onClick={() => handleFileDownload(item.files.file_url, item.files.file_name)} src="/download.svg"/>
+                                                              </div>
+                                                            </>
+                                                          }
+                                                          {item.files.file_type === 'application/pdf'&&
+                                                            <>
+                                                              <img src={'/pdf-icon.png'} style={{width:'100%'}}/>
+
+                                                              <div className="table-file-options transition" style={{cursor:'pointer'}}>
+                                                                <img className="download-file" onClick={() => handleFileDownload(item.files.file_url, item.files.file_name)} src="/download.svg"/>
+                                                              </div>
+                                                            </>
+                                                          }
+                                                          <p style={{fontSize:'.8em', marginTop:'0px'}}>{item.files.file_name}</p>
+                                                        </div>
+                                                      </div>
+                                                )
+                                                })
+                                              }
+                                              <FilePicker
+
+                                                columnId={col.id}
+                                                taskId={row.id}
+                                                boardId={board.id}
+                                              />
+                                         </div>
+                                          ):(
+                                            <>
+                                              <FilePicker
+                                                columnId={col.id}
+                                                taskId={row.id}
+                                                boardId={board.id}
+                                            />
+                                           </>
+                                          )}
+                                      </>
+                                      }
+
+                                      {isCustomColumn && col.type === "checkbox" &&
+                                        <>
+                                          <div style={{display:'flex', alignItems:'center', flexDirection:'row', justifyContent: 'center'}}>
+                                            {/*}<SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>*/}
+                                            <SingleColumnCheckBox item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                          </div>
+                                        </>
+                                      }
+                                      {isCustomColumn && col.type === "checkbox list" &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=>{
+                                            return(
+                                                    <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <ColumnCheckBox item={item} />
+                                                    </div>
+
+                                            )
+                                          })}
+                                        <div style={{display:'flex', justifyContent: 'center'}}>
+                                          <AddColumnCheckBox value={row[col.field]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                        </div>
+                                        </>
+                                      }
+
+                                      {isCustomColumn && col.type === "date" && col.field !== 'due_date' &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=>{
+                                            return(
+                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
+                                                    <div style={{display:'flex', alignItems:'top', flexDirection:'row'}}>
+                                                      <SelectCheckBox style={{marginTop:'22px'}} callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <div>
+                                                        <DateItem item={item} />
+                                                      </div>
+
+                                                    </div>
+                                                </div>
+                                            )
+                                          })}
+                                          <AddDateItem data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+
+                                        </>
+                                      }
+                                      {isCustomColumn && col.type === "formula" &&
+                                        <>
+                                          {row[col.field]?.map((item, index)=> {
+                                            return(
+                                                <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}} className='column-item'>
+                                                    <div style={{display:'flex', alignItems:'center', flexDirection:'row', width:'100%'}}>
+                                                      <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
+                                                      <FormulaBuilder item={item} rowData={row} boardData={board.board_fields} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                                    </div>
+                                                </div>
+                                            )
+                                          })}
+                                          <FormulaBuilder item={null} rowData={row} boardData={board.board_fields} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                        </>
+                                      }
                                     </div>
-                                    </>
-                                  }
-
-                                  {isCustomColumn && col.type === "date" && col.field !== 'due_date' &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=>{
-                                        return(
-                                            <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
-                                                <div style={{display:'flex', alignItems:'top', flexDirection:'row'}}>
-                                                  <SelectCheckBox style={{marginTop:'22px'}} callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                  <div>
-                                                    <DateItem item={item} />
-                                                  </div>
-
-                                                </div>
-                                            </div>
-                                        )
-                                      })}
-                                      <AddDateItem data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-
-                                    </>
-                                  }
-                                  {isCustomColumn && col.type === "formula" &&
-                                    <>
-                                      {row[col.field]?.map((item, index)=> {
-                                        return(
-                                            <div key={item.id} style={{display:'flex', alignItems:'center', flexDirection:'column'}} className='column-item'>
-                                                <div style={{display:'flex', alignItems:'center', flexDirection:'row', width:'100%'}}>
-                                                  <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
-                                                  <FormulaBuilder item={item} rowData={row} boardData={board.board_fields} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-                                                </div>
-                                            </div>
-                                        )
-                                      })}
-                                      <FormulaBuilder item={null} rowData={row} boardData={board.board_fields} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-                                    </>
-                                  }
-                                </div>
-                            </div>
-                            )
+                                  </div>
+                              )
+                            }
 
                           })
 
@@ -2120,159 +2259,6 @@ const FilePicker = ({columnId, taskId, boardId}) => {
   )
 }
 
-{/*}
-const DateItem = ({item}) => {
-  const [date, setDate] = useState(new Date(item.value))
-  const [save, setSave] = useState(false)
-
-  useEffect(()=>{
-    if (item.value){
-      setDate(new Date(item.value))
-    }
-  },[item.value])
-
-  const saveDate = async () => {
-    try{
-      await updateColumnValue(date, item.id)
-      setSave(false)
-      showSuccess('Date Updated')
-    }catch (error){
-      showError(error)
-    }
-  }
-
-  return (
-    <div style={{marginLeft:'5px'}}>
-      <DatePicker
-        selected={date}
-        onChange={(date) => {
-          setDate(date)
-          console.log('date', date)
-          console.log('item.value', new Date(item.value))
-          if (date !== new Date(item.value)){
-            setSave(true)
-          }
-          //
-        }}
-        showTimeSelect
-        dateFormat="MMMM d, yyyy h:mm aa"
-        className={'form-input date-picker'}
-      />
-      {save &&
-        <button className='btn btn-sm secondary' onClick={saveDate}>Update</button>
-      }
-    </div>
-  );
-}*/}
-{/*}
-const AddDateItem = ({data}) => {
-  const [date, setDate] = useState(new Date())
-  const [save, setSave] = useState(false)
-  const [addDateItem, setAddDateItem] = useState(null)
-
-  const saveDate = async () => {
-    try{
-        await addNewColumnValue({
-          task_id: data.task_id,
-          column_id: data.column_id,
-          board_id: data.board_id,
-          value: date,
-          type:data.type
-        });
-      setSave(false)
-      setAddDateItem(null)
-      showSuccess('Date Saved')
-    }catch (error){
-      showError(error)
-    }
-  }
-
-  return(
-    <>
-    {addDateItem === data.id ? (
-      <>
-        <DatePicker
-          selected={date}
-          onChange={(date) => {
-            setDate(date)
-            setSave(true)
-          }}
-          showTimeSelect
-          dateFormat="MMMM d, yyyy h:mm aa"
-          className={'form-input'}
-        />
-        {save &&
-          <button className='btn btn-sm secondary' onClick={saveDate}>Save</button>
-         }
-      </>
-    ) : (
-      <div style={{display:'flex', justifyContent: 'center'}}>
-        <button className='btn primary' onClick={() => setAddDateItem(data.id)}>Add Date</button>
-      </div>
-    )}
-</>
-  )
-}
-*/}
-
-const AddTextItem = ({data}) => {
-  const [addTextItem, setAddTextItem] = useState(null)
-  return(
-    <>
-    {addTextItem === data.id ? (
-      <>
-      <textarea
-        className='form-input'
-        type="text"
-        autoFocus
-        onBlur={(e) => {
-          const newValue = e.target.value;
-          if (newValue !== '') {
-            addNewColumnValue({
-              task_id: data.task_id,
-              column_id: data.column_id,
-              board_id: data.board_id,
-              value: newValue,
-              type:data.type
-            });
-          }
-          setAddTextItem(null);
-        }}
-      />
-      </>
-    ) : (
-      <div style={{display:'flex', justifyContent: 'center'}}>
-        <button className='btn primary' onClick={() => setAddTextItem(data.id)}>Add Value</button>
-      </div>
-    )}
-</>
-  )
-}
-
-const TextItem = ({item}) => {
-  const [inputValue, setInputValue] = useState(item.value || '');
-
-  useEffect(() => {
-    setInputValue(item.value || '');
-  }, [item.value]);
-
-  return (
-    <textarea
-      style={{marginLeft:'5px'}}
-      className='form-input'
-      type="text"
-      value={inputValue}
-      onChange={(e) => setInputValue(e.target.value)}
-      onBlur={(e) => {
-        const newValue = e.target.value;
-        if (newValue !== item.value) {
-          updateColumnValue(newValue, item.id);
-        }
-      }}
-    />
-  );
-}
-
 
 const Dropdown = ({item}) => {
   const [dropdownValue, setDropdownValue] = useState(item.value? item.value : 'choose')
@@ -2315,11 +2301,9 @@ const AddDropdown = ({data}) => {
   const [dropDownList, setDropDownList] = useState([]);
   const [dropdownLabel, setDropdownLabel] = useState('');
 
-
   const dropdownBuilderCallback = (data) => {
     setDropDownList(data)
   }
-
 
   const handleDropdownCreate = async (e) => {
         e.preventDefault();
@@ -2383,6 +2367,7 @@ const AddListItemSuggest = ({data}) => {
   const [addListItem, setAddListItem] = useState(null)
   const [results, setResults] = useState([]);
   const [inputValue, setInputValue] = useState(data.value || '');
+
   const delay = 300
 
   const handleSearch = useCallback(async (query) => {
@@ -2412,8 +2397,8 @@ const AddListItemSuggest = ({data}) => {
             onChange={(e) => {
               setInputValue(e.target.value)
               const handler = setTimeout(() => {
-                if (inputValue.trim() !== '') {
-                  handleSearch(inputValue)
+                if (e.target.value.trim() !== '') {
+                  handleSearch(e.target.value.trim())
                 }
               }, delay);
               }
@@ -2475,6 +2460,7 @@ const ListItemSuggest = ({item}) => {
   const [inputValue, setInputValue] = useState(item.value || '');
   const [debouncedValue, setDebouncedValue] = useState('');
   const [results, setResults] = useState([]);
+  const [edit, setEdit] = useState(false);
   const delay = 300
 
 
@@ -2505,8 +2491,8 @@ const ListItemSuggest = ({item}) => {
           onChange={(e) => {
             setInputValue(e.target.value)
               const handler = setTimeout(() => {
-                if (inputValue.trim() !== '') {
-                  handleSearch(inputValue)
+                if (e.target.value.trim() !== '') {
+                  handleSearch(e.target.value.trim())
                 }
               }, delay);
             }
@@ -2690,7 +2676,7 @@ const AddListItemNumber = ({data}) => {
       </>
     ) : (
       <div style={{display:'flex', justifyContent: 'center'}}>
-        <button className='btn primary' onClick={() => setAddListItem(data.id)}>Add Number</button>
+        <button className='btn secondary btn-sm' onClick={() => setAddListItem(data.id)}>Add Number</button>
       </div>
     )}
   </>
@@ -2787,7 +2773,7 @@ const AddTaskMember = ({board, task, existingUsers, selectedTaskMembers}) => {
       await insertTaskMembers(task.id, selectedUsers)
       setAddMemberItem(false)
     }catch(error){
-      console.log(error)
+      showError(error)
     }
 
   }
@@ -2823,7 +2809,7 @@ const AddTaskMember = ({board, task, existingUsers, selectedTaskMembers}) => {
     ) : (
       <div style={{display:'flex', justifyContent: 'center'}}>
         {selectedTaskMembers.length==0&&
-          <button className='btn primary' onClick={setAddMemberItemFunction}>Add Member</button>
+          <button className='btn secondary btn-sm' onClick={setAddMemberItemFunction}>Add Member</button>
         }
       </div>
     )}
@@ -2920,6 +2906,7 @@ useEffect(() => {
     const value = item.value;
 
     const displayFormula = displayFormulaFunction(value, columnValues)
+
 
     setFormula(displayFormula)
     const sanitisedFormula = sanitizeColumnIdFormulaFunction(value, columnValues)
@@ -3056,7 +3043,7 @@ useEffect(() => {
             </div>
             ):(
               <div style={{display:'flex', justifyContent: 'center'}}>
-                <button className='btn primary' onClick={addFormulaFunction}>Add Formula</button>
+                <button className='btn secondary btn-sm' onClick={addFormulaFunction}>Add Formula</button>
               </div>
             )
           }
@@ -3111,7 +3098,7 @@ const NewCustomColumn = ({boardId, userId, colDefs}) => {
 
   return(
     <div style={{position:'relative'}}>
-      <button className='btn primary' onClick={() => setNewColumn(prevState => !prevState)}>New Column</button>
+      <button className={`${'btn'} ${newColumn?'primary':'secondary'}`} onClick={() => setNewColumn(prevState => !prevState)}>New Column</button>
       {newColumn&&
         <div className="new-column drop-shadow">
             <form onSubmit={handleColumnCreate}>
@@ -3412,6 +3399,10 @@ useEffect(() => {
       //store value
         const value = item.board_field_values[0]?.value;
 
+        console.log('value', value)
+
+
+
       //get visual version
         const displayFormula = displayFormulaFunction(value, columnValues)
 
@@ -3430,7 +3421,17 @@ useEffect(() => {
 
   const handleEvaluate = () => {
     try {
-      const sanitisedFormula = sanitizeFormulaFunction(formula, columnValues)
+
+      console.log('formula', formula)
+      console.log('formulaWithIdRef.current', formulaWithIdRef.current)
+
+
+      const sanitisedFormula = sanitizeColumnIdFormulaFunction(formulaWithIdRef.current, columnValues)
+
+      console.log('sanitisedFormula', sanitisedFormula)
+      console.log('formula', formula)
+      console.log('columnValues', columnValues)
+
       //const sanitisedFormula = sanitizeColumnIdFormulaFunction(formulaWithIdRef.current, columnValues)
       const scope = aggregateColumnValues(columnValues, 'sum'); // or 'avg', 'max', etc.
       const evalResult = evaluate(sanitisedFormula, scope);
@@ -3444,14 +3445,19 @@ useEffect(() => {
 
   const insertText = (text) => {
 
+    console.log('insertText', text)
+
     if (typeof text === "object"){
       setFormula((prev) => prev + text.displayName);
+
+
       formulaWithIdRef.current = formulaWithIdRef.current + text.id;
     }else{
       setFormula((prev) => prev + text);
       formulaWithIdRef.current = formulaWithIdRef.current + text;
     }
 
+    console.log('formulaWithIdRef.current', formulaWithIdRef.current)
 
   };
 
@@ -3534,9 +3540,13 @@ useEffect(() => {
             className='form-input'
             value={formula}
             onChange={(e) => {
-              console.log('e.target.value', e.target.value)
+
               setFormula(e.target.value)
-              formulaWithIdRef.current = e.target.value
+
+              const idFormula = convertFormulaFunctionToIds(e.target.value, columnValues)
+
+              formulaWithIdRef.current = idFormula
+
               //setDisplayFormula(e.target.value)
             }}
             rows={3}
@@ -3596,10 +3606,10 @@ const ListItemNumberBoard = ({item}) => {
         const newValue = e.target.value;
         if (newValue !== item.board_field_values[0]?.value) {
           if(initialValue){
-            console.log('update value')
+
             updateBoardFieldValue(newValue, item.board_field_values[0]?.id);
           }else{
-            console.log('insert new value')
+
             addNewBoardFieldValue({
               board_field_id: item.id,
               value:newValue,
@@ -3701,7 +3711,7 @@ const DropDown = ({items, data, value})=>{
                 updateColumnValue(newValue, value[0].id);
               }else{
                 // insert new task column
-                console.log('insert new task column')
+
                 addNewColumnValue({
                   task_id: data.task_id,
                   column_id: data.column_id,
@@ -3838,5 +3848,75 @@ const BoardDescription = ({boardId, initValue}) => {
           }}
         />
       </>
+  )
+}
+
+const ColumnVisibility = ({styles, columnsData, callback, boardId}) => {
+  const [open, setOpen] = useState(false)
+  const [columns, setColumns] = useState(columnsData)
+  const COL_VISIBLE_STORAGE_KEY = "columnVisible";
+
+
+  useEffect(()=>{
+    setColumns(columnsData)
+  },[columnsData])
+
+
+  const toggleColumn = (checked, col) => {
+    const updatedCols = columns.map((column)=>{
+      if (column.field === col.field){
+        const newColumnObject = {...column}
+        newColumnObject.visible = checked
+        return newColumnObject
+      }else{
+        return column
+      }
+    })
+
+    setColumns(updatedCols)
+    callback(updatedCols)
+
+    localStorage.setItem(
+      COL_VISIBLE_STORAGE_KEY+boardId,
+      JSON.stringify(updatedCols.map((col) => {
+        return {field:col.field, visible:col.visible}
+      })
+    ));
+
+  };
+
+
+  return(
+    <div style={styles}>
+      <div style={{position:'relative'}}>
+        <div>
+          <button className={`${'btn'} ${open?'primary':'secondary'}`} onClick={() => setOpen(prev => !prev)}> Column Visibility</button>
+        </div>
+        {open&&
+          <div className="new-column drop-shadow">
+          {columns.map((col, index)=>{
+            if (col.field!=='select-task'){
+              return(
+                <label key={index} style={{ marginRight: '1em', display: 'flex', alignItems: 'center'}}>
+                  <input
+                    style={{marginRight:'10px'}}
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={col.visible}
+                    onChange={(e) => toggleColumn(e.target.checked, col)}
+                  />
+                  {col.field.replaceAll('_', ' ')}
+                </label>
+              )
+            }else{
+              return null
+            }
+
+
+          })}
+        </div>
+        }
+      </div>
+    </div>
   )
 }

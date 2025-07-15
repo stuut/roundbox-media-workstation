@@ -5,7 +5,9 @@ import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 import { updateColumnValue } from "@/lib/supabase";
+import { updateColumnValueData } from "@/lib/supabase";
 import { addNewColumnValue } from "@/lib/supabase";
+import { addNewColumnValueData } from "@/lib/supabase";
 import { checkColumnName } from "@/lib/supabase";
 import { insertNewColumn } from "@/lib/supabase";
 import { updateColumnValueDate } from "@/lib/supabase";
@@ -15,6 +17,36 @@ import moment from "moment";
 import DatePicker from "react-datepicker";
 import { daysOfWeek } from '@/lib/constants'
 import { recurrenceFrequency } from '@/lib/constants'
+import { isValidJsonStructure } from '@/lib/utils'
+
+export const SelectCheckBox = ({style, id, callBackFunction, clearCheckBoxes}) => {
+  const [checkboxToggle, setCheckboxToggle] = useState(false);
+
+  const checkboxfunction = (id) =>{
+    setCheckboxToggle(prevState => !prevState);
+    callBackFunction(id)
+  }
+
+  useEffect(() => {
+
+    if (clearCheckBoxes){
+      setCheckboxToggle(false)
+    }
+  }, [clearCheckBoxes]);
+
+
+  return(
+    <input
+      style={style}
+      className="form-check-input"
+      type="checkbox"
+      onChange={(e) => checkboxfunction(id)}
+      checked={checkboxToggle}
+   />
+  )
+}
+
+
 export const NewCustomColumnTask = ({boardId, selectedBoards, userId, callBack}) => {
   const [newColumn, setNewColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
@@ -69,53 +101,6 @@ export const NewCustomColumnTask = ({boardId, selectedBoards, userId, callBack})
     }
 
 
-    /*
-
-    try {
-
-      if (selectedBoards && selectedBoards.length>0){
-
-        selectedBoards.forEach(async(selectedBoardId) => {
-
-          const newColumn = {
-            name : newColumnName,
-            type : newColumnType,
-            board_id : selectedBoardId,
-            created_by : userId
-          };
-
-            const newCustomColumn = await insertNewColumn(newColumn)
-            //setColumnSuccess('New Column created');
-            showSuccess('New Column created')
-            setNewColumn(false)
-
-        });
-
-
-
-      }else if (boardId && !selectedBoards){
-
-        const newColumn = {
-          name : newColumnName,
-          type : newColumnType,
-          board_id : boardId,
-          created_by : userId
-        };
-
-        const newCustomColumn = await insertNewColumn(newColumn)
-        //setColumnSuccess('New Column created');
-        showSuccess('New Column created')
-        setNewColumn(false)
-      }
-
-
-    } catch (error) {
-      //setColumnError(error.message);
-      showError(error.message)
-    }
-    */
-
-
   };
   return(
     <div style={{position:'relative'}}>
@@ -146,10 +131,6 @@ export const NewCustomColumnTask = ({boardId, selectedBoards, userId, callBack})
     </div>
   )
   }
-
-
-
-
 
 
 
@@ -185,12 +166,14 @@ export const DateItem = ({item}) => {
     }
   },[item.value])
 
-
+/*
   useEffect(()=>{
     if (dateFormat !== item.date_format){
+      console.log('set save to true')
       setSave(true)
     }
   },[dateFormat])
+  */
 
   useEffect(()=>{
   },[closeDateFormat])
@@ -240,7 +223,7 @@ export const DateItem = ({item}) => {
 
         </>
       }
-      <div className="task-date-section" style={{marginTop:'25px'}}>
+      <div className="task-date-section" style={{marginTop:'0px'}}>
         {/* Due Date Input */}
 
         {/* Recurrence Toggle*/}
@@ -256,7 +239,7 @@ export const DateItem = ({item}) => {
               setCloseDateFormat(true)
             }}
           />
-        <strong>This date repeats</strong>
+        <strong style={{fontSize:'.8em'}}>This date repeats</strong>
         </label>
 
 
@@ -305,7 +288,9 @@ export const DateItem = ({item}) => {
         )}
       </div>
       {save &&
-        <button className='btn btn-sm secondary' onClick={saveDate}>Update</button>
+        <div style={{display: 'flex', justifyContent: 'center'}}>
+          <button className='btn btn-sm secondary' onClick={saveDate}>Update Date</button>
+        </div>
       }
     </div>
   );
@@ -346,19 +331,19 @@ export const AddDateItem = ({data}) => {
   };
 
 
-  useEffect(()=>{
+  const changeDateFormat = (newDateFormat) => {
+    if (newDateFormat !== dateFormat){
+      setdateFormat(newDateFormat)
       setSave(true)
-  },[dateFormat])
+    }
+  }
+
+
 
 
   const saveDate = async () => {
 
     try{
-      console.log('saveDate', data)
-
-      console.log('saveDate', data)
-
-
         await addNewColumnValue({
           task_id: data.task_id,
           column_id: data.column_id,
@@ -397,11 +382,11 @@ export const AddDateItem = ({data}) => {
                   className={'form-input'}
                 />
                 {!isRecurring&&
-                  <ChangeDateFormat defaultValue={dateFormat} callBack={setdateFormat} close={closeDateFormat}/>
+                  <ChangeDateFormat defaultValue={dateFormat} callBack={changeDateFormat} close={closeDateFormat}/>
                 }
               </>
             }
-            <div className="task-date-section" style={{marginTop:'25px'}}>
+            <div className="task-date-section" style={{marginTop:'0px'}}>
               {/* Due Date Input */}
 
               {/* Recurrence Toggle*/}
@@ -416,7 +401,7 @@ export const AddDateItem = ({data}) => {
                     setCloseDateFormat(true)
                   }}
                 />
-                <strong>This date repeats</strong>
+                <strong style={{fontSize:'.8em'}}>This date repeats</strong>
               </label>
 
 
@@ -464,7 +449,7 @@ export const AddDateItem = ({data}) => {
           </>
         ) : (
           <div style={{display:'flex', justifyContent: 'center'}}>
-            <button className='btn primary' onClick={() => setAddDateItem(data.id)}>Add Date</button>
+            <button className='btn secondary btn-sm' onClick={() => setAddDateItem(data.id)}>Add Date</button>
           </div>
         )}
     </>
@@ -476,26 +461,29 @@ const [dateFormat, setdateFormat] = useState(defaultValue?defaultValue:dateForma
 const [showFormat, setShowFormat] = useState(false)
 
 useEffect(()=>{
-  console.log('openState', close)
+
   if (close){
       setShowFormat(false)
   }
 },[close])
 
+
 useEffect(()=>{
-  setdateFormat(defaultValue)
+  if (defaultValue !== dateFormat)
+    setdateFormat(defaultValue)
 },[defaultValue])
 
 
   return(
     <>
-    <p style={{fontSize:'.8em', cursor:'pointer', marginTop:'0px'}} onClick={() => setShowFormat(prev => !prev)}><strong>Change Date Format</strong></p>
+    <p style={{fontSize:'.8em', cursor:'pointer', marginTop:'0px', color:'var(--md-sys-color-secondary)'}} onClick={() => setShowFormat(prev => !prev)}><strong>Change Date Format</strong></p>
     {showFormat&&
       <select
         style={{maxWidth:'150px', fontSize:'.8em'}}
         className="form-input select"
         value={dateFormat}
         onChange={(e) => {
+          console.log('change date format')
           setdateFormat(e.target.value)
           callBack(e.target.value)
         }}
@@ -509,4 +497,155 @@ useEffect(()=>{
 
   </>
   )
+}
+
+export const AddListItemData = ({data}) => {
+  const [addDataItem, setAddDataItem] = useState(null)
+  return(
+    <>
+    {addDataItem === data.id ? (
+      <>
+      <textarea
+        id={data.task_id}
+        className='form-input'
+        type="number"
+        autoFocus
+        onBlur={(e) => {
+          const newValue = e.target.value;
+
+          if (newValue){
+            const parsed = JSON.parse(newValue);
+            if (!isValidJsonStructure(parsed)) {
+              showError("Only objects or arrays are allowed.")
+              return
+            }
+            const jsonString = JSON.stringify(parsed);
+
+            if (newValue && isvalid) {
+              addNewColumnValueData({
+                task_id: data.task_id,
+                column_id: data.column_id,
+                board_id: data.board_id,
+                data: jsonString,
+                type:data.type
+              });
+            }
+            setAddDataItem(null);
+          }else{
+            showError('value is empty')
+          }
+
+
+
+
+
+
+
+        }}
+      />
+      </>
+    ) : (
+      <div style={{display:'flex', justifyContent: 'center'}}>
+        <button className='btn primary' onClick={() => setAddDataItem(data.id)}>Add Data</button>
+      </div>
+    )}
+  </>
+  )
+}
+
+export const ListItemData = ({item}) => {
+  const [inputValue, setInputValue] = useState(item.data || '');
+
+  useEffect(() => {
+    setInputValue(item.data || '');
+  }, [item.data]);
+
+  return (
+    <textarea
+      style={{marginLeft:'5px'}}
+      className='form-input'
+      type="number"
+      value={inputValue}
+      onChange={(e) => setInputValue(e.target.value)}
+      onBlur={(e) => {
+        const newValue = e.target.value;
+
+        const parsed = JSON.parse(newValue);
+
+        if (!isValidJsonStructure(parsed)) {
+          showError("Only objects or arrays are allowed.")
+          return
+        }
+
+        const jsonString = JSON.stringify(parsed);
+
+
+        if (newValue !== item.data) {
+          updateColumnValueData(jsonString, item.id);
+        }
+      }}
+    />
+  );
+}
+
+
+export const AddTextItem = ({data}) => {
+  const [inputValue, setInputValue] = useState('');
+
+  const [addTextItem, setAddTextItem] = useState(null)
+  return(
+    <>
+    {addTextItem === data.id ? (
+      <>
+      <textarea
+        className='form-input'
+        type="text"
+        autoFocus
+        onChange={(e) => setInputValue(e.target.value)}
+        onBlur={(e) => {
+          const newValue = e.target.value;
+          if (newValue !== '') {
+            addNewColumnValue({
+              task_id: data.task_id,
+              column_id: data.column_id,
+              board_id: data.board_id,
+              value: newValue,
+              type:data.type
+            });
+          }
+          setAddTextItem(null);
+        }}
+      />
+      </>
+    ) : (
+      <div style={{display:'flex', justifyContent: 'center'}}>
+        <button className='btn secondary btn-sm' onClick={() => setAddTextItem(data.id)}>Add Value</button>
+      </div>
+    )}
+</>
+  )
+}
+
+export const TextItem = ({item}) => {
+  const [inputValue, setInputValue] = useState(item.value || '');
+
+  useEffect(() => {
+    setInputValue(item.value || '');
+  }, [item.value]);
+
+  return (
+    <textarea
+      style={{marginLeft:'5px'}}
+      className='form-input'
+      type="text"
+      value={inputValue}
+      onChange={(e) => setInputValue(e.target.value)}
+      onBlur={(e) => {
+        const newValue = e.target.value;
+        if (newValue !== item.value) {
+          updateColumnValue(newValue, item.id);
+        }
+      }}
+    />
+  );
 }

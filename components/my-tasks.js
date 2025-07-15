@@ -141,7 +141,7 @@ export default function MyTasks({userId}) {
     <div>
       <div style={{display:'flex', paddingLeft: '10px', alignItems: 'end'}}>
         <div>
-          <p><strong>Task Filter</strong></p>
+          <p><strong>Item Filter</strong></p>
           <select id="task_filter" style={{minWidth:'200px'}} className="form-input select"
             onChange={(e) => {
               setSelectTasks(false)
@@ -165,7 +165,7 @@ export default function MyTasks({userId}) {
           </select>
         </div>
         <div style={{marginLeft:'10px'}}>
-          <p><strong>Task Status Filter</strong></p>
+          <p><strong>Item Status Filter</strong></p>
           <select id="task_status_filter"style={{maxWidth:'250px'}} className="form-input select"
             onChange={(e) => {
               setSelectTasks(false)
@@ -226,7 +226,7 @@ export default function MyTasks({userId}) {
                     <p>{moment(task.due_date).format("MMMM D, YYYY")}</p>
                 </div>
                 }
-                <p style={{marginTop:'25px'}}><strong> Boards Assigned to Task</strong></p>
+                <p style={{marginTop:'25px'}}><strong> Boards Assigned to Item</strong></p>
                 <div style={{display:'flex', flexDirection:'column'}}>
                 {task.boards_assigned_to_task.map((board, index) => {
                   return(
