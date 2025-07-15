@@ -494,6 +494,7 @@ h2{
   transition: all 1s ease;
   z-index:10;
   top: 0px;
+  overflow: scroll;
 }
 
 .ai-sidebar.active{
@@ -863,7 +864,11 @@ background: rgba(65, 95, 145, .5)
 }
 
 
-
+.ai-message-right{
+  position:relative;
+  margin-left:20%;
+  padding-right: 50px;
+}
 
 .message-right{
   position:relative;
@@ -875,6 +880,11 @@ background: rgba(65, 95, 145, .5)
   position:relative;
   margin-right:20%;
   padding-left: 50px;
+}
+
+.ai-message-left{
+  position:relative;
+  margin-right:20%;
 }
 
 input:-webkit-autofill {

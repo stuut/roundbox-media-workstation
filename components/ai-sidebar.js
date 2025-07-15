@@ -31,7 +31,6 @@ export default function AISideBar() {
   const [loading, setLoading] = useState(false);
 
 
-
   const getfeedback = async () => {
     setLoading(true);
     const ads = AIdata;
@@ -122,6 +121,8 @@ if (AIdata){
 
 
 
+
+
   return (
     <>
       {displayAI&&
@@ -132,37 +133,41 @@ if (AIdata){
           <div style={{padding:'25px'}} onClick={(e) => e.stopPropagation()}>
 
                 {displayHistory.length>0 &&
-                  <>
+                  <div style={{display:'flex', flexDirection:'column'}}>
                     {console.log('displayHistory', displayHistory)}
                   {displayHistory.map((message)=>{
                     return(
-                      <div key={message.content}>
-                        <p>{message.role}</p>
-                        <div>
-                          <p>{message.content}</p>
+                      <div key={message.content} className={`${message.role==="user"?'ai-message-right':'ai-message-left'}`}>
+                        <div className={`${'message'} ${message.role==="user"?'secondary':''}`}>
+                          {message.role === "assistant"&&
+                            <p style={{fontSize:'.8em'}}><strong>{message.role}</strong></p>
+                          }
+                          <div>
+                            <p>{message.content}</p>
+                          </div>
                         </div>
                       </div>
                     )
                   })
                 }
-              </>
+              </div>
                 }
 
 
                 <div style={{marginTop:'50px'}} className={`${'drop-zone-input'} ${activePrompt?'active':''}`} onDrop={(e) => onDrop(e)} onDragOver={(e) => onDragOver(e)}>
-                  <input
+                  <textarea
                     type="text"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     className="form-input"
-                    disabled={!loading}
+                    disabled={loading}
                   />
                 </div>
                 {(AIdata.length>0 && prompt.length>0)&&
-                  <button className="btn primary" onClick={getfeedback}>{loading?'Sending':"Send"}</button>
+                  <button disabled={loading} className="btn primary" onClick={getfeedback}>{loading?'Sending':"Send"}</button>
                 }
 
-
+                                <p style={{fontSize:'.8em', margin: 0}}>Drag and drop into input area</p>
                                 <select className="form-input select"
                                   value={preBuiltOption}
                                   onChange={(e) => {
