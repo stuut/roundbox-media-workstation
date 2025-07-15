@@ -241,7 +241,7 @@ export default function Board({ boardId, userId }) {
 const generateUsers = (board) => {
   const membersArray =[]
   board.tasks.forEach((task) => {
-    task.task_members?.forEach((member) => {
+    task.members?.forEach((member) => {
         if (!isUserInArrayBoardTable(member.user_id, membersArray)){
               membersArray.push(member)
             }
@@ -1624,7 +1624,7 @@ setColDefs(prevItems => {
                                               }else{
                                                 // default column
                                                 updateTaskColumn(row.id, col.field, newValue)
-                                                const userArray = row.task_members.map((user)=>{
+                                                const userArray = row.members.map((user)=>{
                                                   return user.user_id
                                                 })
                                                 const message = `<span>The status of one of your tasks has bee updated to <strong>${newValue}</strong> - <a href="/task/${row.id}"><strong>View Task Here<strong></a></span>`
