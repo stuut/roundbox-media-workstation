@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const DropdownBuilder = ({ defaultTags, placeholder = 'Add a menu item...', callback }) => {
+const DropdownBuilder = ({ defaultTags, placeholder = 'Type & press return...', callback, preconfiguredCallback }) => {
   const [input, setInput] = useState('');
   const [tags, setTags] = useState([]);
   const dragItem = useRef(null);
@@ -11,6 +11,7 @@ const DropdownBuilder = ({ defaultTags, placeholder = 'Add a menu item...', call
   const preconfigured = (type) => {
     if (type === 'priority'){
       setTags(priorityOptions)
+      preconfiguredCallback('priority')
     }
   }
 
@@ -90,7 +91,7 @@ const handleDrop = () => {
           ))}
 
         <input
-          className='form-input'
+          className='form-input list-builder'
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -108,7 +109,6 @@ const styles = {
   container: {
     display: 'flex',
     flexWrap: 'wrap',
-    padding: '6px',
     minHeight: '40px',
   },
   tag: {

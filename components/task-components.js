@@ -18,6 +18,7 @@ import DatePicker from "react-datepicker";
 import { daysOfWeek } from '@/lib/constants'
 import { recurrenceFrequency } from '@/lib/constants'
 import { isValidJsonStructure } from '@/lib/utils'
+import { priorityList } from '@/lib/constants'
 
 export const SelectCheckBox = ({style, id, callBackFunction, clearCheckBoxes}) => {
   const [checkboxToggle, setCheckboxToggle] = useState(false);
@@ -648,4 +649,62 @@ export const TextItem = ({item}) => {
       }}
     />
   );
+}
+
+export const Priority = ({item, data}) => {
+
+  console.log('Priority item', item)
+
+  const [dropdownValue, setDropdownValue] = useState(item?.value? item.value : 'choose')
+
+  return(
+    <div style={{marginLeft:'5px', width:'100%'}} className='dropdown-container'>
+      <select className="form-input select"
+        onChange={async(e) => {
+          //setTaskStatus(e.target.value)
+          setDropdownValue(e.target.value)
+          const newValue = e.target.value;
+
+          if (!item){
+            await addNewColumnValue({
+              task_id: data.task_id,
+              column_id: data.column_id,
+              board_id: data.board_id,
+              value:dropdownValue,
+              type:data.type
+            }, priorityList)
+
+          }else{
+            if (newValue !== '' && newValue !== item?.value){
+              updateColumnValue(newValue, item.id);
+            }
+          }
+        }}
+        value={dropdownValue}>
+      {!item?.value &&
+        <option value={''}>choose</option>
+      }
+      {item?.column_select_options?(
+        <>
+          {item.column_select_options.map(function(item, index){
+            return(
+              <option key={index} value={item.value}>{item.value}</option>
+            )
+          })}
+        </>
+      ):(
+        <>
+          {priorityList.map(function(item, index){
+            return(
+              <option key={index} value={item}>{item}</option>
+            )
+          })}
+        </>
+      )
+
+      }
+
+      </select>
+    </div>
+  )
 }

@@ -86,6 +86,8 @@ import { ListItemData } from '@/components/task-components';
 import { AddListItemData } from '@/components/task-components';
 import { AddTextItem } from '@/components/task-components';
 import { TextItem } from '@/components/task-components';
+import { Priority } from '@/components/task-components';
+
 import { convertFormulaFunctionToIds } from '@/lib/utils'
 
 
@@ -520,8 +522,13 @@ useEffect(() => {
               payload.new.type === 'select' ||
               payload.new.type === 'date' ||
               payload.new.type === 'list' ||
+              payload.new.type === 'tags' ||
               payload.new.type === 'number' ||
               payload.new.type === 'checkbox' ||
+              payload.new.type === 'checkbox list' ||
+              payload.new.type === 'dropdown' ||
+              payload.new.type === 'url' ||
+              payload.new.type === 'data' ||
               payload.new.type === 'formula'){
 
               setBoard(prev => {
@@ -826,6 +833,9 @@ useEffect(() => {
        },
        (payload) => {
 
+         console.log('column_values', payload)
+
+
          if (payload.eventType === 'DELETE'){
 
            setBoard(prev => {
@@ -857,7 +867,6 @@ useEffect(() => {
                 payload.new.type === 'number' ||
                 payload.new.type === 'checkbox' ||
                 payload.new.type === 'checkbox list' ||
-                payload.new.type === 'dropdown' ||
                 payload.new.type === 'url' ||
                 payload.new.type === 'data' ||
                 payload.new.type === 'formula'){
@@ -879,13 +888,16 @@ useEffect(() => {
                     return task;
                   });
 
+
+
+
                   return {
                     ...prev,
                     tasks: updatedTasks,
                   };
                 });
 
-              }else if (payload.new.type === 'file'){
+              }else if (payload.new.type === 'file' || payload.new.type === 'dropdown'){
 
                   //getColumnvalues(payload.new.id)
                 //const enrichedColumnValue = enrichColumnValue(payload.new, boardRef.current.columns);
@@ -1393,7 +1405,6 @@ setColDefs(prevItems => {
                       {/* Header */}
                       {colDefs.map((col, index) => {
                         const isCustomColumn = col?.id
-                        console.log('col', col)
                         if (col.visible){
                           return(
                             <div
@@ -1601,7 +1612,6 @@ setColDefs(prevItems => {
                                         />
                                       </>
                                       }
-
                                       {col.type === 'select'&& col.field === "status" &&
                                         <>
                                         <select className="form-input select"
@@ -1710,6 +1720,17 @@ setColDefs(prevItems => {
                                         </>
                                       }
 
+                                      {(isCustomColumn && col.type === "priority") &&
+                                        <>
+                                          <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                            {row[col.field][0] &&
+                                              <SelectCheckBox callBackFunction={selectedColItemsFunction} id={row[col.field][0].id}/>
+                                            }
+                                            <Priority item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
+                                          </div>
+                                        </>
+                                      }
+
                                       {(isCustomColumn && col.type === "tags") &&
                                         <>
                                           {row[col.field]?.map((item, index)=> {
@@ -1741,14 +1762,11 @@ setColDefs(prevItems => {
                                           <AddListItemSuggest data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
                                         </>
                                       }
-
                                       {isCustomColumn && col.type === "file" &&
                                         <>
-
                                           {row[col.field].length>0 && isCustomColumn? (
                                             <div style={{display:'flex', alignItems:'center', flexDirection:'column'}}>
                                               {row[col.field]?.map((item, index)=>{
-                                                console.log('item', item)
                                                 return(
                                                       <div  key={item.id}  style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
                                                         <SelectCheckBox callBackFunction={selectedColItemsFunction} id={item.id}/>
@@ -1777,7 +1795,6 @@ setColDefs(prevItems => {
                                                 })
                                               }
                                               <FilePicker
-
                                                 columnId={col.id}
                                                 taskId={row.id}
                                                 boardId={board.id}
@@ -2263,7 +2280,10 @@ const FilePicker = ({columnId, taskId, boardId}) => {
 }
 
 
+
+
 const Dropdown = ({item}) => {
+
   const [dropdownValue, setDropdownValue] = useState(item.value? item.value : 'choose')
 
   return(
@@ -2308,6 +2328,10 @@ const AddDropdown = ({data}) => {
     setDropDownList(data)
   }
 
+  const dropdownLabelCallback = (data) => {
+    setDropdownLabel(data)
+  }
+
   const handleDropdownCreate = async (e) => {
         e.preventDefault();
 
@@ -2329,7 +2353,7 @@ const AddDropdown = ({data}) => {
 
           showSuccess('Dropdown created')
 
-          addDropdownItem(null)
+          setAddDropdownItem(null)
 
         } catch (error) {
           //setColumnError(error.message);
@@ -2338,12 +2362,12 @@ const AddDropdown = ({data}) => {
   }
 
 
-
   return(
     <>
     {addDropdownItem === data.id ? (
       <>
         <form onSubmit={handleDropdownCreate}>
+          <label style={{fontSize: '0.8em'}}>Dropdown Label</label>
           <input
             id={data.id}
             className="form-input"
@@ -2353,13 +2377,13 @@ const AddDropdown = ({data}) => {
             placeholder='Label'
             required
           />
-          <DropdownBuilder callback={dropdownBuilderCallback}/>
+          <DropdownBuilder callback={dropdownBuilderCallback} preconfiguredCallback={dropdownLabelCallback} />
           <button className="btn primary"  type="submit">Create</button>
         </form>
       </>
     ) : (
       <div style={{display:'flex', justifyContent: 'center'}}>
-        <button className='btn primary' onClick={() => setAddDropdownItem(data.id)}>Add Item</button>
+        <button className='btn primary' onClick={() => setAddDropdownItem(data.id)}>Add Dropdown</button>
       </div>
     )}
 </>
@@ -3079,6 +3103,7 @@ const NewCustomColumn = ({boardId, userId, colDefs}) => {
 
     try {
 
+
       const newColumn = {
         name : newColumnName,
         type : newColumnType,
@@ -3115,7 +3140,13 @@ const NewCustomColumn = ({boardId, userId, colDefs}) => {
               required
             />
             <label className="form-label" style={{display:'block'}}><strong>Column Type</strong></label>
-            <select className="form-input select" onChange={(e) => setNewColumnType(e.target.value)} value={newColumnType} required>
+            <select className="form-input select" onChange={(e) => {
+              setNewColumnType(e.target.value)
+              if (e.target.value === 'priority'){
+                setNewColumnName('priority')
+              }
+            }}
+            value={newColumnType} required>
               {newColumnTypesArray.map(function(columnType, index){
                 return(
                   <option key={index} value={columnType}>{columnType}</option>
@@ -3691,57 +3722,7 @@ const handleMouseDown = (side, e) => {
   )
 }
 
-const DropDown = ({items, data, value})=>{
 
-  const [dropdownValue, setDropdownValue] = useState(value[0]?.value? value[0]?.value : 'choose')
-
-  useEffect(() => {
-    setDropdownValue(value[0]?.value? value[0]?.value : 'choose');
-  }, [value[0]?.value]);
-
-  const existingValue = value[0]?.value? true:false
-  return(
-    <div>
-      <select className="form-input select"
-        onChange={(e) => {
-          //setTaskStatus(e.target.value)
-          setDropdownValue(e.target.value)
-          const newValue = e.target.value;
-
-            if (newValue !== ''){
-              if (value.length > 0){
-                  //updateTaskColumn(row.id, col.field, new Date(date))
-                updateColumnValue(newValue, value[0].id);
-              }else{
-                // insert new task column
-
-                addNewColumnValue({
-                  task_id: data.task_id,
-                  column_id: data.column_id,
-                  board_id: data.board_id,
-                  value: newValue,
-                  type:data.type
-                });
-              }
-            }
-        }}
-        value={dropdownValue}>
-        {!existingValue &&
-          <option value={''}>choose</option>
-        }
-        {items&&
-          <>
-            {items.map(function(item, index){
-              return(
-                <option key={index} value={item.value}>{item.value}</option>
-              )
-            })}
-          </>
-        }
-      </select>
-    </div>
-  )
-}
 
 const BoardTitle = ({boardId, initValue}) => {
   const [inputValue, setInputValue] = useState(initValue)

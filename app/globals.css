@@ -77,6 +77,10 @@ h2{
   font-size:.8em
 }
 
+.list-builder::placeholder{
+  font-size:.8em
+}
+
 .kanban-count{
   width: 25px;
   height: 25px;
