@@ -139,12 +139,13 @@ export function ImageUpload({ onImageSelect, currentImage }) {
     <>
     {showMyFiles?(
       <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
-
         {files.map((file, index)=>{
           return (
             <div key={file.id} style={{width:'18%', margin:'1%'}}>
-              <div>
-                <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+                <div>
+                  {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
+                    <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+                  }
               </div>
             </div>
           )

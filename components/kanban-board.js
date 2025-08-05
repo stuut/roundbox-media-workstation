@@ -89,7 +89,7 @@ export default function KanbanView({workspaceId, boardId, userId, tasks}) {
       updateTaskColumn(item.id, 'status', status)
 
 
-      const userArray = item.task_members.map((user)=>{
+      const userArray = item.members.map((user)=>{
         return user.user_id
       })
 

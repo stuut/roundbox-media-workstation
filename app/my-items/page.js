@@ -21,7 +21,7 @@ export default async function MyTasksPage() {
       <h2>My Items</h2>
       <div className='task-layout'>
         <div>
-          <CreateTask userId={userId}/>
+          <CreateTask userId={userId} titleSize={"large"}/>
         </div>
         <div>
           <MyTasks userId={userId }/>

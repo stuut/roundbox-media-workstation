@@ -1344,7 +1344,7 @@ setColDefs(prevItems => {
               <NewBoardValueComponent boardId={boardId} userId={userId}/>
               <CustomBoardFields board={board}/>
             </div>
-            <CreateTask userId={userId}  boardId={ boardId}  workspaceId={board.workspace_boards[0]?.workspace_id}/>
+            <CreateTask userId={userId}  boardId={ boardId}  workspaceId={board.workspace_boards[0]?.workspace_id} titleSize={"small"}/>
             <BoardMembers boardId={ boardId} createdBy={board.created_by} boardMembers={null} workspaceId={board.workspace_boards[0]?.workspace_id} realtime={true} accordion={'closed'}/>
         </div>
           <div style={{overflow:'scroll'}}>
@@ -1393,6 +1393,7 @@ setColDefs(prevItems => {
                       {/* Header */}
                       {colDefs.map((col, index) => {
                         const isCustomColumn = col?.id
+                        console.log('col', col)
                         if (col.visible){
                           return(
                             <div
@@ -1414,22 +1415,25 @@ setColDefs(prevItems => {
                                           <SelectCheckBox id={col.id} callBackFunction={selectColumnsFunction} clearCheckBoxes={clearColumnCheckBoxes}/>
                                         }
                                         {col.id?(
-                                          <ColumnName col={col} boardId={boardId}/>
+                                          <>
+                                            <ColumnName col={col} boardId={boardId}/>
+
+                                          </>
                                         ):(
                                           <>
-
-                                          <p style={{marginLeft:'10px'}}>{col.field.replaceAll('_', ' ')}</p>
-                                          {(col.field === 'due_date' || col.field === 'created_at') && (
+                                            <p style={{marginLeft:'10px'}}>{col.field.replaceAll('_', ' ')}</p>
+                                          </>
+                                        )}
+                                        {col.type === 'date' &&
+                                          <div style={{width:'40px', marginLeft: 'auto'}}>
                                             <FilterToggle
                                               dateFilterDirection={dateFilterDirection}
                                               dateFilter={dateFilter}
                                               columnValue={col.field}
                                               callback={dateFilterFunction}
                                             />
-                                          )}
-
-                                          </>
-                                        )}
+                                          </div>
+                                        }
 
                                       </div>
                                     </ResizableColumns>
@@ -1608,8 +1612,6 @@ setColDefs(prevItems => {
                                                 if (row[col.field?.value]){
                                                     //updateTaskColumn(row.id, col.field, new Date(date))
                                                   updateColumnValue(newValue, row[col.field].id);
-
-
 
                                                 }else{
                                                   // insert new task column
@@ -2207,7 +2209,7 @@ const ColumnCheckBox = ({item}) => {
 }
 
 const FilePicker = ({columnId, taskId, boardId}) => {
-  const { showFiles, setShowFiles, selectedFiles, setSelectedFiles } = useFilesContext();
+  const { showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
   const { user } = useUserContext();
   const supabase = createClient()
   const [show, setShow] = useState(false);
@@ -2249,6 +2251,7 @@ const FilePicker = ({columnId, taskId, boardId}) => {
             {/*}<GoogleDrivePicker callBackFunction={storeGoogleDriveFile}/>*/}
             <button className="btn secondary sml" onClick={() => {
               setSelectedFiles([])
+              setFilePicker(true)
               setShowFiles(prevState => !prevState)
               setShow(prevState => !prevState)
             }}>Add Files</button>

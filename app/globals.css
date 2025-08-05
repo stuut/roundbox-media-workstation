@@ -133,6 +133,12 @@ h2{
   margin: 10px 0;
 }
 
+.video_thumb{
+  width: 100%;
+    min-width: 200px;
+    border-radius: var(--border-radius);
+}
+
 .workspace{
   background:var(--md-sys-color-surface-container);
   color:var(--md-sys-color-on-surface);
@@ -861,6 +867,11 @@ background: rgba(65, 95, 145, .5)
 .message-avatar{
   top: 50%;
     transform: translateY(-50%);
+}
+
+.ai-message-text{
+  font-size:.9em;
+  line-height:2
 }
 
 

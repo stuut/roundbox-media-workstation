@@ -5,15 +5,18 @@ import { useUserContext } from "@/context/user-context"
 import { isObjectInArray } from '@/lib/utils'
 import { getFiles } from "@/lib/supabase";
 import ImageGeneration from "components/image-generation"
+import VideoGeneration from "components/video-generation"
+import DisplayVideo from "components/display-video"
+
 import { storeFileInfo } from "@/lib/supabase";
 import { deleteFiles } from "@/lib/supabase";
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 
-export default function MyFiles({filePicker = true}) {
+export default function MyFiles() {
   const { user } = useUserContext();
-  const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles } = useFilesContext();
+  const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles, filePicker} = useFilesContext();
   const [userId, setUserId] = useState(null)
   const [filesDisplay, setFilesDisplay] = useState('My Files')
   const [uploading, setUploading] = useState(false)
@@ -168,7 +171,9 @@ const deleteSelectedFiles = async () => {
                 <div style={{flex:1, flexDirection:'column', display:'flex'}}>
                   <button onClick={() => setFilesDisplay('My Files')} className={`${'btn'} ${filesDisplay ==='My Files'?'primary':'secondary'}`}>My files</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Gemini')} className={`${'btn'} ${filesDisplay ==='Gemini'?'primary':'secondary'}`}>Gemini</button>
-                </div>
+                  <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Video</button>
+
+            </div>
                 <div style={{flex:3, padding:'15px', overflowY: 'scroll', maxHeight: '800px'}}>
                   {(filesDisplay ==='My Files' || filesDisplay ==='Gemini') &&
                     <div>
@@ -190,13 +195,25 @@ const deleteSelectedFiles = async () => {
                         return (
                           <div key={file.id} style={{width:'18%', margin:'1%'}}>
                             <div>
-                              {console.log('file.file_type ', file.file_type )}
                               {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
                                 <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
                               }
                               {file.file_type === 'application/pdf'&&
                                 <>
                                   <img className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={'/pdf-icon.png'}/>
+                                </>
+                              }
+                              {file.file_type === 'video/mp4'&&
+                                <>
+                                  <div className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
+                                     <video
+                                       src={file.file_url}
+                                       controls
+                                       autoPlay={false}
+                                       className="video_thumb"
+                                       playsInline
+                                     />
+                                  </div>
                                 </>
                               }
                               <p style={{fontSize:'.8em'}}>{file.file_name}</p>
@@ -214,6 +231,11 @@ const deleteSelectedFiles = async () => {
                   {filesDisplay ==='Gemini'&&
                     <div style={{marginTop:'10px', borderTop: '1px solid #999', paddingTop:'15px'}}>
                     <ImageGeneration/>
+                  </div>
+                  }
+                  {filesDisplay ==='Video'&&
+                    <div style={{marginTop:'10px', borderTop: '1px solid #999', paddingTop:'15px'}}>
+                    <VideoGeneration/>
                   </div>
                   }
 

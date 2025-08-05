@@ -13,22 +13,15 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || ""
 })
 
+
 const MODEL_ID = "gemini-2.0-flash-preview-image-generation"
 
 
 export async function POST(request) {
 
-
-
   try {
 
   const { prompt, image: inputImage, history = [] } = await request.json();
-
-
-  console.log('prompt', prompt)
-  console.log('image', inputImage)
-    console.log('history', history)
-
 
 
   if (!prompt) {
@@ -110,9 +103,6 @@ export async function POST(request) {
         imageData = part.inlineData.data
         mimeType = part.inlineData.mimeType || "image/png"
 
-        // Optional: Save to file system
-        // const buffer = Buffer.from(imageData, 'base64');
-        // await writeFile(`output.${mime.getExtension(mimeType)}`, buffer);
       }
     }
   }

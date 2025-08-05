@@ -22,7 +22,7 @@ import { daysOfWeek } from '@/lib/constants'
 import { recurrenceFrequency } from '@/lib/constants'
 
 
-export default function CreateTask({userId, boardId, workspaceId, accordionState}) {
+export default function CreateTask({userId, boardId, workspaceId, accordionState, titleSize}) {
 
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([userId]);
@@ -230,7 +230,12 @@ export default function CreateTask({userId, boardId, workspaceId, accordionState
   return (
     <div>
       <div style={{position:'relative', padding:'5px 25px 5px 25px'}} className="card">
-        <h3>Create Item</h3>
+        {titleSize === "large"?(
+            <h3>Create Item</h3>
+        ):(
+            <p className="form-label" style={{display:'block'}}><strong>Create Item</strong></p>
+        )}
+
         <Accordion initState={accordionState}>
           <form onSubmit={handleCreate}>
             <input

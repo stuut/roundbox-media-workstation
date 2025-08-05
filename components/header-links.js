@@ -11,6 +11,8 @@ return(
     <Link className={pagePath==="/my-workspaces"?'active':null} style={{marginRight:'10px'}} href='/my-workspaces'>My Workspaces</Link>
     <Link className={pagePath==="/my-boards"?'active':null} style={{marginRight:'10px'}} href='/my-boards'>My Boards</Link>
     <Link className={pagePath==="/my-items"?'active':null} style={{marginRight:'10px'}} href='/my-items'>My Items</Link>
+    <Link className={pagePath==="/my-media"?'active':null} style={{marginRight:'10px'}} href='/my-media'>My Media</Link>
+
     <Link className={pagePath==="/facebook-marketing"?'active':null} style={{marginRight:'10px'}} href='/facebook-marketing'>Facebook Marketing</Link>
 
   </div>

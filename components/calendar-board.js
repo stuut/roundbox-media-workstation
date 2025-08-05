@@ -20,10 +20,30 @@ export default function CalendarView({tasks, boardId, workspaceId}) {
       const updatedArray = tasks
       .map(item => {
         // Create a new object to avoid modifying the original
+
+        let endDate
+        let startDate
+        let found = 0;
+
+        for (const colVal of item.column_values) {
+          if (colVal.type === "date"){
+            if (found === 0) {
+                startDate = colVal.value;
+                found++;
+              } else if (found === 1) {
+                endDate = colVal.value;
+                found++;
+                break; // we found both dates, can exit early
+              }
+          }
+        }
+
+
+
         return {
           ...item, // Copy existing properties
-          end: item.due_date, // Change the value of the 'color' key
-          start: item.created_at
+          end: new Date(endDate), // Change the value of the 'color' key
+          start:  new Date(startDate)
         };
       });
 

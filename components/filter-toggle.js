@@ -33,11 +33,11 @@ export const FilterToggle = ({dateFilterDirection, dateFilter, columnValue, call
   return(
     <div style={{marginLeft: 'auto'}} className={`${dateFilter===columnValue? 'active':''} ${'date_filter'}`}>
       {direction === 'asc'?(
-        <div onClick={() => buttonClick('dsc')}>
+        <div style={{display:'flex', alignItems:'center'}} onClick={() => buttonClick('dsc')}>
           <img style={{maxWidth:'25px'}} src={dateFilter===columnValue? "/arrow_upward_active.svg" : "/arrow_upward.svg" }/>
         </div>
         ):(
-          <div onClick={() => buttonClick('asc')}>
+          <div style={{display:'flex', alignItems:'center'}} onClick={() => buttonClick('asc')}>
             <img style={{maxWidth:'25px'}} src={dateFilter===columnValue? "/arrow_downward_active.svg" : "/arrow_downward.svg" }/>
           </div>
         )

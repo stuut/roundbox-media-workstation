@@ -42,7 +42,8 @@
     "react-google-drive-picker": "^1.2.2",
     "react-tag-input": "^6.10.6",
     "react-toastify": "^11.0.5",
-    "scriptjs": "^2.5.9"
+    "scriptjs": "^2.5.9",
+    "video.js": "^8.23.3"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

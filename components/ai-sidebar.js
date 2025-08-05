@@ -6,12 +6,14 @@ import { trimChatHistory } from "@/lib/utils"
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
-
+import { Accordion } from '@/components/accordion'
+import { saveAiChatConversation } from '@/lib/supabase';
+import { example } from '@/lib/supabase';
 import { generalPerformanceQuestions } from '@/lib/constants';
 import { conversionBasedWithTicketSales  } from '@/lib/constants';
 import { strategyAdvice  } from '@/lib/constants';
 import { ABTestingInsight } from '@/lib/constants';
-
+import { getAiConversations } from '@/lib/supabase';
 import { selectAIArray } from '@/lib/constants';
 import { selectAIObject } from '@/lib/constants';
 const optionKeys = Object.keys(selectAIObject);
@@ -27,6 +29,7 @@ export default function AISideBar() {
   const [activePrompt, setActivePrompt] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [displayHistory, setDisplayHistory] = useState([]);
+  const [converstaionId, setConversationId] = useState('');
 
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +47,7 @@ export default function AISideBar() {
 
     let messages = [];
 
-    if (chatHistory.length === 0) {
+    if (chatHistory.length === 0 && ads.length > 0) {
       messages = [
         {
           role: "system",
@@ -119,7 +122,44 @@ if (AIdata){
     setActivePrompt(true)
   };
 
+  const newConversation = () => {
+    setChatHistory([])
+    setDisplayHistory([])
+  }
 
+  const saveConversation = async() => {
+
+  try{
+    const saveData = await saveAiChatConversation(converstaionId, chatHistory, displayHistory, user.id)
+    setConverstaionId(saveData)
+
+  }catch(error){
+        showError(error)
+    }
+
+  }
+
+  const loadConversations = async() => {
+
+    try{
+      const conversations = await getAiConversations(user.id)
+    }catch(error){
+      showError(error)
+    }
+
+  }
+
+
+  const sample = [
+      {
+          "role": "user",
+          "content": "What optimizations would you suggest based on this data?"
+      },
+      {
+          "role": "assistant",
+          "content": "Based on this data, I would make the following recommendations:\n\n1. Increase Investment in \"Website visitors Ad: Get ready for the concert that will rock the...\": This ad has the highest ticket sales at $24,841.53, while the ad spend is relatively low at $246.03. The cost per click is also one of the lowest at $0.27, and the click-through-rate is high at about 1.24. This suggests that this ad is highly effective at driving people towards purchasing tickets.\n\n2. Optimize \"Cohuna Home Ground Post 2025\": The high cost per click (CPC) of $2.49 and low click-through-rate (CTR) of 0.07 indicate that this ad is not very efficient. Consider improving the ad's content or targeting to increase engagement. We can look at the successful elements in the \"Website visitors Ad\" to apply here.\n\n3. Explore Better Timing: The \"HGS Cohuna TV Ad\" ran from February 14 to April 6, but it had significantly lower ticket sales ($2000) compared to the \"Website visitors Ad\". Consider running ads closer to the event date, as this may increase the conversion rate and drive better ticket sales.\n\n4. Improve Cost-efficiency of Instagram Posts: The ad \"Instagram post: Orange! 🍊 Cap off an epic Orange...\" has a relatively high cost per click (CPC) at $0.67. I would recommend testing different content variations or audience targeting to lower the CPC and increase engagement.\n\n5. Potential for Higher Engagement in Low Reach Ads: The ad \"Post: \\\"Home Ground Sounds is in Cowra.\\\"\" has a high click-through rate (6.89%), but low reach (995), which suggests there might be room for greater engagement if reach was increased. Consider increasing ad spend on this ad to increase its reach and ultimately, ticket sales. \n\nRemember, before making any significant changes, it's beneficial to run A/B tests to see if these recommendations indeed improve performance."
+      }
+  ]
 
 
 
@@ -143,7 +183,7 @@ if (AIdata){
                             <p style={{fontSize:'.8em'}}><strong>{message.role}</strong></p>
                           }
                           <div>
-                            <p>{message.content}</p>
+                            <p className='ai-message-text'>{message.content}</p>
                           </div>
                         </div>
                       </div>
@@ -152,6 +192,8 @@ if (AIdata){
                 }
               </div>
                 }
+
+
 
 
                 <div style={{marginTop:'50px'}} className={`${'drop-zone-input'} ${activePrompt?'active':''}`} onDrop={(e) => onDrop(e)} onDragOver={(e) => onDragOver(e)}>
@@ -163,9 +205,27 @@ if (AIdata){
                     disabled={loading}
                   />
                 </div>
-                {(AIdata.length>0 && prompt.length>0)&&
-                  <button disabled={loading} className="btn primary" onClick={getfeedback}>{loading?'Sending':"Send"}</button>
-                }
+
+                {/*}
+                {AIdata.length>0&&
+                  <div style={{flex:3, flexFlow: 'wrap', display:'flex', padding:'10px'}}>
+                  {AIdata.map((data, index)=>{
+                      return(
+                          <div key={index} style={{padding:'10px', width:'50%', position:'relative'}}>
+                            <div className={`select-tab`} style={{padding:'10px'}}>
+                                <Accordion  initState={'closed'}>
+                                {JSON.stringify(data, null, 2)}
+                                  </Accordion>
+                            </div>
+                          </div>
+                      )
+                    })
+                  }
+                  </div>
+                }*/}
+
+                  <button disabled={prompt.length===0 || loading} className="btn primary" onClick={getfeedback}>{loading?'Sending':"Send"}</button>
+
 
                                 <p style={{fontSize:'.8em', margin: 0}}>Drag and drop into input area</p>
                                 <select className="form-input select"
@@ -188,6 +248,9 @@ if (AIdata){
 
                                 }
 
+
+                    <button onClick={newConversation} className='btn secondary'>New Converstation</button>
+                    <button onClick={saveConversation} style={{marginLeft:'10px'}} className='btn secondary'>Save Conversation</button>
 
 
           </div>

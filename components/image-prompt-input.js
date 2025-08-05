@@ -22,7 +22,7 @@ export function ImagePromptInput({ onSubmit, isEditing, isLoading }) {
         </p>
       </div>
 
-      <input
+      <textarea
         id="prompt"
         className="form-input"
         placeholder={
