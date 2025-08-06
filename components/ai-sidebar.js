@@ -77,7 +77,6 @@ export default function AISideBar() {
     });
 
     const data = await res.json();
-    console.log(data.result);
 
     const aiResponse = {
       role: "assistant",
@@ -99,7 +98,6 @@ export default function AISideBar() {
   };
 
 if (AIdata){
-  console.log('AIdata', AIdata)
 }
 
 
@@ -174,7 +172,6 @@ if (AIdata){
 
                 {displayHistory.length>0 &&
                   <div style={{display:'flex', flexDirection:'column'}}>
-                    {console.log('displayHistory', displayHistory)}
                   {displayHistory.map((message)=>{
                     return(
                       <div key={message.content} className={`${message.role==="user"?'ai-message-right':'ai-message-left'}`}>
@@ -233,10 +230,8 @@ if (AIdata){
                                   onChange={(e) => {
                                     setPreBuiltOption(e.target.value)
                                     setPreBuiltOptionArray(selectAIObject[e.target.value])
-                                      console.log('e.targetValue', e.target.value)
                                   }}>
                                     {optionKeys.map((option)=>{
-                                      console.log('option', option)
                                       return <option key={option} value={option}>{option}</option>
                                     })
                                   }

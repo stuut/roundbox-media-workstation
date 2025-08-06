@@ -343,6 +343,7 @@ const generateUsers = (board) => {
 
 
       setColDefs(visibleColumns)
+
       setRowData(rowData)
 
     }else{
@@ -423,7 +424,8 @@ const addNewTask = async(taskId) => {
   try{
     const newTask = await getTask(taskId)
 
-    if (!board.tasks.some((task)=>task.id === taskId)){
+
+    if (!boardRef.current.tasks.some((task)=>task.id === taskId)){
       setBoard(prev => ({
         ...prev,
         tasks: [...prev.tasks, newTask]
@@ -662,6 +664,8 @@ useEffect(() => {
 
           const taskExists = boardRef.current.tasks.find(task => task.id === task_id);
           if (taskExists) {
+
+            console.log('addMemberToTask', addMemberToTask)
             addMemberToTask(task_id, user_id);
           } else {
           //  console.log('push to pending', pendingTaskMembers.current)
@@ -731,25 +735,34 @@ useEffect(() => {
         event: '*',
         schema: 'public',
         table: 'board_tasks',
+        filter: `board_id=eq.${boardId}`
       },
       (payload) => {
         console.log('board_tasks payload', payload)
 
-        if (payload.eventType === 'DELETE'){
-          setBoard(prev => {
-            const updatedTasks = prev.tasks.filter((task)=> {
-              return task.id !== payload.old.task_id
+
+          if (payload.eventType === 'DELETE'){
+            setBoard(prev => {
+              const updatedTasks = prev.tasks.filter((task)=> {
+                return task.id !== payload.old.task_id
+              })
+
+              return {
+                ...prev,
+                tasks: updatedTasks
+              };
+
             })
+          }
 
-            return {
-              ...prev,
-              tasks: updatedTasks
-            };
+          if (payload.new.board_id === boardId){
+            if (payload.eventType === 'INSERT'){
 
-          })
-        }else if (payload.eventType === 'INSERT'){
-          addNewTask(payload.new.task_id)
-        }
+              addNewTask(payload.new.task_id)
+            }
+          }
+
+
       }
     )
     .subscribe();
@@ -804,9 +817,6 @@ useEffect(() => {
                    };
                  });
 
-         }else if (payload.eventType === 'INSERT'){
-           const enrichedValue = enrichColumnValue(payload.new, boardRef.current.columns);
-            addNewTask(payload.new.id)
          }
 
        }
@@ -834,7 +844,6 @@ useEffect(() => {
        (payload) => {
 
          console.log('column_values', payload)
-
 
          if (payload.eventType === 'DELETE'){
 
@@ -1017,7 +1026,7 @@ useEffect(() => {
 useEffect(() => {
 
     if(selectMembersFilter.length>0){
-        getFilteredTaskMembers(selectMembersFilter)
+      getFilteredTaskMembers(selectMembersFilter)
     }else{
       getData()
     }
@@ -1029,6 +1038,8 @@ const getFilteredTaskMembers = async () => {
 
   try{
     const memberFilterData = await getBoardWithColumnsAndTasksMemberFilter(boardId, selectMembersFilter)
+
+    console.log('memberFilterData', memberFilterData)
 
     setBoard(memberFilterData)
 
@@ -1402,6 +1413,11 @@ setColDefs(prevItems => {
                         }}
                         className='board-table'
                       >
+
+                      {(rowData === 0) &&
+                        <p>No Data</p>
+                      }
+
                       {/* Header */}
                       {colDefs.map((col, index) => {
                         const isCustomColumn = col?.id
@@ -1723,9 +1739,10 @@ setColDefs(prevItems => {
                                       {(isCustomColumn && col.type === "priority") &&
                                         <>
                                           <div style={{display:'flex', alignItems:'center', flexDirection:'row'}}>
+                                            {/*}
                                             {row[col.field][0] &&
                                               <SelectCheckBox callBackFunction={selectedColItemsFunction} id={row[col.field][0].id}/>
-                                            }
+                                            }*/}
                                             <Priority item={row[col.field][0]} data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
                                           </div>
                                         </>
@@ -2058,7 +2075,7 @@ const AddColumnCheckBox = ({data}) => {
 
       ):(
         <div style={{display:'flex', justifyContent: 'center'}}>
-          <button className='btn primary' onClick={() => setColumnCheckBox(data.id)}>Add Item</button>
+          <button className='btn primary btn-sm' onClick={() => setColumnCheckBox(data.id)}>Add Checkbox</button>
         </div>
       )}
 
@@ -2475,7 +2492,7 @@ const AddListItemSuggest = ({data}) => {
       </>
     ) : (
       <div style={{display:'flex', justifyContent: 'center'}}>
-        <button className='btn primary' onClick={() => setAddListItem(data.id)}>Add Item</button>
+        <button className='btn primary btn-sm' onClick={() => setAddListItem(data.id)}>Add Item</button>
       </div>
     )}
 </>

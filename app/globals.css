@@ -1057,3 +1057,18 @@ button:disabled{
         opacity: 0;
     }
 }
+
+@media screen and (max-width: 768px){
+  .board-layout-float{
+      height: auto;
+  }
+
+  .board-layout-float > div:nth-child(1),
+  .board-layout-float > div:nth-child(2){
+      float:unset;
+      width:100%
+  }
+  body {
+    overflow-y:scroll!important;
+  }
+}

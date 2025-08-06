@@ -450,7 +450,10 @@ export const AddDateItem = ({data}) => {
           </>
         ) : (
           <div style={{display:'flex', justifyContent: 'center'}}>
-            <button className='btn secondary btn-sm' onClick={() => setAddDateItem(data.id)}>Add Date</button>
+            <button className='btn secondary btn-sm' onClick={() => {
+              setAddDateItem(data.id)
+                setSave(true)
+            }}>Add Date</button>
           </div>
         )}
     </>
@@ -535,13 +538,6 @@ export const AddListItemData = ({data}) => {
           }else{
             showError('value is empty')
           }
-
-
-
-
-
-
-
         }}
       />
       </>
@@ -652,8 +648,6 @@ export const TextItem = ({item}) => {
 }
 
 export const Priority = ({item, data}) => {
-
-  console.log('Priority item', item)
 
   const [dropdownValue, setDropdownValue] = useState(item?.value? item.value : 'choose')
 
