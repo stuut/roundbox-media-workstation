@@ -25,7 +25,6 @@ const getBoardMembersData = async() => {
 
   try{
     const usersData = await getBoardMembers(boardId)
-    console.log('usersData', usersData)
       if (usersData){
         setUsers(usersData)
       }

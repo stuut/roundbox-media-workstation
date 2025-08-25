@@ -283,8 +283,6 @@ const generateUsers = (board) => {
         }
     );
 
-
-
       // Add dynamic columns from board.columns
       headers = [
         ...headers,
@@ -346,6 +344,8 @@ const generateUsers = (board) => {
 
       setRowData(rowData)
 
+      console.log('rowData', rowData)
+
     }else{
       let headers = [{ field: "select-task", type: "checkbox", width: 50, visible:true }, ...baseHeaders]
       const reorderedColumns = reorderSavedColumns(headers)
@@ -363,7 +363,7 @@ const generateUsers = (board) => {
        //const taskData = await getTasksForBoard(boardId)
         const boardData = await getBoardWithColumnsAndTasks(boardId)
         //generateColumns(boardData[0])
-
+        console.log('setBoard(boardData[0])')
         setBoard(boardData[0])
     } catch (error) {
       showError(error.message);
@@ -374,6 +374,7 @@ const generateUsers = (board) => {
   useEffect(() => {
 
     if (boardId){
+      console.log('getData()')
       getData()
     }
 
@@ -423,7 +424,6 @@ const addMemberToTask = async (task_id, user_id) => {
 const addNewTask = async(taskId) => {
   try{
     const newTask = await getTask(taskId)
-
 
     if (!boardRef.current.tasks.some((task)=>task.id === taskId)){
       setBoard(prev => ({
@@ -1023,16 +1023,6 @@ useEffect(() => {
    }, []);
 
 
-useEffect(() => {
-
-    if(selectMembersFilter.length>0){
-      getFilteredTaskMembers(selectMembersFilter)
-    }else{
-      getData()
-    }
-
-}, [selectMembersFilter]);
-
 
 const getFilteredTaskMembers = async () => {
 
@@ -1058,10 +1048,24 @@ const getFilteredTaskMembers = async () => {
        return remove !== data
      });
      setSelectMembersFilter(removed);
+
+     if (removed.length > 0){
+       getFilteredTaskMembers(removed)
+     }else{
+       getData()
+     }
    }else{
      setSelectMembersFilter(selectMembersFilter => [...selectMembersFilter, data])
-   }
 
+     const memberArray = [...selectMembersFilter, data]
+
+     if (memberArray.length > 0){
+       getFilteredTaskMembers(selectMembersFilter)
+     }else{
+       getData()
+     }
+
+   }
  }
 
 
@@ -1324,7 +1328,9 @@ setColDefs(prevItems => {
                   onChange={async(e) => {
                   setStatusFilter(e.target.value)
                   if (e.target.value !== 'All'){
+                    console.log('e.target.value', e.target.value)
                     const boardData = await getBoardWithColumnsAndTasksStatusFilter(boardId, e.target.value)
+
                     setBoard(boardData)
                   }else{
                     const boardData = await getBoardWithColumnsAndTasks(boardId)
@@ -1488,7 +1494,7 @@ setColDefs(prevItems => {
                           if (row.due_date){
                             date = checkDate(row.due_date)
                           }
-
+                        console.log('rowData', row)
                         return(
                             //row = task
                           colDefs.map((col, colIndex) => {
@@ -1522,18 +1528,13 @@ setColDefs(prevItems => {
                                       }
                                       {(col.field === 'description' && col.type === "text") &&
                                         <>
-                                          <textarea
-                                            id={col.id}
-                                            className='form-input'
-                                            type="text"
-                                            defaultValue={row[col.field]}
-                                            disabled={col.field==='id'}
-                                            onBlur={(e) => {
-                                              const newValue = e.target.value;
-                                              if (newValue !== row[col.field]) {
-                                                updateTaskColumn(row.id, col.field, newValue);
-                                              }
-                                            }}
+                                          <EditableTextCell
+                                            initialValue={row[col.field]}
+                                            col={col}
+                                            row={row}
+                                            isCustomColumn={isCustomColumn}
+                                            board={board}
+                                            className={'form-input'}
                                           />
                                         </>
                                       }
@@ -1564,7 +1565,6 @@ setColDefs(prevItems => {
 
                                       {(col.field === 'due_date' && col.type === "date") &&
                                         <DatePicker
-                                          //minDate={moment().toDate()}
                                           selected={row[col.field]?new Date(row[col.field]):''}
                                           onChange={(date) => {
                                               if (new Date(date).getTime() !== new Date(row[col.field]).getTime()) {
@@ -1595,77 +1595,30 @@ setColDefs(prevItems => {
                                       }
                                       {col.field !== "id" && col.type === "string" &&
                                         <>
-                                        <input
-                                          id={col.id}
-                                          className='table-cell-input'
-                                          type="text"
-                                          defaultValue={!isCustomColumn?row[col.field]:row[col.field].value?row[col.field].value:''}
-                                          disabled={col.field==='id'}
-                                          onBlur={(e) => {
-                                            const newValue = e.target.value;
-                                            if (newValue !== row[col.field]) {
-                                              if (isCustomColumn){
-                                                //custom column
-                                                if (row[col.field]?.value){
-                                                    //updateTaskColumn(row.id, col.field, new Date(date))
-                                                updateColumnValue(newValue, row[col.field].id);
-                                                }else{
-                                                  // insert new task column
-                                                  addNewColumnValue({
-                                                    task_id: row.id,
-                                                    column_id: col.id,
-                                                    board_id: board.id,
-                                                    value: newValue,
-                                                    type:'string'
-                                                  });
-                                                }
-                                              }else{
-                                                // default column
-                                                updateTaskColumn(row.id, col.field, newValue)
-                                              }
-                                            }
-                                          }}
-                                        />
+
+                                          <EditableTextCell
+                                            initialValue={row[col.field]}
+                                            col={col}
+                                            row={row}
+                                            isCustomColumn={isCustomColumn}
+                                            board={board}
+                                            className={'table-cell-input'}
+                                          />
+
                                       </>
                                       }
                                       {col.type === 'select'&& col.field === "status" &&
                                         <>
-                                        <select className="form-input select"
-                                          onChange={(e) => {
-                                            //setTaskStatus(e.target.value)
-                                            const newValue = e.target.value;
-                                              if (isCustomColumn){
-                                                if (row[col.field?.value]){
-                                                    //updateTaskColumn(row.id, col.field, new Date(date))
-                                                  updateColumnValue(newValue, row[col.field].id);
-
-                                                }else{
-                                                  // insert new task column
-                                                  addNewColumnValue({
-                                                    task_id: row.id,
-                                                    column_id: col.id,
-                                                    board_id: board.id,
-                                                    value: newValue,
-                                                    type:'select'
-                                                  });
-                                                }
-                                              }else{
-                                                // default column
-                                                updateTaskColumn(row.id, col.field, newValue)
-                                                const userArray = row.members.map((user)=>{
-                                                  return user.user_id
-                                                })
-                                                const message = `<span>The status of one of your tasks has bee updated to <strong>${newValue}</strong> - <a href="/task/${row.id}"><strong>View Task Here<strong></a></span>`
-                                                  sendNotifications(userArray, message)
-                                              }
-                                          }}
-                                          defaultValue={row[col.field]?.value || ''}>
-                                          {row[col.field]?.array.map(function(status, index){
-                                            return(
-                                              <option key={index} value={status}>{status}</option>
-                                            )
-                                          })}
-                                        </select>
+                                          {console.log('col.field', col.field)}
+                                            {console.log('row[col.field]', row[col.field])}
+                                        <EditableSelect
+                                          initialValue={row[col.field]?.value}
+                                          col={col}
+                                          row={row}
+                                          isCustomColumn={isCustomColumn}
+                                          board={board}
+                                          className={'table-cell-input'}
+                                        />
                                       </>
                                       }
                                       {(isCustomColumn && col.field !== 'description' && col.type === "text") &&
@@ -2569,21 +2522,19 @@ const ListItemSuggest = ({item}) => {
   );
 }
 
-const EditableTextCell = ({ initialValue, col, row, isCustomColumn, board, updateTaskColumn, updateColumnValue, addNewColumnValue }) => {
+const EditableTextCell = ({ initialValue, col, row, isCustomColumn, board, className}) => {
   const [inputValue, setInputValue] = useState(initialValue || '');
-
   useEffect(() => {
     setInputValue(initialValue || '');
   }, [initialValue]);
 
-
-
   return (
     <textarea
-      id={col.id}
+      id={col.id?col.id:initialValue}
       style={{ marginLeft: '10px' }}
-      className="table-cell-input"
+      className={className?className:"table-cell-input"}
       type="text"
+      name={col.field}
       value={inputValue}
       disabled={col.field === 'id'}
       onChange={(e) => setInputValue(e.target.value)}
@@ -2599,7 +2550,7 @@ const EditableTextCell = ({ initialValue, col, row, isCustomColumn, board, updat
                 column_id: col.id,
                 board_id: board.id,
                 value: newValue,
-                type: 'text'
+                type: col.type
               });
             }
           } else {
@@ -2609,6 +2560,54 @@ const EditableTextCell = ({ initialValue, col, row, isCustomColumn, board, updat
       }}
     />
   );
+}
+
+const EditableSelect = ({ initialValue, col, row, isCustomColumn, board, className}) => {
+  console.log('initialValue', initialValue)
+
+
+  const [inputValue, setInputValue] = useState(initialValue || '');
+  useEffect(() => {
+    setInputValue(initialValue || '');
+  }, [initialValue]);
+
+  return (
+    <select className="form-input select"
+      onChange={(e) => {
+        setInputValue(e.target.value)
+        const newValue = e.target.value;
+          if (isCustomColumn){
+            if (row[col.field?.value]){
+                //updateTaskColumn(row.id, col.field, new Date(date))
+              updateColumnValue(newValue, row[col.field].id);
+            }else{
+              // insert new task column
+              addNewColumnValue({
+                task_id: row.id,
+                column_id: col.id,
+                board_id: board.id,
+                value: newValue,
+                type:'select'
+              });
+            }
+          }else{
+            // default column
+            updateTaskColumn(row.id, col.field, newValue)
+            const userArray = row.members.map((user)=>{
+              return user.user_id
+            })
+            const message = `<span>The status of one of your tasks has bee updated to <strong>${newValue}</strong> - <a href="/task/${row.id}"><strong>View Task Here<strong></a></span>`
+              sendNotifications(userArray, message)
+          }
+      }}
+      value={inputValue}>
+      {row[col.field]?.array.map(function(status, index){
+        return(
+          <option key={index} value={status}>{status}</option>
+        )
+      })}
+    </select>
+  )
 }
 
 const DebouncedInput = ({ onDebounce, delay = 300, value, data, setAddListItem }) => {
@@ -2886,17 +2885,20 @@ const FormulaBuilder = ({item, rowData, boardData, data}) => {
           const array = rowData[key];
           if (array.length > 0) {
             array.forEach((arr) => {
-              if (arr.type === 'number') {
+              if (arr.type === 'number' || arr.type === 'formula') {
+
                 const dynamicKey = arr.columns.name;
                 const keyValue = arr.value;
                 const newObject = {
                   displayName: dynamicKey,
                   safeName: sanitizeWord(dynamicKey),
                   value: keyValue,
-                  id:arr.id
+                  id:arr.id,
+                  type:arr.type
                 };
 
                 columnValuesTemp.push(newObject);
+
 
                 if (!availableColumnsTemp.some(obj => obj.displayName === newObject.displayName)) {
                   availableColumnsTemp.push(newObject);
@@ -2910,17 +2912,21 @@ const FormulaBuilder = ({item, rowData, boardData, data}) => {
 
     if (boardData && boardData.length > 0) {
       boardData.forEach((item) => {
-        if (item.type === 'number') {
+        if (item.type === 'number' || item.type === 'formula') {
           const displayName = item.name;
           const value = item.board_field_values[0]?.value;
           const newObject = {
             displayName: displayName,
             safeName: sanitizeWord(displayName),
             value: value,
-            id:item.id
+            id:item.id,
+            type:item.type
           };
 
-          columnValuesTemp.push(newObject);
+
+            columnValuesTemp.push(newObject);
+
+
 
           if (!availableTableFieldsTemp.some(obj => obj.displayName === newObject.displayName)) {
             availableTableFieldsTemp.push(newObject);
@@ -2929,9 +2935,30 @@ const FormulaBuilder = ({item, rowData, boardData, data}) => {
       });
     }
 
+
+
+
+    if (item){
+
+      const filteredColumnValuesTemp = columnValuesTemp.filter((col)=> {
+
+        return col.id !== item.id
+      })
+
+
+
+      setColumnValues(filteredColumnValuesTemp);
+
+      const filteredAvailableColumnsTemp = availableColumnsTemp.filter((col)=> col.id !== item.id)
+      setAvailableColumns(filteredAvailableColumnsTemp);
+
+    }else{
+      setColumnValues(columnValuesTemp);
+      setAvailableColumns(availableColumnsTemp);
+    }
+
     setAvailableTableFields(availableTableFieldsTemp)
-    setColumnValues(columnValuesTemp);
-    setAvailableColumns(availableColumnsTemp);
+
 
   };
 
@@ -2949,14 +2976,26 @@ useEffect(() => {
     //setAddFormula(true)
     const value = item.value;
 
+    formulaWithIdRef.current = value
+
     const displayFormula = displayFormulaFunction(value, columnValues)
 
 
     setFormula(displayFormula)
     const sanitisedFormula = sanitizeColumnIdFormulaFunction(value, columnValues)
     const scope = aggregateColumnValues(columnValues, 'sum'); // or 'avg', 'max', etc.
+
+    console.log('scope', scope)
+
+
+    //console.log('columnValues', columnValues)
+
+    //console.log('sanitisedFormula', sanitisedFormula)
+    //console.log('scope', scope)
+
+
     const evalResult = evaluate(sanitisedFormula, scope);
-    setResult(evalResult)
+    setResult(evalResult.toFixed(2))
   }
 
 }, [item, columnValues]);
@@ -2967,10 +3006,21 @@ useEffect(() => {
   const handleEvaluate = () => {
     try {
       //const sanitisedFormula = sanitizeFormulaFunction(formula, columnValues)
+
+      console.log('formulaWithIdRef.current', formulaWithIdRef.current)
+
+
       const sanitisedFormula = sanitizeColumnIdFormulaFunction(formulaWithIdRef.current, columnValues)
+
+
+
       const scope = aggregateColumnValues(columnValues, 'sum'); // or 'avg', 'max', etc.
+
+      console.log('sanitisedFormula', sanitisedFormula)
+      console.log('scope', scope)
+
       const evalResult = evaluate(sanitisedFormula, scope);
-      setResult(evalResult);
+      setResult(evalResult.toFixed(2));
       setError(null);
     } catch (err) {
       setError(err.message);

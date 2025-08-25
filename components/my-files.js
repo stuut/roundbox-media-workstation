@@ -25,7 +25,6 @@ export default function MyFiles() {
   const getData = async (userId) => {
     try {
       const myFiles = await getFiles(userId);
-      console.log('myFiles', myFiles)
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
@@ -171,7 +170,7 @@ const deleteSelectedFiles = async () => {
                 <div style={{flex:1, flexDirection:'column', display:'flex'}}>
                   <button onClick={() => setFilesDisplay('My Files')} className={`${'btn'} ${filesDisplay ==='My Files'?'primary':'secondary'}`}>My files</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Gemini')} className={`${'btn'} ${filesDisplay ==='Gemini'?'primary':'secondary'}`}>Gemini</button>
-                  <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Video</button>
+                  <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Veo</button>
 
             </div>
                 <div style={{flex:3, padding:'15px', overflowY: 'scroll', maxHeight: '800px'}}>

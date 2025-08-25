@@ -47,7 +47,7 @@ export default async function AuthButton() {
     <div style={{display:'flex', verticalAlign:'center', padding:'15px'}}>
       <SetUserInfo user={user}/>
       <NotificationsProvider user={user}/>
-      <FacebookConnectionStatus userId={user.id}/>
+      {/*}<FacebookConnectionStatus userId={user.id}/>*/}
       <HeaderLinks/>
       <div style={{marginLeft:'auto', display:'flex', verticalAlign:'center'}}>
         <UserHeader user={user} />

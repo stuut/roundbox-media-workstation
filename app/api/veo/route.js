@@ -38,7 +38,7 @@ export async function POST(request) {
     const { prompt, image} = await request.json();
 
     const requestPayload = {
-      model: 'veo-2.0-generate-001',
+      model: 'veo-3.0-generate-preview',
       prompt,
       config: {
         numberOfVideos: 1,

@@ -287,7 +287,6 @@ const selectItemsFunction = (data) => {
 
 useEffect(()=>{
 
-  console.log('importDataArray', importDataArray)
 
 },[importDataArray])
 
