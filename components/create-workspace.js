@@ -6,7 +6,7 @@ import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 
-export default function CreateWorkspace({userId}) {
+export default function CreateWorkspace({userId, titleSize}) {
   const [title, setTitle] = useState('');
 
 
@@ -28,7 +28,11 @@ export default function CreateWorkspace({userId}) {
   return (
     <div style={{maxWidth:'600px'}}>
       <div className="card">
-        <h3>Create Workspace</h3>
+        {titleSize === "large"?(
+            <h3>Create Workspace</h3>
+        ):(
+            <p className="form-label" style={{display:'block'}}><strong>Create Workspace</strong></p>
+        )}
         <form onSubmit={handleCreate}>
               <input
                 className='form-input'

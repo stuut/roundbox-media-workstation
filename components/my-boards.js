@@ -151,9 +151,11 @@ const deleteBoardsFunction = async () => {
                 })}
             </select>
           </div>
-        <button style={{marginLeft:'10px', background:selectBoards?'var(--md-sys-color-primary)':'var(--md-sys-color-surface-container)', color:selectBoards?'#ffffff':'#000000' }} onClick={() => setSelectBoards(prev => !prev)} className={`${selectBoards?'primary':'secondary'} ${'btn'}`}>
-          Select Boards
-        </button>
+          {boardFilter === 'Created by me'&&
+            <button style={{marginLeft:'10px', background:selectBoards?'var(--md-sys-color-primary)':'var(--md-sys-color-surface-container)', color:selectBoards?'#ffffff':'#000000' }} onClick={() => setSelectBoards(prev => !prev)} className={`${selectBoards?'primary':'secondary'} ${'btn'}`}>
+              Select Boards
+            </button>
+          }
         {selectedBoards.length >0 && boardFilter === 'Created by me' &&
           <button style={{marginLeft:'10px'}} onClick={deleteBoardsFunction} className='btn danger'>
             Delete Boards

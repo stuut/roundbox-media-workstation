@@ -21,7 +21,7 @@ export default async function MyBoardsPage() {
       <h1>My Boards</h1>
       <div className='board-layout'>
         <div>
-          <CreateBoard userId={user.id}/>
+          <CreateBoard userId={user.id} titleSize={"large"} accordionState={'open'}/>
         </div>
         <div>
           <MyBoards userId={userId }/>

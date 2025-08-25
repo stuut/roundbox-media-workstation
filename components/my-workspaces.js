@@ -95,7 +95,6 @@ export default function MyWorkspaces({userId}) {
 
 const selectWorkspacesFunction = (data) => {
 
-  console.log('selectWorkspacesFunction')
 
   if (isInArray(data, selectedWorkspaces)){
     setSelectedWorkspaces(prev => {
@@ -157,9 +156,11 @@ const deleteWorkspacesFunction = async () => {
                 })}
             </select>
           </div>
-        <button style={{marginLeft:'10px', background:selectWorkspaces?'var(--md-sys-color-primary)':'var(--md-sys-color-surface-container)', color:selectWorkspaces?'#ffffff':'#000000' }} onClick={() => setSelectWorkspaces(prev => !prev)} className={`${selectWorkspaces?'primary':'secondary'} ${'btn'}`}>
-          Select Workspaces
-        </button>
+         {workspaceFilter === 'Created by me'&&  
+            <button style={{marginLeft:'10px', background:selectWorkspaces?'var(--md-sys-color-primary)':'var(--md-sys-color-surface-container)', color:selectWorkspaces?'#ffffff':'#000000' }} onClick={() => setSelectWorkspaces(prev => !prev)} className={`${selectWorkspaces?'primary':'secondary'} ${'btn'}`}>
+              Select Workspaces
+            </button>
+          }
         {selectedWorkspaces.length >0 && workspaceFilter === 'Created by me' &&
           <button style={{marginLeft:'10px'}} onClick={deleteWorkspacesFunction} className='btn danger'>
             Delete Workspaces

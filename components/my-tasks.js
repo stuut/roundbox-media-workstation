@@ -180,9 +180,11 @@ export default function MyTasks({userId}) {
               })}
           </select>
         </div>
+        {taskFilter ==='Created by me' &&
           <button style={{marginLeft:'10px', background:selectTasks?'var(--md-sys-color-primary)':'var(--md-sys-color-surface-container)', color:selectTasks?'#ffffff':'#000000' }} onClick={() => setSelectTasks(prev => !prev)} className={`${selectTasks?'primary':'secondary'} ${'btn'}`}>
             Select Tasks
           </button>
+        }
         {selectedTasks.length >0 && taskFilter === 'Created by me' &&
           <button style={{marginLeft:'10px'}} onClick={deleteTasksFunction} className='btn danger'>
             Delete Tasks

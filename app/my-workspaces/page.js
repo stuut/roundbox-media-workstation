@@ -19,7 +19,7 @@ export default async function MyWorkspacesPage() {
       <h2>My Workspaces</h2>
       <div className='dashboard-layout'>
         <div>
-          <CreateWorkspace userId={userId}/>
+          <CreateWorkspace userId={userId} titleSize={"large"} accordionState={'open'}/>
         </div>
         <div>
           <MyWorkspaces userId={userId}/>

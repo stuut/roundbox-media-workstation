@@ -16,7 +16,7 @@ import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 
-export default function CreateBoard({userId, workspaceId, accordionState}) {
+export default function CreateBoard({userId, workspaceId, accordionState, titleSize}) {
   const [title, setTitle] = useState('');
   const [selectedWorkspaces, setSelectedWorkspaces] = useState(workspaceId?[workspaceId]:[]);
   const [workspaces, setWorkspaces] = useState([]);
@@ -125,7 +125,11 @@ export default function CreateBoard({userId, workspaceId, accordionState}) {
   return (
     <div>
       <div style={{position:'relative', padding:'5px 25px 5px 25px'}} className="card">
-        <h3>Create Board</h3>
+        {titleSize === "large"?(
+            <h3>Create Board</h3>
+        ):(
+            <p className="form-label" style={{display:'block'}}><strong>Create Board</strong></p>
+        )}
         <Accordion initState={accordionState}>
           <form onSubmit={handleCreate}>
             <input

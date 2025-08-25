@@ -1024,10 +1024,10 @@ useEffect(() => {
 
 
 
-const getFilteredTaskMembers = async () => {
+const getFilteredTaskMembers = async (membersArray) => {
 
   try{
-    const memberFilterData = await getBoardWithColumnsAndTasksMemberFilter(boardId, selectMembersFilter)
+    const memberFilterData = await getBoardWithColumnsAndTasksMemberFilter(boardId, membersArray)
 
     console.log('memberFilterData', memberFilterData)
 
@@ -1048,7 +1048,6 @@ const getFilteredTaskMembers = async () => {
        return remove !== data
      });
      setSelectMembersFilter(removed);
-
      if (removed.length > 0){
        getFilteredTaskMembers(removed)
      }else{
@@ -1058,9 +1057,10 @@ const getFilteredTaskMembers = async () => {
      setSelectMembersFilter(selectMembersFilter => [...selectMembersFilter, data])
 
      const memberArray = [...selectMembersFilter, data]
+     console.log('memberArray', memberArray)
 
      if (memberArray.length > 0){
-       getFilteredTaskMembers(selectMembersFilter)
+       getFilteredTaskMembers(memberArray)
      }else{
        getData()
      }
@@ -1324,13 +1324,11 @@ setColDefs(prevItems => {
               <div className='card'>
                 <p className="form-label" style={{display:'block'}}><strong>Item Filters</strong></p>
                 <p style={{fontSize:'.8em', margin:'15px 0px 5px 0px'}}>Item Status</p>
-                <select className="form-input select"
+                <select id="status-filter" name='status filter' className="form-input select"
                   onChange={async(e) => {
                   setStatusFilter(e.target.value)
                   if (e.target.value !== 'All'){
-                    console.log('e.target.value', e.target.value)
                     const boardData = await getBoardWithColumnsAndTasksStatusFilter(boardId, e.target.value)
-
                     setBoard(boardData)
                   }else{
                     const boardData = await getBoardWithColumnsAndTasks(boardId)
@@ -1494,7 +1492,7 @@ setColDefs(prevItems => {
                           if (row.due_date){
                             date = checkDate(row.due_date)
                           }
-                        console.log('rowData', row)
+
                         return(
                             //row = task
                           colDefs.map((col, colIndex) => {
@@ -1609,8 +1607,7 @@ setColDefs(prevItems => {
                                       }
                                       {col.type === 'select'&& col.field === "status" &&
                                         <>
-                                          {console.log('col.field', col.field)}
-                                            {console.log('row[col.field]', row[col.field])}
+
                                         <EditableSelect
                                           initialValue={row[col.field]?.value}
                                           col={col}
@@ -1823,7 +1820,6 @@ setColDefs(prevItems => {
                                             )
                                           })}
                                           <AddDateItem data={{task_id:row.id, column_id:col.id, board_id: board.id, type:col.type}}/>
-
                                         </>
                                       }
                                       {isCustomColumn && col.type === "formula" &&
@@ -2236,7 +2232,7 @@ const FilePicker = ({columnId, taskId, boardId}) => {
         <>
           <div style={{width:'100%', display:'flex', justifyContent:'center'}}>
             {/*}<GoogleDrivePicker callBackFunction={storeGoogleDriveFile}/>*/}
-            <button className="btn secondary sml" onClick={() => {
+            <button className="btn secondary btn-sm" onClick={() => {
               setSelectedFiles([])
               setFilePicker(true)
               setShowFiles(prevState => !prevState)
@@ -2531,7 +2527,6 @@ const EditableTextCell = ({ initialValue, col, row, isCustomColumn, board, class
   return (
     <textarea
       id={col.id?col.id:initialValue}
-      style={{ marginLeft: '10px' }}
       className={className?className:"table-cell-input"}
       type="text"
       name={col.field}
@@ -2563,7 +2558,6 @@ const EditableTextCell = ({ initialValue, col, row, isCustomColumn, board, class
 }
 
 const EditableSelect = ({ initialValue, col, row, isCustomColumn, board, className}) => {
-  console.log('initialValue', initialValue)
 
 
   const [inputValue, setInputValue] = useState(initialValue || '');

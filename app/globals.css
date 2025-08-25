@@ -748,7 +748,7 @@ border: var(--input-border-width) solid var(--md-sys-color-surface-dim);
 
 .table-file{
 margin-left:10px;
-max-width:90px
+max-width:50px
 }
 
 .table-file table-image{

@@ -480,7 +480,7 @@ useEffect(()=>{
 
   return(
     <>
-    <p style={{fontSize:'.8em', cursor:'pointer', marginTop:'0px', color:'var(--md-sys-color-secondary)'}} onClick={() => setShowFormat(prev => !prev)}><strong>Change Date Format</strong></p>
+    <p style={{fontSize:'.7em', cursor:'pointer', marginTop:'0px', color:'var(--md-sys-color-secondary)'}} onClick={() => setShowFormat(prev => !prev)}><strong>Change Date Format</strong></p>
     {showFormat&&
       <select
         style={{maxWidth:'150px', fontSize:'.8em'}}
