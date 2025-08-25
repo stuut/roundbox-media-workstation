@@ -23,8 +23,8 @@ export default async function Account() {
           </div>
           <div style={{padding:'25px'}}>
             <div>
-              <h3>Account Details</h3>
-              <AccountForm user={user} />
+              <h3>Notifications</h3>
+              <Notifications userId={user.id} />
             </div>
           </div>
         </div>

@@ -47,6 +47,9 @@ export default function TaskCard({
   const  [taskDueDate, setTaskDueDate] = useState(new Date(dueDate));
   const [overdue, setOverDue] = useState(checkDate(dueDate));
 
+
+
+
   let date = true
   if (dueDate){
     date = checkDate(dueDate)
@@ -185,6 +188,7 @@ export default function TaskCard({
           }}
         />
       </div>
+      {dueDate &&
         <div style={{marginTop:'25px'}}>
           <p><strong>Due Date </strong></p>
           {!editable?(
@@ -208,6 +212,7 @@ export default function TaskCard({
             />
           )}
         </div>
+      }
       <div style={{marginTop:'25px'}}>
         <p><strong> Status </strong></p>
         <select className="form-input select task-input"

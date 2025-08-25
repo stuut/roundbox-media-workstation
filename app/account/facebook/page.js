@@ -5,12 +5,16 @@ import Notifications from '@/components/notifications'
 import {FacebookConnection} from '@/components/connect-facebook'
 import AccountMenu from '@/components/account-menu'
 
+
+
+
 export default async function Account() {
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
 
   if (!user) {
     return redirect("/sign-in")
@@ -19,13 +23,10 @@ export default async function Account() {
   return (
         <div style={{display:'flex'}}>
           <div style={{padding:'25px'}}>
-            <AccountMenu/>
+              <AccountMenu/>
           </div>
           <div style={{padding:'25px'}}>
-            <div>
-              <h3>Account Details</h3>
-              <AccountForm user={user} />
-            </div>
+            <FacebookConnection userId={user.id}/>
           </div>
         </div>
       )
