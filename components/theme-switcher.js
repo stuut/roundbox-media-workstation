@@ -15,8 +15,8 @@ export const ThemeSwitcher = () => {
   if (!mounted) return null;
 
   return (
-    <div style={{display:'flex', justifyContent: 'start', padding:'10px'}}>
-      <div onClick={() => setTheme("dark")}>
+    <div style={{display:'flex', justifyContent: 'start', padding:'10px', alignItems:'center'}}>
+      <div onClick={() => setTheme("dark")} style={{width:35, height:35}}>
         <svg
           className="theme-icon"
           viewBox="0 0 24 24"
@@ -30,7 +30,7 @@ export const ThemeSwitcher = () => {
 	S9.1,9.5,9.1,7.5c0-0.3,0-0.7,0.1-1c0.1-0.3,0.1-0.7,0.2-1C8.1,6,7,6.9,6.2,8S5,10.5,5,12c0,1.9,0.7,3.6,2.1,5S10.1,19,12,19z" fill="inherit" />
         </svg>
       </div>
-      <div onClick={() => setTheme("light")}>
+      <div onClick={() => setTheme("light")} style={{width:35, height:35}}>
         <svg className="theme-icon" viewBox="0 0 24 24" fill={theme==='light'?"var(--md-sys-color-primary)":"var(--md-sys-color-surface-container)"} xmlns="http://www.w3.org/2000/svg">
           <path d="M12,15c0.8,0,1.5-0.3,2.1-0.9c0.6-0.6,0.9-1.3,0.9-2.1s-0.3-1.5-0.9-2.1S12.8,9,12,9s-1.5,0.3-2.1,0.9
             C9.3,10.5,9,11.2,9,12s0.3,1.5,0.9,2.1C10.5,14.7,11.2,15,12,15z M12,17c-1.4,0-2.6-0.5-3.5-1.5c-1-1-1.5-2.2-1.5-3.5

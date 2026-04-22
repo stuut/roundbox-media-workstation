@@ -92,6 +92,7 @@ import { convertFormulaFunctionToIds } from '@/lib/utils'
 
 
 
+
 export default function Board({ boardId, userId }) {
   //dashboard?board-type=Table
   //dashboard?board-type=Kanban
@@ -128,6 +129,7 @@ export default function Board({ boardId, userId }) {
   const [clearColumnCheckBoxes, setClearColumnCheckBoxes] = useState(false);
   const [dateFilter, setDateFilter] = useState('due_date');
   const [dateFilterDirection, setDateFilterDirection] = useState('');
+  const [toolbarCoordinates, setToolbarCoordinates] = useState();
 
 //desc
 
@@ -1250,9 +1252,6 @@ setColDefs(prevItems => {
  }
 
  const analyzeFunction = () => {
-
-
-
 
 
    const items = rowData

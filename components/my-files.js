@@ -64,8 +64,6 @@ const uploadFile = async (event) => {
     const filePath = `${user.id}/${Math.random()}.${fileExt}`;
     const fileType = file.type;
     const fileName = file.name
-    //const filePath = `public/${Math.random()}.${fileExt}`;
-
     const formData = new FormData()
     formData.append('file', file)
 
@@ -98,7 +96,6 @@ const uploadFile = async (event) => {
   } finally {
     setUploading(false)
   }
-
 }
 
 const handleFileFunction = async (data) => {

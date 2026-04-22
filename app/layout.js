@@ -2,7 +2,6 @@ import { EnvVarWarning } from "@/components/env-var-warning"
 import HeaderAuth from "@/components/header-auth"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { hasEnvVars } from "@/utils/supabase/check-env-vars"
-import { Poppins } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import Link from "next/link"
 import { ItemProvider } from '@/context/item-context'
@@ -14,6 +13,24 @@ import MyFiles from "@/components/my-files"
 import UserChat from "@/components/user-chat"
 import ToastProvider from "@/components/toast-provider"
 import ImportItems from "@/components/import-items"
+import { Poppins } from "next/font/google"
+import { Raleway } from 'next/font/google';
+
+const raleway = Raleway({
+     weight: ['100', '200', '300', '400', '700', '800', '900'], // Specify desired weights
+     style: ['italic','normal'],
+     variable: "--font-raleway",
+     subsets: ['latin'],    // Define required subsets
+     display: 'swap',       // Recommended for better font loading behavior
+});
+
+const poppins = Poppins({
+  weight: ['100', '200', '300', '400', '700', '800', '900'],
+  style: ['italic','normal'],
+  variable: "--font-poppins",
+  subsets: ["latin"],
+});
+
 
 
 import "./globals.css"
@@ -29,15 +46,35 @@ export const metadata = {
   description: "RoundBox Media Task Manager"
 }
 
-const poppins = Poppins({
-  weight: ['300', '400', '700'],
-  variable: "--font-poppins",
-  subsets: ["latin"],
-});
 
-export default function RootLayout({ children }) {
+
+export default async function RootLayout({ children, params  }) {
+
+  if (params.slug === 'canvas-design-system') {
+    return (
+    <html lang="en" className={`${poppins.variable} ${raleway.variable}`} suppressHydrationWarning>
+        <body className="bg-background text-foreground">
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+          >
+          <UserProvider>
+          <FilesProvider>
+            <main className="full-height">
+              <div style={{height:'100%'}}>
+                {children}
+              </div>
+            </main>
+          </FilesProvider>
+        </UserProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+    )
+  }else{
+
   return (
-    <html lang="en" className={`${poppins.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${poppins.variable} ${raleway.variable}`} suppressHydrationWarning>
       <body className="bg-background text-foreground">
         <script
           dangerouslySetInnerHTML={{
@@ -73,23 +110,20 @@ export default function RootLayout({ children }) {
           <AIProvider>
           <ItemProvider>
           <ToastProvider/>
-            <main>
-              <div style={{height:'100%'}}>
-                <nav>
-                  <div>
-                    {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
-                  </div>
-                </nav>
+            <main className="full-height">
+              <div style={{height:'100%', position:'relative'}}>
+                  <nav>
+                    <div>
+                      {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
+                    </div>
+                  </nav>
                 <MyFiles/>
                 <AISideBar/>
                 <ImportItems/>
-                <div style={{height:'100%'}}>
+                <div style={{height: 'calc(100% - 71.5px)'}}>
                   {children}
                 </div>
                 <UserChat/>
-                <footer style={{clear: 'left'}}>
-                  <ThemeSwitcher />
-                </footer>
               </div>
             </main>
           </ItemProvider>
@@ -100,4 +134,5 @@ export default function RootLayout({ children }) {
       </body>
     </html>
   )
+  }
 }

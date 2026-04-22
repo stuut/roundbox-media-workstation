@@ -20,6 +20,7 @@ export default async function WorkspacePage({ params }) {
                         body {
                           overflow-y:hidden;
                         }
+
                         `,
                   }}
                 />

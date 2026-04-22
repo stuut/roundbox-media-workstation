@@ -44,12 +44,12 @@ export default async function AuthButton() {
     )
   }
   return user ? (
-    <div style={{display:'flex', verticalAlign:'center', padding:'15px'}}>
+    <div style={{display:'flex', alignItems:'center', padding:'5px'}}>
       <SetUserInfo user={user}/>
       <NotificationsProvider user={user}/>
       {/*}<FacebookConnectionStatus userId={user.id}/>*/}
       <HeaderLinks/>
-      <div style={{marginLeft:'auto', display:'flex', verticalAlign:'center'}}>
+      <div style={{marginLeft:'auto', display:'flex', alignItems:'center'}}>
         <UserHeader user={user} />
         <form action={signOutAction}>
           <button className="btn danger">

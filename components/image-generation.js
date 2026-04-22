@@ -43,12 +43,12 @@ export default function ImageGeneration() {
 
       if (!response.ok) {
         const errorData = await response.json()
+
         throw new Error(errorData.error || "Failed to generate image")
       }
 
       const data = await response.json()
 
-      if (data.image) {
         // Update the generated image and description
         setGeneratedImage(data.image)
         setDescription(data.description || null)
@@ -73,9 +73,7 @@ export default function ImageGeneration() {
 
         // Update history with both messages
         setHistory(prevHistory => [...prevHistory, userMessage, aiResponse])
-      } else {
-        showError("No image returned from API")
-      }
+
     } catch (error) {
       showError(error instanceof Error ? error.message : "An error occurred")
       console.error("Error processing request:", error)

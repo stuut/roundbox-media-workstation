@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next dev --experimental-https",
+    "dev": "node sync.js --watch & next dev --experimental-https ",
     "build": "next build",
     "start": "next start"
   },
@@ -20,10 +20,16 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
-    "axios": "^1.10.0",
+    "@wavesurfer/react": "^1.0.12",
+    "axios": "^1.13.5",
+    "canvas-record": "^5.5.0",
+    "ccapture.js": "^1.1.0",
+    "ccapture.js-npmfixed": "^1.1.0",
     "chrono-node": "^2.8.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "contentful": "^11.10.3",
+    "jszip": "^3.10.1",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.468.0",
     "mathjs": "^14.5.2",
@@ -34,20 +40,28 @@
     "nodemailer": "^7.0.3",
     "openai": "^4.102.0",
     "papaparse": "^5.5.3",
+    "pdf-lib": "^1.17.1",
     "prettier": "^3.3.3",
     "react": "19.0.0",
+    "react-color": "^2.19.3",
     "react-datepicker": "^8.4.0",
     "react-dom": "19.0.0",
     "react-dropzone": "^14.3.8",
     "react-google-drive-picker": "^1.2.2",
     "react-tag-input": "^6.10.6",
     "react-toastify": "^11.0.5",
+    "remove-markdown": "^0.6.3",
     "scriptjs": "^2.5.9",
-    "video.js": "^8.23.3"
+    "unzipper": "^0.12.3",
+    "video.js": "^8.23.3",
+    "wavesurfer.js": "^7.12.1",
+    "wpapi": "^1.2.2"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
     "@types/react": "^19.0.2",
-    "@types/react-dom": "19.0.2"
+    "@types/react-dom": "19.0.2",
+    "chokidar": "^5.0.0",
+    "fs-extra": "^11.3.4"
   }
 }

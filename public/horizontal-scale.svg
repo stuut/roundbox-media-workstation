@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 24 24">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #1f1f1f;
+      }
+    </style>
+  </defs>
+  <!-- Generator: Adobe Illustrator 28.6.0, SVG Export Plug-In . SVG Version: 1.2.0 Build 709)  -->
+  <g>
+    <g id="Layer_1">
+      <g id="Layer_1-2" data-name="Layer_1">
+        <path class="cls-1" d="M3,21V3h2v18h-2Z"/>
+        <rect class="cls-1" x="7" y="18.9" width="2" height="2"/>
+        <rect class="cls-1" x="11" y="18.9" width="2" height="2"/>
+        <rect class="cls-1" x="15" y="18.9" width="2" height="2"/>
+        <rect class="cls-1" x="19" y="18.9" width="2" height="2"/>
+        <rect class="cls-1" x="19" y="7" width="2" height="2"/>
+        <rect class="cls-1" x="19" y="11" width="2" height="2"/>
+        <rect class="cls-1" x="19" y="15.1" width="2" height="2"/>
+        <rect class="cls-1" x="3" y="3" width="18" height="2"/>
+        <g>
+          <path class="cls-1" d="M13.1,15.5l-.8-.8,2-2h-6.8v-1.1h6.8l-2-2,.8-.8,3.4,3.4-3.4,3.4h0Z"/>
+          <path class="cls-1" d="M13.1,15.8l-1.1-1.2,1.7-1.7h-6.5v-1.6h6.5l-1.7-1.7,1.1-1.2,3.7,3.7s-3.7,3.7-3.7,3.7ZM12.7,14.6l.4.5,3-3-3-3-.4.5,2.3,2.3h-7.2v.6h7.2l-2.3,2.3v-.2Z"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

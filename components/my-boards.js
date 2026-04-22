@@ -43,6 +43,7 @@ export default function MyBoards({userId}) {
 
           const boardId = payload.new.id
           const newBoard = await getBoardWithUserIdBoardId(userId, boardId)
+
           if (newBoard){
             setBoards(prev => [newBoard, ...prev])
           }

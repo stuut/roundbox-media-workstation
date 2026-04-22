@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Canvas Editable Text (with Wrapping + Caret Sync)</title>
+<style>
+  canvas {
+    border: 1px solid #ccc;
+    display: block;
+    margin-top: 1rem;
+  }
+  #hidden-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+  }
+</style>
+</head>
+<body>
+
+<h3>Double-click the text to edit</h3>
+<canvas id="canvas" width="600" height="300"></canvas>
+<textarea id="hidden-input"></textarea>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const input = document.getElementById("hidden-input");
+
+let text = 'New text \n another line';
+let isEditing = false;
+let caretVisible = true;
+let caretTimer = null;
+
+const x = 40;
+const y = 60;
+const lineHeight = 32;
+const maxWidth = 520;
+const font = "24px sans-serif";
+ctx.font = font;
+
+let caretAbsIndex = text.length; // caret index in the full text
+
+// --- Utility: split text into *wrapped visual lines*
+function wrapTextLines(text) {
+  const paragraphs = text.split("\n");
+  const lines = [];
+
+  paragraphs.forEach(p => {
+    const words = p.split(/\s+/);
+    let line = "";
+    for (const word of words) {
+      const testLine = line ? line + " " + word : word;
+      const width = ctx.measureText(testLine).width;
+      if (width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = testLine;
+      }
+    }
+    lines.push(line);
+  });
+
+  return lines;
+}
+
+// --- Helper: map absolute caret index → (line, column)
+function getCaretPosFromIndex(index) {
+  const lines = wrapTextLines(text);
+  let count = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (index <= count + line.length) {
+      return { row: i, col: index - count };
+    }
+    count += line.length + 1; // +1 for implicit newline
+  }
+  return { row: lines.length - 1, col: lines.at(-1).length };
+}
+
+// --- Helper: map (line, column) → absolute index
+function getIndexFromCaretPos(row, col) {
+  const lines = wrapTextLines(text);
+  let count = 0;
+  for (let i = 0; i < row; i++) count += lines[i].length + 1;
+  return Math.min(count + col, text.length);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = font;
+  ctx.fillStyle = "#000";
+
+  const lines = wrapTextLines(text);
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x, y + i * lineHeight);
+  });
+
+  if (isEditing && caretVisible) {
+    const { row, col } = getCaretPosFromIndex(caretAbsIndex);
+      console.log('row, col', row, col)
+    const lines = wrapTextLines(text);
+    const before = (lines[row] || "").slice(0, col);
+      console.log('before', before)
+
+    const caretX = x + ctx.measureText(before).width;
+    const caretY = y + row * lineHeight;
+    console.log('row * lineHeight', row * lineHeight)
+    ctx.beginPath();
+    ctx.moveTo(caretX, caretY - 24);
+    ctx.lineTo(caretX, caretY + 6);
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+  }
+}
+
+function startCaretBlink() {
+  if (caretTimer) clearInterval(caretTimer);
+  caretVisible = true;
+  caretTimer = setInterval(() => {
+    caretVisible = !caretVisible;
+    draw();
+  }, 500);
+}
+
+function stopCaretBlink() {
+  clearInterval(caretTimer);
+  caretTimer = null;
+}
+
+// --- Sync caret index with hidden textarea
+function syncInputCaret() {
+  input.setSelectionRange(caretAbsIndex, caretAbsIndex);
+}
+
+// --- Handle input text changes
+input.addEventListener("input", (e) => {
+  text = input.value;
+  caretAbsIndex = input.selectionStart;
+  draw();
+});
+
+// --- Handle navigation keys
+input.addEventListener("keydown", (e) => {
+  const { row, col } = getCaretPosFromIndex(caretAbsIndex);
+  const lines = wrapTextLines(text);
+
+  if (e.key === "ArrowUp") {
+    if (row > 0) {
+      const prev = lines[row - 1];
+      const newCol = Math.min(prev.length, col);
+      caretAbsIndex = getIndexFromCaretPos(row - 1, newCol);
+      console.log('caretAbsIndex', caretAbsIndex )
+    }
+    e.preventDefault();
+  } else if (e.key === "ArrowDown") {
+    if (row < lines.length - 1) {
+      const next = lines[row + 1];
+      const newCol = Math.min(next.length, col);
+      caretAbsIndex = getIndexFromCaretPos(row + 1, newCol);
+    }
+    e.preventDefault();
+  } else if (e.key === "ArrowLeft") {
+    caretAbsIndex = Math.max(0, caretAbsIndex - 1);
+  } else if (e.key === "ArrowRight") {
+    caretAbsIndex = Math.min(text.length, caretAbsIndex + 1);
+  }
+
+  syncInputCaret();
+  draw();
+});
+
+// --- Start editing on double-click
+canvas.addEventListener("dblclick", () => {
+  isEditing = true;
+  input.value = text;
+  caretAbsIndex = text.length;
+  input.focus();
+  syncInputCaret();
+  startCaretBlink();
+  draw();
+});
+
+// --- End editing
+input.addEventListener("blur", () => {
+  //isEditing = false;
+  //stopCaretBlink();
+  draw();
+});
+
+canvas.addEventListener("mousedown", (e) => {
+
+
+  if (!isEditing) return;
+
+  // get mouse position relative to canvas
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const lines = wrapTextLines(text);
+
+  // find clicked line
+  const clickedRow = Math.min(
+    Math.floor((my - y + lineHeight / 2) / lineHeight),
+    lines.length - 1
+  );
+  const line = lines[clickedRow] || "";
+
+  // find closest character in that line
+  let col = 0;
+  for (let i = 1; i <= line.length; i++) {
+    const w = ctx.measureText(line.slice(0, i)).width;
+    if (x + w > mx) {
+      col = i - 1;
+      break;
+    }
+    col = i;
+  }
+
+  // convert (row, col) → absolute caret index
+  caretAbsIndex = getIndexFromCaretPos(clickedRow, col);
+
+  // re-sync and re-focus hidden input
+  syncInputCaret();
+
+  // important! re-focus on next frame so blur doesn't kill editing
+
+  console.log('focus-input')
+  requestAnimationFrame(() => input.focus());
+  //startCaretBlink();
+
+  draw();
+});
+
+
+draw();
+</script>
+</body>
+</html>

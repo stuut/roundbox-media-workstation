@@ -136,8 +136,6 @@ export const FacebookConnection = ({userId}) => {
 
 
 
-
-
   async function getInstagramBusinessAccountInfo(facebookPageId) {
         let promise = new Promise((resolve, reject) => {
                 window.FB.api(
@@ -156,62 +154,75 @@ export const FacebookConnection = ({userId}) => {
       }
 
 
-
-
-      async function pushTofacebookInfoDatabase(account, instagramBusinessAccountId) {
+      async function pushTofacebookInfoDatabase(account) {
       try {
-        const { data, error } = await supabase
-          .from('facebook_accounts') // your Supabase table name
-          .upsert([{
+        await supabase.from('platform_accounts').upsert({
+          user_id: userId,
+          platform: 'facebook',
+          external_account_id: account.id,
+          name: account.name,
+          metadata: {
             facebook_page_id: account.id,
-            facebook_page_name: account.name,
-            access_token: account.access_token,
-            instagram_business_account_id: instagramBusinessAccountId,
-            connected_at: new Date().toISOString(),
-            user_id:userId
-          }], { onConflict: ['user_id', 'facebook_page_id'] });
-
-        if (error) throw error;
-        return data;
+            accountInfo:account
+          }
+        })
       } catch (err) {
-        console.error('Supabase insert error (Facebook):', err.message);
+        console.log('Supabase insert error (Facebook):', err.message);
         showError(err.message);
       }
     }
 
     async function pushToInstagramInfoDatabase(account, instagramBusinessAccountId) {
       try {
-        const { data, error } = await supabase
-          .from('instagram_accounts') // your Supabase table name
-          .upsert([{
+        await supabase.from('platform_accounts').upsert({
+          user_id: userId,
+          platform: 'instagram',
+          external_account_id: instagramBusinessAccountId,
+          name: account.name,
+          metadata: {
             facebook_page_id: account.id,
-            connected_facebook_page_name: account.name,
-            access_token: account.access_token,
-            instagram_account_id: instagramBusinessAccountId,
-            connected_at: new Date().toISOString(),
-            user_id:userId
-          }], { onConflict: ['user_id', 'instagram_account_id'] });
+            instagram_business_account_id: instagramBusinessAccountId,
+            accountInfo:account
+          }
+        })
 
-        if (error) throw error;
-        return data;
       } catch (err) {
-        console.error('Supabase insert error (Instagram):', err.message);
+        console.log('Supabase insert error (Instagram):', err.message);
         showError(err.message);
       }
     }
 
 
-  async function FacebookDataSort(data) {
 
+  async function pushInfoDatabase(account, instagramBusinessAccountId){
+    await supabase.from('platform_accounts').upsert({
+      user_id: userId,
+      platform: instagramBusinessAccountId ? 'instagram' : 'facebook',
+      external_account_id: instagramBusinessAccountId ?? account.id,
+      name: account.name,
+      metadata: {
+        facebook_page_id: account.id,
+        instagram_business_account_id: instagramBusinessAccountId
+      }
+    })
+  }
+
+
+
+
+
+  async function FacebookDataSort(data) {
       var promises = data.map(async function(account, index){
           let instagramBusinessAccountId = await getInstagramBusinessAccountInfo(account.id)
-           pushToInstagramInfoDatabase(account, instagramBusinessAccountId)
-           pushTofacebookInfoDatabase(account, instagramBusinessAccountId)
-      });
 
+          if (instagramBusinessAccountId){
+               pushToInstagramInfoDatabase(account, instagramBusinessAccountId)
+          }
+
+           pushTofacebookInfoDatabase(account)
+      });
       Promise.all(promises).then(function(results) {
       })
-
     }
 
 

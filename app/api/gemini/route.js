@@ -8,13 +8,19 @@ export const config = {
     }
   }
 }
-
+/*
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || ""
 })
+*/
 
 
-const MODEL_ID = "gemini-2.0-flash-preview-image-generation"
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_BILLING_API_KEY || ""
+})
+
+const MODEL_ID = "gemini-2.5-flash-image"
+//const MODEL_ID = "gemini-3-pro-image-preview"
 
 
 export async function POST(request) {

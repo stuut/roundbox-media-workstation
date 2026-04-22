@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editable Multi-line Canvas Text</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            position: relative;
+            display: inline-block;
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            display: block;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        .edit-textarea {
+            position: absolute;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            padding: 4px;
+            font-family: Arial, sans-serif;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            resize: none;
+            overflow: hidden;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .add-text-btn {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .add-text-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .max-width-input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <canvas id="canvas" width="800" height="500"></canvas>
+    </div>
+
+    <div class="controls">
+        <button class="add-text-btn" onclick="addNewText()">Add New Text</button>
+        <label for="maxWidth">Max Width:</label>
+        <input type="number" id="maxWidth" class="max-width-input" value="200" min="50" max="500">
+    </div>
+
+    <div class="instructions">
+        <h3>Multi-line Text Features:</h3>
+        <ul>
+            <li>Click on any text to edit it with a multi-line textarea</li>
+            <li>Text automatically wraps based on the Max Width setting</li>
+            <li>Press Ctrl+Enter to save changes or Escape to cancel</li>
+            <li>Double-click on empty space to add text at that location</li>
+            <li>Use line breaks in the textarea for manual line breaks</li>
+            <li>Text blocks show word-wrapping and proper line spacing</li>
+        </ul>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const maxWidthInput = document.getElementById('maxWidth');
+        let textObjects = [];
+        let editingText = null;
+        let textareaElement = null;
+
+        // Multi-line text object
+        class MultiLineTextObject {
+            constructor(text, x, y, fontSize = 18, color = '#333', maxWidth = 200, lineHeight = 1.2) {
+                this.text = text;
+                this.x = x;
+                this.y = y;
+                this.fontSize = fontSize;
+                this.color = color;
+                this.maxWidth = maxWidth;
+                this.lineHeight = lineHeight;
+                this.font = `${fontSize}px Arial`;
+                this.lines = [];
+                this.totalWidth = 0;
+                this.totalHeight = 0;
+                this.updateLines();
+            }
+
+            updateLines() {
+                ctx.font = this.font;
+                this.lines = [];
+
+                // Split text by explicit line breaks first
+                const paragraphs = this.text.split('\n');
+
+                paragraphs.forEach(paragraph => {
+                    if (paragraph.trim() === '') {
+                        // Empty line
+                        this.lines.push('');
+                        return;
+                    }
+
+                    // Word wrap within each paragraph
+                    const words = paragraph.split(' ');
+                    let currentLine = '';
+
+                    words.forEach((word, index) => {
+                        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                        const testWidth = ctx.measureText(testLine).width;
+
+                        if (testWidth > this.maxWidth && currentLine) {
+                            // Line is too long, start a new line
+                            this.lines.push(currentLine);
+                            currentLine = word;
+                        } else {
+                            currentLine = testLine;
+                        }
+                    });
+
+                    // Add the last line of the paragraph
+                    if (currentLine) {
+                        this.lines.push(currentLine);
+                    }
+                });
+
+                // Calculate dimensions
+                this.totalWidth = Math.min(this.maxWidth,
+                    Math.max(...this.lines.map(line => ctx.measureText(line).width)));
+                this.totalHeight = this.lines.length * this.fontSize * this.lineHeight;
+            }
+
+            draw() {
+                ctx.font = this.font;
+                ctx.fillStyle = this.color;
+
+                // Draw each line
+                this.lines.forEach((line, index) => {
+                    const lineY = this.y + (index * this.fontSize * this.lineHeight);
+                    ctx.fillText(line, this.x, lineY);
+                });
+
+                // Draw selection border if hovered
+                if (this.isHovered) {
+                    ctx.strokeStyle = '#007bff';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(
+                        this.x - 4,
+                        this.y - this.fontSize - 2,
+                        this.totalWidth + 8,
+                        this.totalHeight + 6
+                    );
+                    ctx.setLineDash([]); // Reset dash
+                }
+            }
+
+            containsPoint(x, y) {
+                return x >= this.x - 4 &&
+                       x <= this.x + this.totalWidth + 4 &&
+                       y >= this.y - this.fontSize - 2 &&
+                       y <= this.y + this.totalHeight - this.fontSize + 4;
+            }
+
+            updateMaxWidth(newMaxWidth) {
+                this.maxWidth = newMaxWidth;
+                this.updateLines();
+            }
+        }
+
+        // Initialize with sample multi-line text
+        textObjects.push(new MultiLineTextObject(
+            'This is a multi-line text block that will automatically wrap when it gets too long for the specified width. Click to edit me!',
+            50, 50, 16, '#333', 250
+        ));
+
+        textObjects.push(new MultiLineTextObject(
+            'Short text',
+            350, 50, 20, '#007bff', 150
+        ));
+
+        textObjects.push(new MultiLineTextObject(
+            'You can also have\nmanual line breaks\nlike this one!\n\nAnd empty lines too.',
+            50, 200, 18, '#666', 300
+        ));
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid background
+            drawGrid();
+
+            // Draw all text objects
+            textObjects.forEach(textObj => textObj.draw());
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#f8f8f8';
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x <= canvas.width; x += 20) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y <= canvas.height; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        function getClickedText(x, y) {
+            for (let i = textObjects.length - 1; i >= 0; i--) {
+                if (textObjects[i].containsPoint(x, y)) {
+                    return textObjects[i];
+                }
+            }
+            return null;
+        }
+
+        function startEditing(textObj, mouseX, mouseY) {
+            if (editingText) {
+                finishEditing();
+            }
+
+            editingText = textObj;
+
+            // Create textarea element for multi-line editing
+            textareaElement = document.createElement('textarea');
+            textareaElement.value = textObj.text;
+            textareaElement.className = 'edit-textarea';
+
+            // Position and size the textarea
+            const rect = canvas.getBoundingClientRect();
+            textareaElement.style.left = (rect.left + textObj.x) + 'px';
+            textareaElement.style.top = (rect.top + textObj.y - textObj.fontSize) + 'px';
+            textareaElement.style.fontSize = textObj.fontSize + 'px';
+            textareaElement.style.width = Math.max(textObj.maxWidth + 20, 150) + 'px';
+
+            // Calculate appropriate height based on content
+            const lineCount = Math.max(3, textObj.text.split('\n').length + 1);
+            textareaElement.style.height = (lineCount * textObj.fontSize * 1.3) + 'px';
+            textareaElement.rows = lineCount;
+
+            document.body.appendChild(textareaElement);
+            textareaElement.focus();
+            textareaElement.select();
+
+            // Auto-resize textarea as user types
+            textareaElement.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.max(this.scrollHeight, textObj.fontSize * 3) + 'px';
+            });
+
+            // Handle keyboard events
+            textareaElement.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    finishEditing(true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    finishEditing(false);
+                }
+                // Allow normal Enter for line breaks
+            });
+
+            textareaElement.addEventListener('blur', function() {
+                finishEditing(true);
+            });
+        }
+
+        function finishEditing(save = true) {
+            if (!editingText || !textareaElement) return;
+
+            if (save && textareaElement.value.trim()) {
+                editingText.text = textareaElement.value;
+                editingText.updateLines();
+            }
+
+            document.body.removeChild(textareaElement);
+            textareaElement = null;
+            editingText = null;
+
+            redrawCanvas();
+        }
+
+        function addNewText() {
+            const maxWidth = parseInt(maxWidthInput.value) || 200;
+            const x = Math.random() * (canvas.width - maxWidth - 50) + 25;
+            const y = Math.random() * (canvas.height - 100) + 50;
+
+            const newText = new MultiLineTextObject(
+                'New multi-line text\nClick to edit me!',
+                x, y, 16, '#333', maxWidth
+            );
+
+            textObjects.push(newText);
+            redrawCanvas();
+
+            // Start editing immediately
+            setTimeout(() => startEditing(newText, x, y), 100);
+        }
+
+        // Update max width for new texts
+        maxWidthInput.addEventListener('change', function() {
+            // Optionally update all existing text objects
+            // textObjects.forEach(obj => obj.updateMaxWidth(parseInt(this.value)));
+            // redrawCanvas();
+        });
+
+        // Mouse event handlers
+        canvas.addEventListener('click', function(e) {
+            if (editingText) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const clickedText = getClickedText(x, y);
+            if (clickedText) {
+                startEditing(clickedText, x, y);
+            }
+        });
+
+        canvas.addEventListener('dblclick', function(e) {
+            if (editingText) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const clickedText = getClickedText(x, y);
+            if (!clickedText) {
+                const maxWidth = parseInt(maxWidthInput.value) || 200;
+                const newText = new MultiLineTextObject(
+                    'New text block', x, y, 16, '#333', maxWidth
+                );
+                textObjects.push(newText);
+                redrawCanvas();
+
+                setTimeout(() => startEditing(newText, x, y), 100);
+            }
+        });
+
+        // Mouse move for hover effects
+        canvas.addEventListener('mousemove', function(e) {
+            if (editingText) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            let needsRedraw = false;
+            textObjects.forEach(textObj => {
+                const wasHovered = textObj.isHovered;
+                textObj.isHovered = textObj.containsPoint(x, y);
+                if (wasHovered !== textObj.isHovered) {
+                    needsRedraw = true;
+                }
+            });
+
+            if (needsRedraw) {
+                redrawCanvas();
+            }
+
+            const hoveredText = getClickedText(x, y);
+            canvas.style.cursor = hoveredText ? 'text' : 'default';
+        });
+
+        // Handle window resize to reflow text if needed
+        window.addEventListener('resize', function() {
+            textObjects.forEach(obj => obj.updateLines());
+            redrawCanvas();
+        });
+
+        // Initial draw
+        redrawCanvas();
+    </script>
+</body>
+</html>

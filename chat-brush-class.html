@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Buffered Brush (Class-Based)</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #fff;
+  }
+  #toolbar {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: #fff;
+    padding: 8px;
+    border-radius: 8px;
+    z-index: 50;
+  }
+  canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  Size <input id="size" type="range" min="10" max="300" value="80"><br>
+  Hardness <input id="hard" type="range" min="0" max="100" value="50"><br>
+  Opacity <input id="opacity" type="range" min="0.01" max="1" step="0.01" value="0.5">
+</div>
+
+<canvas id="main"></canvas>
+<canvas id="overlay"></canvas>
+
+<script>
+class BufferedBrush {
+  constructor(main, overlay) {
+    this.main = main;
+    this.overlay = overlay;
+    this.mainCtx = main.getContext('2d');
+    this.overlayCtx = overlay.getContext('2d');
+
+    this.buffer = document.createElement('canvas');
+    this.bufferCtx = this.buffer.getContext('2d');
+
+    this.painting = false;
+    this.lastX = 0;
+    this.lastY = 0;
+
+    this.brushSize = 80;
+    this.brushHardness = 50;
+    this.brushOpacity = 0.5;
+
+    //this.resize();
+    this.brushTexture = this.createBrushTexture();
+    this.attachEvents();
+  }
+
+
+
+  attachEvents() {
+    //window.addEventListener('resize', () => this.resize());
+
+    this.overlay.addEventListener('pointerdown', e => this.onPointerDown(e));
+    this.overlay.addEventListener('pointermove', e => this.onPointerMove(e));
+    this.overlay.addEventListener('pointerup', e => this.onPointerUp(e));
+    this.overlay.addEventListener('pointerout', e => this.onPointerOut(e));
+  }
+
+  easeInOut(t) {
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  }
+
+  createBrushTexture() {
+    const brushColor = '#000000';
+    const diameter = Math.max(this.brushSize * 2, 64);
+    const canv = document.createElement('canvas');
+    canv.width = canv.height = diameter;
+    const ctx = canv.getContext('2d');
+    const cx = diameter / 2;
+    const cy = diameter / 2;
+    const R = this.brushSize;
+    const hard = Math.max(0, Math.min(1, this.brushHardness / 100));
+
+    const r = 0, g = 0, b = 0; // black brush
+
+    if (hard >= 0.999) {
+      ctx.fillStyle = `rgba(${r},${g},${b},1)`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      const innerR = R * hard;
+      const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, R);
+      const steps = 128;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const eased = 1 - this.easeInOut(t);
+        const alpha = eased;
+        grad.addColorStop(t, `rgba(${r},${g},${b},${alpha})`);
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, diameter, diameter);
+    }
+
+    return canv;
+  }
+
+  stampToBuffer(x, y) {
+    const d = this.brushTexture.width;
+    this.bufferCtx.drawImage(this.brushTexture, x - d / 2, y - d / 2);
+  }
+
+  drawLineBuffer(x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const dist = Math.hypot(dx, dy);
+    const hardnessFactor = Math.max(0.01, this.brushHardness / 100);
+    const spacing = Math.max(1, this.brushSize * (0.25 - 0.2 * hardnessFactor));
+    const steps = Math.ceil(dist / spacing);
+    for (let i = 0; i <= steps; i++) {
+      const t = steps === 0 ? 0 : i / steps;
+      const x = x1 + dx * t;
+      const y = y1 + dy * t;
+      this.stampToBuffer(x, y);
+    }
+  }
+
+  renderOverlay() {
+    this.overlayCtx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+    this.overlayCtx.globalAlpha = this.brushOpacity;
+    this.overlayCtx.drawImage(this.buffer, 0, 0);
+    this.overlayCtx.globalAlpha = 1;
+  }
+
+  onPointerDown(e) {
+    this.painting = true;
+    this.lastX = e.offsetX;
+    this.lastY = e.offsetY;
+    console.log('e.offsetY', e.offsetY)
+    this.bufferCtx.clearRect(0, 0, this.buffer.width, this.buffer.height);
+    this.stampToBuffer(this.lastX, this.lastY);
+    this.renderOverlay();
+  }
+
+  onPointerMove(e) {
+    if (!this.painting) return;
+    const x = e.offsetX, y = e.offsetY;
+    this.drawLineBuffer(this.lastX, this.lastY, x, y);
+    this.lastX = x; this.lastY = y;
+    this.renderOverlay();
+  }
+
+  onPointerUp(e) {
+    if (!this.painting) return;
+    this.painting = false;
+    this.mainCtx.globalAlpha = this.brushOpacity;
+    this.mainCtx.drawImage(this.buffer, 0, 0);
+    this.mainCtx.globalAlpha = 1;
+    this.overlayCtx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+    this.bufferCtx.clearRect(0, 0, this.buffer.width, this.buffer.height);
+  }
+
+  onPointerOut() {
+    if (this.painting) {
+      this.painting = false;
+      this.mainCtx.globalAlpha = this.brushOpacity;
+      this.mainCtx.drawImage(this.buffer, 0, 0);
+      this.mainCtx.globalAlpha = 1;
+      this.overlayCtx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+      this.bufferCtx.clearRect(0, 0, this.buffer.width, this.buffer.height);
+    }
+  }
+
+  setBrushSize(size) {
+    this.brushSize = size;
+    this.brushTexture = this.createBrushTexture();
+  }
+
+  setBrushHardness(hardness) {
+    this.brushHardness = hardness;
+    this.brushTexture = this.createBrushTexture();
+  }
+
+  setBrushOpacity(opacity) {
+    this.brushOpacity = opacity;
+  }
+}
+
+// --- Instantiate Brush ---
+const main = document.getElementById('main');
+const overlay = document.getElementById('overlay');
+const brush = new BufferedBrush(main, overlay);
+
+// --- UI Controls ---
+document.getElementById('size').addEventListener('input', e => brush.setBrushSize(+e.target.value));
+document.getElementById('hard').addEventListener('input', e => brush.setBrushHardness(+e.target.value));
+document.getElementById('opacity').addEventListener('input', e => brush.setBrushOpacity(+e.target.value));
+</script>
+</body>
+</html>

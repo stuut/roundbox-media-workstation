@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pure Canvas Editable Text (Invisible Textarea)</title>
+<style>
+  canvas {
+    border: 1px solid #ccc;
+  }
+  /* The hidden but active textarea */
+  #hidden-input {
+    position: absolute;
+    opacity: 0;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    border: none;
+    outline: none;
+    resize: none;
+    z-index: -1;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas" width="600" height="200"></canvas>
+<textarea id="hidden-input"></textarea>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const input = document.getElementById('hidden-input');
+
+let text = "Double-click to edit me";
+let isEditing = false;
+let caretVisible = true;
+let caretIndex = text.length;
+let caretTimer = null;
+
+// text style
+const x = 50;
+const y = 100;
+const font = "24px sans-serif";
+
+// Draw function
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = font;
+  ctx.fillStyle = "#000";
+  ctx.fillText(text, x, y);
+
+  if (isEditing && caretVisible) {
+    const before = text.slice(0, caretIndex);
+    const caretX = x + ctx.measureText(before).width;
+    ctx.beginPath();
+    ctx.moveTo(caretX, y - 24);
+    ctx.lineTo(caretX, y + 4);
+    ctx.strokeStyle = "#000";
+    ctx.stroke();
+  }
+}
+
+// Start caret blinking
+function startCaretBlink() {
+  if (caretTimer) clearInterval(caretTimer);
+  caretVisible = true;
+  caretTimer = setInterval(() => {
+    caretVisible = !caretVisible;
+    draw();
+  }, 500);
+}
+
+// Stop caret blinking
+function stopCaretBlink() {
+  clearInterval(caretTimer);
+  caretTimer = null;
+}
+
+// Enter edit mode
+canvas.addEventListener('dblclick', (e) => {
+  isEditing = true;
+  caretIndex = text.length;
+  input.value = text;
+  input.focus();
+  startCaretBlink();
+  draw();
+});
+
+// Exit edit mode
+input.addEventListener('blur', () => {
+  isEditing = false;
+  stopCaretBlink();
+  draw();
+});
+
+// Handle typing
+input.addEventListener('input', (e) => {
+  text = input.value;
+  caretIndex = text.length;
+  draw();
+});
+
+// Optional: handle arrow keys
+input.addEventListener('keydown', (e) => {
+  if (e.key === "ArrowLeft") {
+    caretIndex = Math.max(0, caretIndex - 1);
+  } else if (e.key === "ArrowRight") {
+    caretIndex = Math.min(text.length, caretIndex + 1);
+  }
+  draw();
+});
+
+// Initial draw
+draw();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Soft Round Brush (Single-Pass Opacity)</title>
+<style>
+  html,body {margin:0; background:#fff; overflow:hidden;}
+  #toolbar {position:fixed; top:10px; left:10px; background:#fff; padding:8px; border-radius:8px;}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  Size <input id="size" type="range" min="10" max="300" value="120"><br>
+  Opacity <input id="opacity" type="range" min="0.05" max="1" step="0.05" value="0.5">
+  Hardness <input id="hardness" type="range" min="0" max="1" step="0.05" value="0.5"><br>
+
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+let size = 50;
+let opacity = 0.5;
+let painting = false;
+let lastX = 0, lastY = 0;
+let hardness = .5
+
+document.getElementById("size").oninput = e => {
+  size = +e.target.value;
+  brush = makeBrush(size);
+};
+document.getElementById("opacity").oninput = e => opacity = +e.target.value;
+
+function easeInOut(t) {
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+document.getElementById("hardness").oninput = e => {
+  hardness = +e.target.value;
+  brush = makeBrush(size, hardness);
+};
+
+
+
+function makeBrush(r) {
+  const brush = document.createElement("canvas");
+  brush.width = brush.height = r * 2;
+  const bctx = brush.getContext("2d");
+  const g = bctx.createRadialGradient(r, r, 0, r, r, r);
+
+  const hardEdge = Math.max(0, Math.min(1, hardness)); // clamp 0–1
+
+  const fadeStart = hardEdge; // reversed logic (was 1 - hard before)
+
+  const steps = 1000;
+
+
+  // Solid core up to 'inner'
+    if (hardEdge < 1) {
+      for (let i = 0; i <= steps; i++) {
+        const stop = i / steps;
+        let a = 0;
+        if (stop < fadeStart) {
+          a = opacity; // full opacity inner area
+        } else {
+          const t = (stop - fadeStart) / (1 - fadeStart);
+          a = opacity * (1 - easeInOut(t)); // smooth fade near edge
+        }
+        g.addColorStop(stop, `rgba(0,0,0,${a})`);
+      }
+      bctx.fillStyle = g;
+    //  bctx.filter = "blur(5px)"
+
+      bctx.fillRect(0, 0, brush.width, brush.height);
+
+
+    } else {
+      bctx.fillStyle = `rgba(${0}, ${0}, ${0}, ${opacity})`;
+      bctx.beginPath();
+      bctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      bctx.closePath();
+      bctx.fill();
+    }
+
+  //g.addColorStop(1, "pink");
+
+  return brush;
+}
+
+
+let brush = makeBrush(size);
+
+canvas.addEventListener("pointerdown", e => {
+  painting = true;
+  lastX = e.offsetX;
+  lastY = e.offsetY;
+});
+
+canvas.addEventListener("pointerup", () => painting = false);
+canvas.addEventListener("pointerout", () => painting = false);
+
+canvas.addEventListener("pointermove", e => {
+  if (!painting) return;
+  const x = e.offsetX;
+  const y = e.offsetY;
+  drawLine(lastX, lastY, x, y);
+  lastX = x;
+  lastY = y;
+});
+
+function drawLine(x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  console.log('dist', dist)
+  // spacing shrinks as hardness increases
+  const spacing = size * (0.25 - hardness * 0.2);
+  const steps = Math.ceil(dist / Math.max(spacing, 1)); // never less than 1px spacing
+if (dist > 0.1) {
+  for (let i = 0; i < steps; i++) {
+    const x = x1 + (dx * i) / steps;
+    const y = y1 + (dy * i) / steps;
+    console.log('opacity', opacity)
+    ctx.globalAlpha = .1;
+    ctx.drawImage(brush, x - size, y - size);
+  }
+}
+
+  ctx.globalAlpha = 1;
+}
+</script>
+</body>
+</html>
