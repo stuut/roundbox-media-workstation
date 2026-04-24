@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "node sync.js --watch & next dev --experimental-https ",
+    "dev": "next dev --experimental-https ",
     "build": "next build",
     "start": "next start"
   },

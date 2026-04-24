@@ -17,24 +17,29 @@ export async function POST(request) {
     const videoFile = formData.get("videoBlob");
     const accessToken = formData.get("accessToken");
     const socialId = formData.get("socialId");
+    const fileUrl = formData.get("fileUrl");
 
-    if (!videoFile) {
+  /*
+    if (!videoFile || !fileUrl) {
       return NextResponse.json(
         { message: "No video file provided" },
         { status: 400 }
       );
     }
+    */
 
-    // Convert blob → buffer
-    const buffer = Buffer.from(await videoFile.arrayBuffer());
 
-    const actualFileSize = buffer.length;
-
+    var actualFileSize
     var uploadUrl
     var videoId
+    var buffer
+
+    if (videoFile){
+      buffer = Buffer.from(await videoFile.arrayBuffer());
+      actualFileSize = buffer.length;
+    }
 
     // 👉 now upload buffer with axios
-    console.log("File size:", actualFileSize);
 
     const initiateUploadResponse = await axios.post(
           `https://graph.facebook.com/v24.0/${socialId}/video_reels`,
@@ -52,7 +57,10 @@ export async function POST(request) {
   uploadUrl = initiateUploadResponse.data.upload_url;
   videoId = initiateUploadResponse.data.video_id;
 
+
   // Prepare headers and binary upload
+
+  if (!fileUrl){
     const headers = {
       'Authorization': `OAuth ${accessToken}`,
       'offset': '0', // Start offset
@@ -60,7 +68,6 @@ export async function POST(request) {
       'Content-Length': actualFileSize.toString(), // Set Content-Length header
       //'Content-Type': 'application/x-www-form-urlencoded'
     };
-
     const response = await axios.post(uploadUrl, buffer, {
         headers: {
           ...headers,
@@ -69,10 +76,50 @@ export async function POST(request) {
         maxBodyLength: Infinity,
       });
 
+    return NextResponse.json({data:response.data, videoId:videoId}, {status: 200});
+
+  }else{
+
+    const res = await fetch(fileUrl);
+    const arrayBuffer = await res.arrayBuffer();
+    const urlBuffer = Buffer.from(arrayBuffer);
+
+    const fileSize = urlBuffer.length;
+
+
+    const headers = {
+      'Authorization': `OAuth ${accessToken}`,
+      'offset': '0', // Start offset
+      'file_size': fileSize.toString(),
+      'Content-Length': fileSize.toString(), // Set Content-Length header
+      //'Content-Type': 'application/x-www-form-urlencoded'
+    };
+
+
+    const response = await axios.post(uploadUrl, urlBuffer, {
+        headers: {
+          ...headers,
+        },
+        maxContentLength: Infinity,  // Make sure the upload can handle large files
+        maxBodyLength: Infinity,
+      });
+
+
+
+
+
+    if (!response.ok) {
+      console.log(response)
+    }
+
 
     return NextResponse.json({data:response.data, videoId:videoId}, {status: 200});
 
+  }
+
+
   } catch (error) {
+
     console.error(error);
 
     return NextResponse.json(

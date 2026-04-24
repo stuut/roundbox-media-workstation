@@ -7,13 +7,19 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 export async function POST(req) {
   const formData = await req.formData()
   const file = formData.get('file')
+  const tag = formData.get('tag')
   if (!file) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
 
   const arrayBuffer = await file.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
-  const fileName = `${Date.now()}-${file.name}`
+  let fileName = `${Date.now()}-${file.name}`
+  if (tag){
+    fileName = fileName+tag
+  }
+
+  console.log('fileName ', fileName )
 
   const command = new PutObjectCommand({
     Bucket: process.env.R2_PUBLIC_BUCKET,

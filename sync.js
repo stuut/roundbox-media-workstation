@@ -15,6 +15,7 @@ const syncFile = (filePath) => {
   const relativePath = path.relative(sourceDir, filePath)
   const destinationPath = path.join(publicDir, relativePath)
   console.log(`Syncing ${relativePath}...`)
+
   fs.copySync(filePath, destinationPath)
 }
 

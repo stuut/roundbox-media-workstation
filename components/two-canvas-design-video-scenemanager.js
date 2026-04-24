@@ -14,6 +14,12 @@ import { deleteFiles } from "@/lib/supabase";
 import { createTemplate } from "@/lib/supabase";
 import { getTemplates } from "@/lib/supabase";
 import { getChannels } from "@/lib/supabase";
+import { savePost } from "@/lib/supabase";
+import { savePostFile } from "@/lib/supabase";
+import { savePostPublications } from "@/lib/supabase";
+import { getPostsWithDate } from "@/lib/supabase";
+import { updatePostPublication } from "@/lib/supabase";
+
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
   Film, Clock, Loader2, Trash2, Maximize2, Upload, Download, Music,
@@ -763,7 +769,7 @@ export const Danva = (({postData, user}, ref) => {
   useImperativeHandle(ref, () => ({
 
     childFunction: async () => {
-        console.log('useImperativeHandle')
+
         const blob = await createVideo('mp4')
         return blob;
     }
@@ -807,6 +813,9 @@ export const Danva = (({postData, user}, ref) => {
 
 
     const exportVideoFrames = async (download = true, showCanvasLoader = true) => {
+
+      activeToolRef.current = null
+      //isTextEditingRef.current = false
 
       if (showCanvasLoader){
           setCanvasLoader(true)
@@ -989,7 +998,7 @@ export const Danva = (({postData, user}, ref) => {
 
 
 
-    console.log('type', type)
+
     return new Promise(async(resolve) => {
 
     await loadCCapture();
@@ -1034,7 +1043,7 @@ export const Danva = (({postData, user}, ref) => {
 
             // Update progress (0 → 100%)
             setProgress(Math.floor(((frame + 1) / totalFrames) * 100));
-            console.log(Math.floor(((frame + 1) / totalFrames) * 100))
+
          // optional: yield to UI thread to keep it responsive
 
       }
@@ -2194,7 +2203,7 @@ async replaceImage(image){
       this.h
     );
     */
-    console.log('resolve')
+
     resolve(true);
   })
 
@@ -2497,7 +2506,7 @@ getTextAnimatedProps(lineIndex, charIndex = null,  totalLines = 1) {
     if (!anim.type.includes('Lines') && !anim.type.includes('Char')) return;
 
     if (this.currentTime < anim.startTime) {
-        console.log('before animation starts')
+
       if (anim.type.includes('fadeIn')) props.opacity = 0;
       if (anim.type === 'fadeInUpLines') props.y = 100;
       if (anim.type === 'fadeInUpChar') props.y = 20;
@@ -2684,7 +2693,7 @@ getLineOffset(lineIndex = 0, line, align, ctx, boxWidth, padding) {
     this.selectionStart = this.selectionEnd = null;
 
     // Update lines and redraw
-    console.log('this.text', this.text)
+
 
     this.updateLines();
 }
@@ -2726,7 +2735,7 @@ handleDelete() {
   const after = obj.text.slice(obj.caretAbsIndex + 1);
   this.text = before + after;
 
-  console.log('handle delete')
+
   this.updateLines();
 }
 
@@ -3461,7 +3470,7 @@ const addImages = async (images) => {
     const obj = getActiveElement()
     if (!obj) return
 
-    const img = await obj.updateImage(images[0].file_url)
+    const img = await obj.replaceImage(images[0].file_url)
     const activeScene = sceneManagerRef.current.getActiveScene()
     handleUpdateElementState(
       activeScene.id,
@@ -4208,14 +4217,14 @@ const pasteTextCallBack = useCallback((e) => {
     if (caretTimer.current) clearInterval(caretTimer.current);
     caretVisibleRef.current = true;
     caretTimer.current = setInterval(() => {
-      console.log('startCaretBlink')
+
       caretVisibleRef.current = !caretVisibleRef.current;
       drawTextCursor();
     }, 500);
   }
 
   function stopCaretBlink() {
-    console.log('stopCaretBlink')
+
     clearInterval(caretTimer.current);
     caretTimer.current = null;
   }
@@ -4860,7 +4869,7 @@ const clearAll = () => {
   setActiveElement(null)
   selectedIndexRef.current = null
 
-  console.log('sceneManagerRef.current', sceneManagerRef.current)
+
 
   drawLower()
   drawArtboard()
@@ -5503,7 +5512,7 @@ function hitPolygon(px, py, polygon) {
             syncInputCaret(object);
             textEditRef.current.focus();
             requestAnimationFrame(() => textEditRef.current.focus());
-            console.log('mouse downstart CaretBlink')
+
             startCaretBlink();
             return;
         }
@@ -7135,7 +7144,7 @@ function drawSoftStrokePreview(stroke) {
     sceneManagerRef.current.activeSceneId = null
     sceneManagerRef.current.removeScene(scene.id)
 
-    console.log('removeScene', sceneManagerRef.current)
+
 
 
     setActiveSceneState(null)
@@ -7198,15 +7207,20 @@ function drawSoftStrokePreview(stroke) {
 
 
     if (tool !== 'edit text' && isTextEditingRef.current){
+
+      isTextEditingRef.current = false
       const obj = getActiveElement()
-      if (!obj) return
-      if (obj.type !== 'text') return
-      console.log('deactive')
-      deActivateEditText()
-      if (obj.hasTexthilight()){
-        isTextEditingRef.current = false
-        obj.selectionStart = null
-        obj.selectionEnd = null
+
+      if (obj){
+
+        deActivateEditText()
+
+        if (obj.hasTexthilight()){
+
+          obj.selectionStart = null
+          obj.selectionEnd = null
+        }
+
       }
 
     }
@@ -7405,7 +7419,7 @@ function drawSoftStrokePreview(stroke) {
     const el = textEditRef.current;
     if (!el) return;
 
-    console.log('removeTextEditorEventListeners');
+
 
     if (keydownHandlerRef.current) {
       el.removeEventListener("keydown", keydownHandlerRef.current);
@@ -7538,6 +7552,8 @@ function drawSoftStrokePreview(stroke) {
   if (!blurHandlerRef.current) {
     blurHandlerRef.current = (e) => {
       clearCursor()
+      stopCaretBlink()
+
     };
   }
 
@@ -7698,6 +7714,7 @@ useEffect(()=>{
 
   function drawTextCursor() {
     const object = getActiveElement();
+    if (!object) return
      const isTextEditing = isTextEditingRef.current;
      const caretVisible = caretVisibleRef.current;
      const cursor = toolsRef.current;
@@ -7776,7 +7793,7 @@ useEffect(()=>{
     if (!active || active.type !== "text") return;
 
     active.text = value;
-    console.log('updatelines text change')
+
     active.updateLines()
     const activeScene = sceneManagerRef.current.getActiveScene()
     handleUpdateElementState(activeScene.id, active.id, { text: value })
@@ -7802,7 +7819,7 @@ useEffect(()=>{
         active.fontFamily = value;
       }
 
-      console.log('font selection update lines')
+
       active.updateLines();
       const activeScene = sceneManagerRef.current.getActiveScene()
       handleUpdateElementState(activeScene.id, active.id, { fontFamily: value })
@@ -8051,7 +8068,7 @@ const saveAsTemplate = async () => {
 
   }, null, 2);
 
-  console.log('json', json)
+
 
   try{
     await createTemplate(
@@ -8340,7 +8357,7 @@ const deActivateEditText = () => {
   const obj = getActiveElement()
   if (!obj && obj?.type !== 'text') return
   isTextEditingRef.current = false
-  console.log('deActivateEditText')
+
   removeTextEditorEventListeners()
   stopCaretBlink()
 }
@@ -8391,7 +8408,7 @@ const postScheduled = (postInfo) => {
       if (post.id === postInfo.data.id){
         post.scheduled = true
       }
-      console.log('post', post)
+
       return post
     })
   )
@@ -8483,7 +8500,7 @@ async function sendApiWorkflow(e) {
       //workflowJson['17']['inputs']['image'] = uploadResult.data.name
       workflowJson['1']['inputs']['image'] = uploadResult.data.name
 
-      console.log('workflowJson', workflowJson)
+
 
 
 
@@ -8503,7 +8520,7 @@ async function sendApiWorkflow(e) {
       const data = await apiResponse.json();
 
       comfyData.current = data
-      console.log("Prompt queued with ID:", data.prompt_id);
+
     }
 
 }
@@ -11230,7 +11247,7 @@ const EffectsPanel = ({
 
 }) => {
 
-  console.log('element', element)
+
 
   if (element === null) return <div></div>
 
@@ -11255,7 +11272,7 @@ const EffectsPanel = ({
   const updateEffect = (index, updates) => {
       const effects = [...(element.effects || [])];
       effects[index] = { ...effects[index], ...updates };
-      console.log('update element', effects)
+
       onUpdateElement('effects',  effects );
   };
 
@@ -11282,8 +11299,7 @@ const EffectsPanel = ({
 
   const handleColorChange = (colour, index) => {
       const newColour = `rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`
-      console.log('newColour', newColour)
-      console.log('index', index)
+
       updateEffect(index, { shadowColor: newColour})
   };
 
@@ -11717,16 +11733,27 @@ const Share = ({
 
   const getFacebookData = async() => {
     const data = await getFacebookPages(userId)
-    const preSelectedPage = data.find((page)=> page.facebook_page_id === postInfo?.data.facebook_page_id)
+    const preSelectedPage = data.find((page)=> page.facebook_page_id === postInfo?.data.facebook_page_id && channel.platform === 'facebook')
     setSelectedSocialPage(preSelectedPage)
     setSocialPages(data)
   }
 
+  const getChannelData = async() => {
+    const channels = await getChannels(userId)
+
+
+    const preSelectedPage = channels.find((channel)=> channel.external_account_id === postInfo?.data.facebook_page_id && channel.platform === 'facebook')
+
+
+    setSelectedSocialPage(preSelectedPage)
+    setSocialPages(channels)
+
+  }
+
   useEffect(()=>{
 
-
     if (!postInfo?.data.scheduled){
-      getFacebookData()
+      getChannelData()
       displayVideo()
     }
 
@@ -11746,33 +11773,173 @@ const Share = ({
   }
 
 
-  const scheduleLoop = async (socialPage) => {
 
-    if (!videoBlobRef.current) return
+  const scheduleFacebookLoop = async (
+    pageId,
+    accessToken,
+    video_url,
+    publication
+  ) => {
 
-    const uploadedVideo = await uploadFile(videoBlobRef.current)
+    if (timeTravel(scheduleDate)) return
 
-    const sampleUpload = {
-        "id": "185a0121-f966-49b0-9745-1af5b71194a3",
-        "created_at": "2026-04-21T01:20:12.237663+00:00",
-        "user_id": "78b04106-5681-4003-bd18-9a328a719b11",
-        "file_url": "https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/1776734410504-blob",
-        "file_type": "video/mp4",
-        "file_name": "1776734411994-Funding Available For Women’s Initiatives In Local Sport ",
-        "file_description": "Funding is now available for women’s initiatives in local sport through the Play Her Way Innovation Program.  \nhttps://www.hilltopsphoenix.com.au/funding-available-for-womens-initiatives-in-local-sport"
+    console.log('scheduleFacebookLoop')
+
+    const video = videoBlobRef.current
+
+    const formData = new FormData();
+    formData.append('fileUrl', video_url);
+    //formData.append('videoBlob', video);
+    formData.append('accessToken', accessToken);
+    formData.append('socialId', pageId);
+
+      const response = await fetch('/api/uploadFacebookReel', {
+        method: 'POST',
+        body: formData,
+      });
+      // Ensure the response is successful
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`);
+      }
+
+      const uploadedVideo = await response.json();
+
+      if (!uploadedVideo) return
+
+      const videoId = uploadedVideo.videoId;
+
+    // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
+    const scheduledPublishTime = (moment(scheduleDate).unix())
+
+    try{
+
+      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${path}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            video_id: videoId,
+            upload_phase : 'finish',
+            video_state : postState,
+            description: caption,
+            title :postInfo.data.title,
+            scheduled_publish_time: scheduledPublishTime,
+            access_token: accessToken
+          }),
+        })
+
+    if (!facebookResponse.ok) {
+      //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
+      setLoader(false)
+      showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+    }
+
+    const videoData = await facebookResponse.json();
+    const postId = videoData.post_id
+
+    const commentResponse = await fetch(`https://graph.facebook.com/${videoId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message : 'Check out the full details here: '+postLink,
+          access_token: selectedSocialPage.access_token
+        }),
+      })
+
+      if (!commentResponse.ok) {
+        //throw new Error(`Adding comments failed with status: ${facebookResponse.status}`);
+        setLoader(false)
+        showError(`Adding comments failed with status: ${facebookResponse.status}`)
+      }
+
+      showSuccess('Video Scheduled')
+      setScheduled(true)
+      postScheduled(postInfo)
+
+      // update database
+      const updateData = {
+        status: "published",
+        meta_data:{
+          video_id:videoId,
+          ...videoData
+        },
+        published_at: new Date().toISOString()
+      }
+
+      await updatePostPublication(publication.id, updateData)
+
+
+
+      //videoId
+
+
+
+    }catch(error){
+      showError(`Facebook error: ${error}`)
+       setLoader(false)
     }
 
   }
 
 
-  const scheduleMultiple = () => {
+  const scheduleMultiple = async() => {
+       setLoader(true)
 
-    selectedSocialPages.forEach((socialPage) => {
+       if (!videoBlobRef.current) return
 
-        scheduleLoop(socialPage)
+        try{
+             const uploadedVideo = await uploadFile(videoBlobRef.current)
 
-    })
+             const videoId = uploadedVideo.id
 
+             const savedPost = await savePost({
+               user_id:userId,
+               caption:caption,
+               title:postInfo.data.title,
+               type:path,
+               meta_data:postInfo
+             })
+
+             const savedPostFile = await savePostFile({
+               post_id:savedPost.id,
+               file_id:uploadedVideo.id,
+               usage_type:path
+             })
+
+             const scheduledAtUTC = new Date(scheduleDate).toISOString()
+
+             const publications = selectedSocialPages.map((acc) => ({
+               post_id: savedPost.id,
+               platform_id: acc.id,
+               scheduled_at: scheduledAtUTC,
+               platform:acc.platform,
+               status: 'scheduled'
+             }))
+
+             const savedPostPublications = await savePostPublications(publications)
+
+             const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
+
+             for (const publication of savedPostPublicationsFacebook) {
+               const channel = socialPages.find((social)=> social.id === publication.platform_id)
+               await scheduleFacebookLoop(
+                 channel.external_account_id,
+                 channel.access_token,
+                 uploadedVideo.file_url,
+                 publication
+               )
+             }
+
+        }catch(error){
+          showError(error)
+        }
+
+
+
+     setLoader(false)
   }
 
 
@@ -11789,7 +11956,7 @@ const Share = ({
     const formData = new FormData();
     formData.append('videoBlob', video);
     formData.append('accessToken', selectedSocialPage.access_token);
-    formData.append('socialId', selectedSocialPage.facebook_page_id);
+    formData.append('socialId', selectedSocialPage.external_account_id);
 
       const response = await fetch('/api/uploadFacebookReel', {
         method: 'POST',
@@ -11797,6 +11964,7 @@ const Share = ({
       });
       // Ensure the response is successful
       if (!response.ok) {
+
         throw new Error(`Upload failed with status: ${response.status}`);
       }
 
@@ -11804,7 +11972,7 @@ const Share = ({
 
       if (!uploadedVideo) return
 
-    const pageId = selectedSocialPage.facebook_page_id;
+    const pageId = selectedSocialPage.external_account_id;
     const videoId = uploadedVideo.videoId;
     const accessToken = selectedSocialPage.access_token;
     const description = caption;
@@ -11870,7 +12038,9 @@ const Share = ({
 
 
   const onSocialChange = (value) => {
-    const selectedSocial = socialPages.find(item => item.facebook_page_id === value);
+
+    const selectedSocial = socialPages.find(item => item.external_account_id === value);
+
     setSelectedSocialPage(selectedSocial)
   }
 
@@ -11891,6 +12061,7 @@ const uploadFile = async (videoBlob) => {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('tag', '.mp4');
 
     const res = await fetch('/api/upload', {
       method: 'POST',
@@ -11921,8 +12092,15 @@ const uploadFile = async (videoBlob) => {
 
 
 const channelSelectorCallback = (pages) => {
-  console.log('pages', pages)
+
   setSelectedSocialPages(pages)
+}
+
+const getPostsScheduledPosts = async() => {
+
+  const scheduledAtUTC = new Date(scheduleDate).toISOString()
+  const posts = getPostsWithDate(scheduledAtUTC)
+
 }
 
 
@@ -11956,12 +12134,12 @@ const channelSelectorCallback = (pages) => {
                 </div>
               }
                 <p className='font-label'>Facebook Page</p>
-                <select id="rss-select" className="form-input select" onChange={(e) => onSocialChange(e.target.value)} value={selectedSocialPage?.facebook_page_id || ""}>
+                <select id="rss-select" className="form-input select" onChange={(e) => onSocialChange(e.target.value)} value={selectedSocialPage?.external_account_id || ""}>
                   <option value="" disabled>
                     Choose a page…
                   </option>
                   {socialPages.map((social, index)=>{
-                    return <option key={index} value={social.facebook_page_id}>{social.facebook_page_name}</option>
+                    return <option key={index} value={social.external_account_id}>{social.name}</option>
                   })
                   }
                 </select>
@@ -12059,6 +12237,9 @@ const channelSelectorCallback = (pages) => {
                 {(videoSrc &&selectedSocialPages.length>0) &&
                   <button disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText} Multiple</button>
                 }
+
+                <button className="btn primary" onClick={getPostsScheduledPosts}>Get Posts</button>
+
             </div>
         </div>
         <div style={{position:'relative'}}>
@@ -12131,8 +12312,7 @@ const ChannelSelector = ({userId, postInfo, callback}) => {
       const facebookPages = channels.filter((channel)=> channel.platform === 'facebook')
       const instagramPages = channels.filter((channel)=> channel.platform === 'instagram')
 
-      console.log('facebookPages', facebookPages)
-      console.log('instagramPages', instagramPages)
+
 
       if (!facebookPages || !instagramPages) return
 
@@ -12146,7 +12326,7 @@ const ChannelSelector = ({userId, postInfo, callback}) => {
           : { facebook: facebookPage }
       })
 
-      console.log(newPages)
+
 
       setSocialPages(newPages)
 

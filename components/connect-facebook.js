@@ -49,91 +49,108 @@ export const FacebookConnection = ({userId}) => {
   }
 
 
-  async function logInToFB(){
+  async function logInToFB() {
+    try {
+      const loginResponse = await new Promise((resolve) => {
+        window.FB.login(resolve, {
+          scope: `
+            read_insights,
+            pages_show_list,
+            ads_management,
+            business_management,
+            pages_messaging,
+            pages_messaging_subscriptions,
+            instagram_basic,
+            instagram_manage_comments,
+            instagram_manage_insights,
+            instagram_content_publish,
+            pages_read_engagement,
+            pages_manage_metadata,
+            pages_read_user_content,
+            pages_manage_posts,
+            pages_manage_engagement,
+            public_profile,
+            ads_read
+          `
+        });
+      });
 
-      window.FB.login((loginResponse) => {
-        setFacebookConnectionStatus(loginResponse.status);
-        const app_id = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
-        const app_secret = process.env.NEXT_PUBLIC_FACEBOOK_APP_SECRET;
-        if(loginResponse.authResponse?.accessToken != null){
+      setFacebookConnectionStatus(loginResponse.status);
 
-        let user_access_token = loginResponse.authResponse.accessToken
-        setFbUserAccessToken(loginResponse.authResponse.accessToken);
-        const API_URL = "https://graph.facebook.com/v3.2";
-        let obj = { id: "", token: "" };
-        var self = this;
-        axios
-          .get(
-            API_URL +
-              "/oauth/access_token?grant_type=fb_exchange_token&client_id=" +
-              app_id +
-              "&client_secret=" +
-              app_secret +
-              "&fb_exchange_token=" +
-              user_access_token
-          )
-          .then (async(response) => {
-            obj.token = response.data.access_token;
+      const auth = loginResponse.authResponse;
+      if (!auth?.accessToken) {
+        throw new Error("User did not authorize the app");
+      }
 
-            const { data, error } = await supabase
-              .from('facebook_api') // your Supabase table name
-              .upsert([{
-                access_token : response.data.access_token? response.data.access_token : loginResponse.authResponse.accessToken,
-                data_access_expiration_time : loginResponse.authResponse.data_access_expiration_time ? loginResponse.authResponse.data_access_expiration_time : '',
-                expires_in : loginResponse.authResponse.expiresIn ? loginResponse.authResponse.expiresIn : '',
-                graph_domain : loginResponse.authResponse.graphDomain ? loginResponse.authResponse.graphDomain : '',
-                signed_request : loginResponse.authResponse.signedRequest ? loginResponse.authResponse.signedRequest : '',
-                facebook_user_id : loginResponse.authResponse.userID ? loginResponse.authResponse.userID : '' ,
-                user_id:userId
-              }], { onConflict: ['user_id', 'facebook_user_id'] });
+      const shortLivedToken = auth.accessToken;
+      setFbUserAccessToken(shortLivedToken);
 
-            if (error) throw error;
+      const API_URL = "https://graph.facebook.com/v3.2";
 
-            return obj;
-          })
-          .then(obj => {
-            axios
-              .get(API_URL + "/me?access_token=" + obj.token)
-              .then(response => {
-                obj.id = response.data.id;
-                return obj;
-              })
-              .then(obj => {
-                axios
-                  .get(
-                    API_URL + "/" + obj.id + "/accounts?access_token=" + obj.token
-                  )
-                  .then(response => {
+      // ⚠️ SHOULD BE DONE ON BACKEND
+      const app_id = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
+      const app_secret = process.env.NEXT_PUBLIC_FACEBOOK_APP_SECRET;
 
-                      FacebookDataSort(response.data.data)
-
-                    }).catch((error) => {
-                      console.log(error.message)
-                      showError(error.message)
-
-                  })
-                  .catch(error => {
-                      console.log(error.message)
-                      showError(error.message)
-                  });
-              })
-              .catch(error => {
-                  console.log(error.message)
-                  showError(error.message)
-              });
-          })
-          .catch(function(error) {
-            console.log(error.message)
-            showError(error.message)
-          });
+      // 1. Exchange token
+      const tokenRes = await axios.get(
+        `${API_URL}/oauth/access_token`,
+        {
+          params: {
+            grant_type: "fb_exchange_token",
+            client_id: app_id,
+            client_secret: app_secret,
+            fb_exchange_token: shortLivedToken
+          }
         }
+      );
 
-      },
-      {
-        scope: 'read_insights,pages_show_list,ads_management,business_management,pages_messaging,pages_messaging_subscriptions,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_manage_metadata,pages_read_user_content,pages_manage_posts,pages_manage_engagement,public_profile, ads_read, ads_management'
-      })
-}
+      const longLivedToken =
+        tokenRes.data.access_token || shortLivedToken;
 
+      // 2. Store in Supabase
+      const { error } = await supabase
+        .from("facebook_api")
+        .upsert(
+          [
+            {
+              access_token: longLivedToken,
+              data_access_expiration_time:
+                auth.data_access_expiration_time || "",
+              expires_in: auth.expiresIn || "",
+              graph_domain: auth.graphDomain || "",
+              signed_request: auth.signedRequest || "",
+              facebook_user_id: auth.userID || "",
+              user_id: userId
+            }
+          ],
+          { onConflict: ["user_id", "facebook_user_id"] }
+        );
+
+      if (error) throw error;
+
+      // 3. Get user ID
+      const meRes = await axios.get(`${API_URL}/me`, {
+        params: { access_token: longLivedToken }
+      });
+
+      const fbUserId = meRes.data.id;
+
+      // 4. Get pages
+      const pagesRes = await axios.get(
+        `${API_URL}/${fbUserId}/accounts`,
+        {
+          params: { access_token: longLivedToken }
+        }
+      );
+
+      // 5. Process pages
+      FacebookDataSort(pagesRes.data.data);
+
+    } catch (error) {
+      console.error(error);
+      showError(error.message || "Facebook login failed");
+    }
+  }
 
 
   async function getInstagramBusinessAccountInfo(facebookPageId) {
@@ -161,6 +178,7 @@ export const FacebookConnection = ({userId}) => {
           platform: 'facebook',
           external_account_id: account.id,
           name: account.name,
+          access_token:account.access_token,
           metadata: {
             facebook_page_id: account.id,
             accountInfo:account
@@ -179,6 +197,7 @@ export const FacebookConnection = ({userId}) => {
           platform: 'instagram',
           external_account_id: instagramBusinessAccountId,
           name: account.name,
+          access_token:account.access_token,
           metadata: {
             facebook_page_id: account.id,
             instagram_business_account_id: instagramBusinessAccountId,
@@ -191,25 +210,6 @@ export const FacebookConnection = ({userId}) => {
         showError(err.message);
       }
     }
-
-
-
-  async function pushInfoDatabase(account, instagramBusinessAccountId){
-    await supabase.from('platform_accounts').upsert({
-      user_id: userId,
-      platform: instagramBusinessAccountId ? 'instagram' : 'facebook',
-      external_account_id: instagramBusinessAccountId ?? account.id,
-      name: account.name,
-      metadata: {
-        facebook_page_id: account.id,
-        instagram_business_account_id: instagramBusinessAccountId
-      }
-    })
-  }
-
-
-
-
 
   async function FacebookDataSort(data) {
       var promises = data.map(async function(account, index){
