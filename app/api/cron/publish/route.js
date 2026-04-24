@@ -7,12 +7,6 @@ const supabase = createClient(
 
 async function publishToFacebook(job) {
 
-  const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return new Response('Unauthorized', {
-        status: 401,
-      });
-    }
 
   const pageId = job.platform_account.external_account_id
   const accessToken = job.platform_account.access_token
