@@ -44,7 +44,7 @@ export async function POST(req) {
 
     if (response.status === 200) {
       const saveDir = path.join(process.cwd(), 'public', 'edit-images');
-      
+
       fs.writeFileSync(`${saveDir}/husky-in-a-huge-field.webp`, Buffer.from(response.data));
     } else {
       throw new Error(`${response.status}: ${response.data.toString()}`);
@@ -55,7 +55,7 @@ export async function POST(req) {
       success: true,
       data: response.data, // usable in frontend
     });
-    */
+
 
   } catch (err) {
     console.error(err);
