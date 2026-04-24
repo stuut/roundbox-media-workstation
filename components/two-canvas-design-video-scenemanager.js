@@ -919,8 +919,12 @@ export const Danva = (({postData, user}, ref) => {
         }*/
 
         // Generate zip as blob
-        const zipBlob = await zip.generateAsync({ type: "blob" });
 
+
+        const zipBlob = await zip.generateAsync({
+          type: "blob",
+          streamFiles: true
+        });
         const formData = new FormData();
 
         formData.append("framesZip", zipBlob);
@@ -937,19 +941,20 @@ export const Danva = (({postData, user}, ref) => {
         }, 0);
 
 
-        //const convertEndpoint = process.env.NEXT_PUBLIC_RENDER_SERVER+'/process'
+        const convertEndpoint = process.env.NEXT_PUBLIC_RENDER_SERVER+'/process'
 
-        const convertEndpoint = '/api/encode-video-frames'
+        //const convertEndpoint = '/api/encode-video-frames'
 
+        console.log('convert')
 
         const res = await axios.post(convertEndpoint, formData, {
-          //headers: {
-          //  'Content-Type': 'multipart/form-data',
-        //  },
+
           onUploadProgress: (progressEvent) => {
-            // progressEvent.loaded = bytes uploaded so far
-            // progressEvent.total = total bytes to upload
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / totalSize);
+
+            const percentCompleted = Math.min(
+                100,
+                Math.round((progressEvent.loaded * 100) / totalSize)
+              );
              setVideoConvertProgress(percentCompleted);
           },
           responseType: 'blob', // important to get a Blob instead of JSON
@@ -11715,6 +11720,7 @@ const Share = ({
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
 
+  console.log('Share')
 
   const handlePathChange = (event) => {
     setPath(event.target.value);
@@ -11750,18 +11756,21 @@ const Share = ({
 
   }
 
-  useEffect(()=>{
+  const hasRun = useRef(false);
 
-    if (!postInfo?.data.scheduled){
-      getChannelData()
-      displayVideo()
-    }
+  useEffect(() => {
+    if (hasRun.current) return;
 
 
-  },[postInfo, userId])
+      hasRun.current = true;
+      displayVideo();
+      getChannelData();
+    
+  }, []);
 
 
   const displayVideo = async() => {
+    console.log('displayVideo', displayVideo)
     setVideoLoader(true)
     const videoBlob = await exportVideoFrames(false, false)
 

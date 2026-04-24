@@ -45,19 +45,35 @@ async function publishToInstagram(job) {
   const igId = job.platform_account.external_account_id
   const accessToken = job.platform_account.access_token
   const caption = job.post.caption
-  const images = job.post.post_files
-  const image_url = job.post.post_files[0].file_id.file_url
+  const files = job.post.post_files
+  const file_url = job.post.post_files[0].file_id.file_url
+
+  let body
+
+  if (job.post.type === 'video_reels'){
+    body = new URLSearchParams({
+      caption : caption,
+      video_url: file_url,
+      media_type:'VIDEO',
+      share_to_feed : true,           // Optional, if you also want it in the feed
+      is_reel: true,
+      access_token: accessToken
+    })
+
+  }else{
+    body = new URLSearchParams({
+      caption : caption,
+      image_url: file_url,
+      access_token: accessToken
+    })
+  }
 
   // 1. Create media container
   const createRes = await fetch(
     `https://graph.facebook.com/v19.0/${igId}/media`,
     {
       method: "POST",
-      body: new URLSearchParams({
-        caption,
-        image_url: image_url,
-        access_token: accessToken
-      })
+      body: body
     }
   )
 
