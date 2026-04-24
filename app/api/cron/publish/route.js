@@ -103,6 +103,17 @@ async function publishToInstagram(job) {
 
 
 export async function GET(req) {
+
+  const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return new Response('Unauthorized', {
+        status: 401,
+      });
+    }
+
+
+
+
   try {
     // 1. Fetch scheduled publications
     const { data: jobs, error } = await supabase
