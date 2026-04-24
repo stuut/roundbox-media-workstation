@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { NextResponse } from 'next/server';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -103,14 +104,6 @@ async function publishToInstagram(job) {
 
 
 export async function GET(req) {
-
-  const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return new Response('Unauthorized', {
-        status: 401,
-      });
-    }
-
 
 
 
