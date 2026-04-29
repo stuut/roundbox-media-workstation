@@ -19,6 +19,7 @@ import { savePostFile } from "@/lib/supabase";
 import { savePostPublications } from "@/lib/supabase";
 import { getPostsWithDate } from "@/lib/supabase";
 import { updatePostPublication } from "@/lib/supabase";
+import { createVideoFromImages } from  "@/lib/createVideoFromImages"
 
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
@@ -613,6 +614,15 @@ export const Danva = (({postData, user}, ref) => {
 
 
 
+  const browserFFmpeg = process.env.NODE_ENV !== 'development'
+
+  //const browserFFmpeg = process.env.NODE_ENV === 'development'
+
+
+  //console.log('browserFFmpeg', browserFFmpeg)
+
+
+
   class SceneManager {
     constructor({
       id,
@@ -834,7 +844,7 @@ export const Danva = (({postData, user}, ref) => {
         //let pending = videoRegistryRef.current.size;
         const totalFrames = duration * fps;
 
-        //const frames = [];
+        const frames = [];
 
         for (let frame = 0; frame < totalFrames; frame++) {
 
@@ -876,9 +886,7 @@ export const Danva = (({postData, user}, ref) => {
                    });
                }
 
-
                //const blob = await new Promise(resolve => lowerRef.current.toBlob(resolve, "image/jpeg", 0.9));
-
 
                let blob = await Promise.race([
                  new Promise(resolve =>
@@ -890,79 +898,91 @@ export const Danva = (({postData, user}, ref) => {
                ]);
 
 
-
                zip.file(`frame${String(frame).padStart(4,"0")}.jpg`, blob);
-               blob = null; // OK now, because blob is a `let`
-               //frames.push(blob);
 
+               if (browserFFmpeg){
+                 frames.push(blob);
+               }
+
+               blob = null; // OK now, because blob is a `let`
 
                if (frame % 5 === 0 || frame === totalFrames - 1) {
                   setVideoFrameProgress(Math.floor(((frame + 1) / totalFrames) * 100));
                 }
 
-
-
-
-
         }
 
-        //if (frames.length === 0) return
 
         currentTimeRef.current = 0
         changeTime(0)
 
-        // Add each frame as frame0001.jpg, frame0002.jpg, ...
-        /*
-        for (let i = 0; i < frames.length; i++) {
-          const blob = frames[i];
-          zip.file(`frame${String(i).padStart(4, "0")}.jpg`, blob);
-        }*/
 
-        // Generate zip as blob
+        var mp4Blob
 
+        if (browserFFmpeg){
 
-        const zipBlob = await zip.generateAsync({
-          type: "blob",
-          streamFiles: true
-        });
-        const formData = new FormData();
+          var audioBlob = null
 
-        formData.append("framesZip", zipBlob);
+          if (audioUrl) {
+            audioBlob = await fetchAudioBlob(audioUrl);
+          }
 
-        //frames.forEach((frame, i) => formData.append(`frame${i}`, frame));
-        if (audioUrl) {
-          const audioBlob = await fetchAudioBlob(audioUrl);
-          formData.append('audio', audioBlob);
+          const files = frames.map((blob, i) => {
+            return new File([blob], `frame${String(i + 1).padStart(4, '0')}.jpg`, {
+              type: 'image/jpeg'
+            })
+          })
+
+          mp4Blob = await createVideoFromImages(
+            files,
+            audioBlob,
+            fps,
+            setVideoConvertProgress
+          )
+
+        }else{
+
+          const zipBlob = await zip.generateAsync({
+            type: "blob",
+            streamFiles: true
+          });
+          const formData = new FormData();
+
+          formData.append("framesZip", zipBlob);
+          formData.append("fps", fps);
+
+          //frames.forEach((frame, i) => formData.append(`frame${i}`, frame));
+          if (audioUrl) {
+            const audioBlob = await fetchAudioBlob(audioUrl);
+            formData.append('audio', audioBlob);
+          }
+
+          const totalSize = Array.from(formData.entries()).reduce((acc, [key, value]) => {
+            if (value instanceof File) return acc + value.size;
+            return acc;
+          }, 0);
+
+          //const convertEndpoint = process.env.NEXT_PUBLIC_RENDER_SERVER+'/process'
+
+          const convertEndpoint = '/api/encode-video-frames'
+
+          const res = await axios.post(convertEndpoint, formData, {
+
+            onUploadProgress: (progressEvent) => {
+
+              const percentCompleted = Math.min(
+                  100,
+                  Math.round((progressEvent.loaded * 100) / totalSize)
+                );
+               setVideoConvertProgress(percentCompleted);
+            },
+            responseType: 'blob', // important to get a Blob instead of JSON
+          });
+          mp4Blob = res.data;
+
         }
 
-        const totalSize = Array.from(formData.entries()).reduce((acc, [key, value]) => {
-          if (value instanceof File) return acc + value.size;
-          return acc;
-        }, 0);
 
-
-        const convertEndpoint = process.env.NEXT_PUBLIC_RENDER_SERVER+'/process'
-
-        //const convertEndpoint = '/api/encode-video-frames'
-
-        console.log('convert')
-
-        const res = await axios.post(convertEndpoint, formData, {
-
-          onUploadProgress: (progressEvent) => {
-
-            const percentCompleted = Math.min(
-                100,
-                Math.round((progressEvent.loaded * 100) / totalSize)
-              );
-             setVideoConvertProgress(percentCompleted);
-          },
-          responseType: 'blob', // important to get a Blob instead of JSON
-        });
-
-
-
-        const mp4Blob = res.data;
         if (download){
           const url = URL.createObjectURL(mp4Blob);
           const a = document.createElement('a');
@@ -11765,7 +11785,7 @@ const Share = ({
       hasRun.current = true;
       displayVideo();
       getChannelData();
-    
+
   }, []);
 
 

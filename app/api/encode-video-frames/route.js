@@ -17,6 +17,8 @@ export async function POST(req) {
       });
     }
 
+    const fps = formData.get("fps");
+
     const id = nanoid();
     const tmpDir = `/tmp/video-${id}`;
     await fsp.mkdir(tmpDir);
@@ -48,7 +50,7 @@ export async function POST(req) {
     // FFmpeg arguments
     const ffmpegArgs = [
       "-framerate",
-      "30", // adjust if needed
+      fps, // adjust if needed
       "-i",
       `${tmpDir}/frame%04d.jpg`,
     ];

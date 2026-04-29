@@ -35,85 +35,271 @@ async function publishToFacebook(job) {
 }
 
 
-
 async function publishToInstagram(job) {
-  const igId = job.platform_account.external_account_id
-  const accessToken = job.platform_account.access_token
-  const caption = job.post.caption
-  const files = job.post.post_files
-  const file_url = job.post.post_files[0].file_id.file_url
+  const igId = job.platform_account.external_account_id;
+  const accessToken = job.platform_account.access_token;
+  const caption = job.post.caption;
+  const files = job.post.post_files;
 
-  let body
-
-  if (job.post.type === 'video_reels'){
-    body = new URLSearchParams({
-      caption : caption,
-      video_url: file_url,
-      media_type:'VIDEO',
-      share_to_feed : true,           // Optional, if you also want it in the feed
-      is_reel: true,
-      access_token: accessToken
-    })
-
-  }else{
-    body = new URLSearchParams({
-      caption : caption,
-      image_url: file_url,
-      access_token: accessToken
-    })
+  // --------------------------------------------------
+  // CAROUSEL POST
+  // --------------------------------------------------
+  if (job.post.type === "carousel") {
+    return await publishInstagramCarousel({
+      igId,
+      accessToken,
+      caption,
+      files,
+    });
   }
 
-  // 1. Create media container
+  // --------------------------------------------------
+  // REEL
+  // --------------------------------------------------
+  if (job.post.type === "video_reels") {
+    return await publishSingleInstagramMedia({
+      igId,
+      accessToken,
+      caption,
+      mediaField: "video_url",
+      mediaUrl: files[0].file_id.file_url,
+      extraFields: {
+        media_type: "REELS",
+        share_to_feed: "true",
+      },
+    });
+  }
+
+  // --------------------------------------------------
+  // IMAGE POST
+  // --------------------------------------------------
+  return await publishSingleInstagramMedia({
+    igId,
+    accessToken,
+    caption,
+    mediaField: "image_url",
+    mediaUrl: files[0].file_id.file_url,
+  });
+}
+
+/* ==================================================
+   CAROUSEL
+================================================== */
+async function publishInstagramCarousel({
+  igId,
+  accessToken,
+  caption,
+  files,
+}) {
+  if (!files || files.length < 2) {
+    throw new Error("Carousel requires at least 2 media files.");
+  }
+
+  if (files.length > 10) {
+    throw new Error("Instagram carousel max is 10 items.");
+  }
+
+  // ------------------------------------------
+  // 1. Create child containers
+  // ------------------------------------------
+  const childIds = [];
+
+  for (const file of files) {
+    const url = file.file_id.file_url;
+
+    const isVideo =
+      file.type === "video" ||
+      url.match(/\.(mp4|mov|m4v)$/i);
+
+    const body = new URLSearchParams({
+      is_carousel_item: "true",
+      access_token: accessToken,
+    });
+
+    if (isVideo) {
+      body.append("video_url", url);
+      body.append("media_type", "VIDEO");
+    } else {
+      body.append("image_url", url);
+    }
+
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${igId}/media`,
+      {
+        method: "POST",
+        body,
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error?.message || "Failed child container");
+    }
+
+    childIds.push(data.id);
+  }
+
+  // ------------------------------------------
+  // 2. Wait until all child containers finish
+  // ------------------------------------------
+  for (const id of childIds) {
+    await waitForInstagramContainer(id, accessToken);
+  }
+
+  // ------------------------------------------
+  // 3. Create parent carousel container
+  // ------------------------------------------
+  const parentBody = new URLSearchParams({
+    media_type: "CAROUSEL",
+    children: childIds.join(","),
+    caption,
+    access_token: accessToken,
+  });
+
+  const parentRes = await fetch(
+    `https://graph.facebook.com/v19.0/${igId}/media`,
+    {
+      method: "POST",
+      body: parentBody,
+    }
+  );
+
+  const parentData = await parentRes.json();
+
+  if (!parentRes.ok) {
+    throw new Error(parentData.error?.message || "Failed parent carousel");
+  }
+
+  const creationId = parentData.id;
+
+  // ------------------------------------------
+  // 4. Wait until parent is ready
+  // ------------------------------------------
+  await waitForInstagramContainer(creationId, accessToken);
+
+  // ------------------------------------------
+  // 5. Publish carousel
+  // ------------------------------------------
+  const publishRes = await fetch(
+    `https://graph.facebook.com/v19.0/${igId}/media_publish`,
+    {
+      method: "POST",
+      body: new URLSearchParams({
+        creation_id: creationId,
+        access_token: accessToken,
+      }),
+    }
+  );
+
+  const publishData = await publishRes.json();
+
+  if (!publishRes.ok) {
+    throw new Error(publishData.error?.message || "Publish failed");
+  }
+
+  return {
+    id: publishData.id,
+    url: `https://instagram.com/p/${publishData.id}`,
+  };
+}
+
+/* ==================================================
+   SINGLE IMAGE / REEL
+================================================== */
+async function publishSingleInstagramMedia({
+  igId,
+  accessToken,
+  caption,
+  mediaField,
+  mediaUrl,
+  extraFields = {},
+}) {
+  const body = new URLSearchParams({
+    caption,
+    access_token: accessToken,
+    ...extraFields,
+  });
+
+  body.append(mediaField, mediaUrl);
+
   const createRes = await fetch(
     `https://graph.facebook.com/v19.0/${igId}/media`,
     {
       method: "POST",
-      body: body
+      body,
     }
-  )
+  );
 
-  const createData = await createRes.json()
+  const createData = await createRes.json();
 
   if (!createRes.ok) {
-    throw new Error(createData.error?.message)
+    throw new Error(createData.error?.message || "Create failed");
   }
 
-  // 2. Publish container
+  await waitForInstagramContainer(createData.id, accessToken);
+
   const publishRes = await fetch(
     `https://graph.facebook.com/v19.0/${igId}/media_publish`,
     {
       method: "POST",
       body: new URLSearchParams({
         creation_id: createData.id,
-        access_token: accessToken
-      })
+        access_token: accessToken,
+      }),
     }
-  )
+  );
 
-  const publishData = await publishRes.json()
+  const publishData = await publishRes.json();
 
   if (!publishRes.ok) {
-    throw new Error(publishData.error?.message)
+    throw new Error(publishData.error?.message || "Publish failed");
   }
 
   return {
     id: publishData.id,
-    url: `https://instagram.com/p/${publishData.id}`
+    url: `https://instagram.com/p/${publishData.id}`,
+  };
+}
+
+/* ==================================================
+   WAIT FOR CONTAINER
+================================================== */
+async function waitForInstagramContainer(id, accessToken) {
+  const maxAttempts = 60;
+  const delayMs = 2000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${id}?fields=status_code&access_token=${accessToken}`
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error?.message || "Status check failed");
+    }
+
+    const status = data.status_code;
+
+    if (status === "FINISHED") return;
+
+    if (status === "ERROR" || status === "EXPIRED") {
+      throw new Error(`Container failed: ${status}`);
+    }
+
+    await sleep(delayMs);
   }
+
+  throw new Error("Timed out waiting for Instagram processing");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 
 export async function GET(request) {
-
-  /*
-
-  const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return new Response('Unauthorized', {
-        status: 401,
-      });
-    }
-    */
 
 
 
@@ -128,7 +314,9 @@ export async function GET(request) {
         status,
         post:posts (
           id,
+          title,
           caption,
+          type,
           post_files: post_files(
             post_id,
             file_id:files(*)
@@ -143,7 +331,7 @@ export async function GET(request) {
         )
       `
       )
-      .eq("status", "scheduled")
+      .eq("status", "failed")
       .lte("scheduled_at", new Date().toISOString())
       .limit(10) // batch size
 
@@ -162,7 +350,9 @@ export async function GET(request) {
           .update({ status: "processing" })
           .eq("id", job.id)
 
+
         const platform = job.platform_account.platform
+
 
         let result
 
