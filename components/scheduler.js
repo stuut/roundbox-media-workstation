@@ -106,6 +106,15 @@ export function createEventId() {
   return String(eventGuid++)
 }
 
+const calculateMinTime = date => {
+  let isToday = moment(date).isSame(moment(), 'day');
+  if (isToday) {
+      let nowAdd30Mins = moment(new Date()).add({hours: 30}).toDate();
+      return nowAdd30Mins;
+  }
+  return moment().startOf('day').toDate();
+}
+
 export const Scheduler = ({user})=>{
   const [selectedFeed, setSelectedFeed] = useState(FEEDS[0])
   const [calendarEvents, setCalendarEvents] = useState([])
@@ -148,14 +157,29 @@ const updateCalendarEvents = (data) => {
   if (data.length === 0){
       setCalendarEvents([])
   }else{
+
+
+
     const calendarEvents = data.map((post)=>{
+
+      console.log('post', post.post)
+
       return {
         start: post.scheduled_at,
         end: post.scheduled_at,
         allDay: false,
         title: post?.post?.title,
+        caption: post?.post?.caption,
         id:post?.post?.id,
-        ...post,
+        scheduleDate: post?.scheduled_at,
+        publishDate: post?.post?.meta_data?.data?.publishedDate??null,
+        link: post?.post?.meta_data?.data?.link??null,
+        slug: post?.post?.meta_data?.data?.slug??null,
+        status: post.status??'',
+        type:post?.post?.type??'',
+        media:post?.post?.post_files??null,
+        error: post?.last_error??''
+
       }
     })
 
@@ -204,7 +228,7 @@ const updateCalendarEvents = (data) => {
 
   function renderEventContent(eventInfo) {
 
-    console.log('eventInfo', eventInfo)
+
     return (
       <div
         className={eventInfo.event._def.extendedProps.status}
@@ -259,6 +283,7 @@ const updateCalendarEvents = (data) => {
       <div style={{flex:4, minWidth: 0}}>
         <FullCalendar
           ref={cal}
+          allDaySlot={false}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           slotLabelInterval={"00:30:00"}
           defaultTimedEventDuration={"00:30:00"}
@@ -394,7 +419,6 @@ const FeedsPanel = ({
               caption: removeMd(item.fields[selectedFeed.text]),
               publishedDate: item.fields[selectedFeed.publishedDate],
               type:'post',
-              scheduled:false,
             }
         })
 
@@ -440,7 +464,6 @@ const FeedsPanel = ({
               caption: decodeCaptionEntities(item.content.rendered),
               publishedDate: item.date,
               type:'post',
-              scheduled:false,
             }
         })
         setPosts(posts)
@@ -533,6 +556,25 @@ const Share = ({
   userId,
   close
 }) => {
+
+  console.log('postData', postData)
+
+  const [scheduleDate, setScheduleDate] = useState(postData.start)
+  const [selectedSocialPage, setSelectedSocialPage] = useState(null)
+  const [selectedSocialPages, setSelectedSocialPages] = useState([])
+  const [socialPages, setSocialPages] = useState([])
+  const [postLink, setPostLink] = useState(`https://${postData?._def.extendedProps.base_url}/${postData?._def.extendedProps.slug}`)
+  const [caption, setCaption] = useState(postData? postData?._def.extendedProps.caption: '')
+  const videoBlobRef = useRef(null)
+  const [videoSrc, setVideoSrc] = useState(null)
+  const [loader, setLoader] = useState(false)
+  const [videoLoader, setVideoLoader] = useState(false)
+  const [scheduled, setScheduled] = useState(false)
+  const [path, setPath]= useState('video_reels')
+  const [postState, setPostState]= useState('SCHEDULED')
+  const [buttonText, setButtonText]= useState('Schedule')
+  const [summary, setSummary]= useState(null)
+
   return(
     <>
       <div className={'loader_screen'} style={{zIndex:1000}} onClick={() => close(null)}></div>
@@ -547,6 +589,35 @@ const Share = ({
             top: "5px",
           }}
         />
+
+          <div className='col-2 column-gap-2' style={{height:'100%'}}>
+            <div>
+              {postData._def.extendedProps.error&&
+                <div style={{
+                  background: 'var(--md-sys-color-error)',
+                  color:'#ffffff',
+                  padding:'10px',
+                  borderRadius: '10px'
+                }}>
+                  {postData._def.extendedProps.error}
+                </div>
+              }
+
+              <DatePicker
+                style={{minWidth:'300px'}}
+                minDate={moment().toDate()}
+                minTime={calculateMinTime(scheduleDate)}
+                maxTime={moment().endOf('day').toDate()}
+                selected={scheduleDate}
+                onChange={(date) => setScheduleDate(date)}
+                showTimeSelect
+                className={'form-input'}
+                dateFormat="MMMM d, yyyy h:mm aa"
+              />
+            </div>
+            <div>
+            </div>
+        </div>
       </div>
     </>
   )

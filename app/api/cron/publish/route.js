@@ -268,7 +268,7 @@ async function publishSingleInstagramMedia({
    WAIT FOR CONTAINER
 ================================================== */
 async function waitForInstagramContainer(id, accessToken) {
-  const maxAttempts = 12;   // was 60
+  const maxAttempts = 30;   // was 60
   const delayMs = 5000;     // was 2000
 
   for (let i = 0; i < maxAttempts; i++) {

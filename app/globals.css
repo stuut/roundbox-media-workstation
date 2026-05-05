@@ -75,7 +75,7 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 .fc-event {
     background-color: transparent;
-    border: none;
+    border: none !important;
     color: var(--md-sys-color-on-primary);
     display: block;
 }
@@ -99,6 +99,11 @@ input[type="range"]::-webkit-slider-runnable-track {
     border: none;
     color: var(--md-sys-color-on-primary);
     display: block;
+}
+
+.fc-h-event .failed,
+.fc-event .failed{
+  background-color: var(--md-sys-color-error);
 }
 
 .fc-h-event .scheduled,
