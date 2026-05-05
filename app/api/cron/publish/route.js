@@ -144,7 +144,7 @@ async function publishInstagramCarousel({
   // 2. Wait until all child containers finish
   // ------------------------------------------
   for (const id of childIds) {
-  
+
     await waitForInstagramContainer(id, accessToken);
   }
 
@@ -268,10 +268,11 @@ async function publishSingleInstagramMedia({
    WAIT FOR CONTAINER
 ================================================== */
 async function waitForInstagramContainer(id, accessToken) {
-  const maxAttempts = 30;
-  const delayMs = 10000;   // was 2000
+  const maxAttempts = 25;
+  const baseDelay = 5000;
+  const maxDelay = 15000;
 
-  for (let i = 0; i < maxAttempts; i++) {
+  for (let i = 1; i <= maxAttempts; i++) {
     const res = await fetch(
       `https://graph.facebook.com/v19.0/${id}?fields=status_code&access_token=${accessToken}`
     );
@@ -290,7 +291,9 @@ async function waitForInstagramContainer(id, accessToken) {
       throw new Error(`Container failed: ${status}`);
     }
 
-    await sleep(delayMs);
+    // 🔽 linear backoff
+    const delay = Math.min(baseDelay * i, maxDelay);
+    await sleep(delay);
   }
 
   throw new Error("Timed out waiting for Instagram processing");
