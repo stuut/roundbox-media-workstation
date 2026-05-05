@@ -14,6 +14,7 @@ return(
     <Link className={pagePath==="/my-media"?'active':null} style={{marginRight:'10px'}} href='/my-media'>My Media</Link>
     <Link className={pagePath==="/canvas-design-system"?'active':null} style={{marginRight:'10px'}} href='/canvas-design-system'>Design</Link>
     <Link className={pagePath==="/schedule"?'active':null} style={{marginRight:'10px'}} href='/schedule'>Schedule</Link>
+    <Link className={pagePath==="/qr-code"?'active':null} style={{marginRight:'10px'}} href='/qr-code'>QR Code</Link>
 
   </div>
 )

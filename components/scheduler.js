@@ -18,6 +18,9 @@ import { getAllPosts } from '@/lib/supabase';
 const removeMd = require('remove-markdown');
 import { ChannelSelector } from '@/components/channel-selector';
 import { getAllPostsSocialFilter } from '@/lib/supabase';
+import {
+  X
+} from 'lucide-react';
 
 const FEEDS = [
   {
@@ -122,24 +125,14 @@ export const Scheduler = ({user})=>{
   };
 
   const channelSelectorCallback = (pages) => {
-    console.log('pages', pages)
     setSelectedSocialPages(pages)
     getPostsFilter(pages)
   }
 
   const getPostsFilter = async (pages) => {
     if (pages.length === 0) return
-
-    console.log('pages', pages)
-
     const platformIds = pages.map((page)=> page.id)
-
-    console.log('platformIds', platformIds)
-
     const socialFilterData = await getAllPostsSocialFilter(platformIds)
-
-    console.log('SocialFilterData',  socialFilterData)
-
     updateCalendarEvents(socialFilterData)
 
   }
@@ -193,6 +186,7 @@ const updateCalendarEvents = (data) => {
 
   const handleEventClick = (data) =>{
     console.log('eventClick', data)
+    setPostData(data.event)
   }
 
   const eventClickSelect = (data) =>{
@@ -210,21 +204,23 @@ const updateCalendarEvents = (data) => {
 
   function renderEventContent(eventInfo) {
 
-
+    console.log('eventInfo', eventInfo)
     return (
-      <>
-        <b
-          className={eventInfo.event._def.extendedProps.status}
-          style={{
-          width: '100%',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          display: 'block',
-          padding: '0px 5px',
-          borderRadius:'3px'
-        }}>{eventInfo.event.title}</b>
-      </>
+      <div
+        className={eventInfo.event._def.extendedProps.status}
+        style={{
+        width: '100%',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        display: 'block',
+        padding: '0px 5px',
+        borderRadius:'3px'
+      }}
+        >
+        <i>{eventInfo.timeText}</i><br/>
+        <b>{eventInfo.event.title}</b>
+      </div>
     )
   }
 
@@ -232,8 +228,7 @@ const updateCalendarEvents = (data) => {
   return(
     <div style={{display:'flex', height: '100%'}}>
       {postData&&
-        <div>
-        </div>
+        <Share postData={postData} userId={user.id} close={setPostData}/>
 
       }
       <div style={{flex:1, padding:'20px'}}>
@@ -265,6 +260,8 @@ const updateCalendarEvents = (data) => {
         <FullCalendar
           ref={cal}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          slotLabelInterval={"00:30:00"}
+          defaultTimedEventDuration={"00:30:00"}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
@@ -530,3 +527,27 @@ return (
   </div>
 )
 })
+
+const Share = ({
+  postData,
+  userId,
+  close
+}) => {
+  return(
+    <>
+      <div className={'loader_screen'} style={{zIndex:1000}} onClick={() => close(null)}></div>
+      <div className='share-dialog dropshadow' style={{padding:'40px 15px 15px 15px', zIndex:1001}}>
+        <X
+          onClick={() => close(null)}
+          className="close-icon"
+          style={{
+            cursor: "pointer",
+            right: "5px",
+            position: "absolute",
+            top: "5px",
+          }}
+        />
+      </div>
+    </>
+  )
+}

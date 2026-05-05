@@ -30,8 +30,6 @@ export const ChannelSelector = ({userId, postInfo, callback}) => {
       const onesignalPages = channels.filter((channel)=> channel.platform === 'One Signal')
 
 
-
-
       if (!facebookPages || !instagramPages) return
 
       const newPages = facebookPages.map(facebookPage => {
@@ -125,7 +123,7 @@ return(
     <div style={{position:'relative'}}>
       <button style={{
         width:'100%',
-        paddingLeft: '10px',
+        paddingLeft: '18px',
         marginTop:'0px'
       }} onClick={() => setOpen(prev => !prev)} className='btn primary icon-button'>
         {selectedSocialPages.length<1?

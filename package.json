@@ -50,6 +50,7 @@
     "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
     "prettier": "^3.3.3",
+    "qrcode": "^1.5.4",
     "react": "19.0.0",
     "react-color": "^2.19.3",
     "react-cropper": "^2.3.3",
