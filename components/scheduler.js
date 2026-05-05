@@ -122,6 +122,7 @@ export const Scheduler = ({user})=>{
   };
 
   const channelSelectorCallback = (pages) => {
+    console.log('pages', pages)
     setSelectedSocialPages(pages)
     getPostsFilter(pages)
   }
@@ -129,17 +130,17 @@ export const Scheduler = ({user})=>{
   const getPostsFilter = async (pages) => {
     if (pages.length === 0) return
 
-    console.log('getPostsFilter')
-
     console.log('pages', pages)
 
-    const pageIds = pages.map((page)=> page.id)
+    const platformIds = pages.map((page)=> page.id)
 
-    console.log('pageIds', pageIds)
+    console.log('platformIds', platformIds)
 
+    const socialFilterData = await getAllPostsSocialFilter(platformIds)
 
-    const data = await getAllPostsSocialFilter(pageIds)
-    updateCalendarEvents(data)
+    console.log('SocialFilterData',  socialFilterData)
+
+    updateCalendarEvents(socialFilterData)
 
   }
 
@@ -147,27 +148,29 @@ export const Scheduler = ({user})=>{
   const getPostsInit = async () => {
     const data = await getAllPosts()
     updateCalendarEvents(data)
-    console.log('getPostsInit')
-
-
   }
 
 const updateCalendarEvents = (data) => {
-  console.log('updateCalendarEvents function')
 
-  const calendarEvents = data.map((post)=>{
-    return {
-      start: post.scheduled_at,
-      end: post.scheduled_at,
-      allDay: false,
-      title: post.post.title,
-      id:post.post.id,
-      ...post,
-    }
-  })
+  if (data.length === 0){
+      setCalendarEvents([])
+  }else{
+    const calendarEvents = data.map((post)=>{
+      return {
+        start: post.scheduled_at,
+        end: post.scheduled_at,
+        allDay: false,
+        title: post?.post?.title,
+        id:post?.post?.id,
+        ...post,
+      }
+    })
 
-//  handleEvents(calendarEvents)
-   setCalendarEvents(calendarEvents)
+  //  handleEvents(calendarEvents)
+     setCalendarEvents(calendarEvents)
+
+  }
+
 
 }
 

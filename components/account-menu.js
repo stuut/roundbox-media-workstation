@@ -20,6 +20,9 @@ return(
     <div style={{padding:'5px 0px'}}>
       <Link className={pagePath==="/account/facebook"?'active':null} style={{marginleft:'10px'}} href='/account/facebook'>Facebook</Link>
     </div>
+    <div style={{padding:'5px 0px'}}>
+      <Link className={pagePath==="/account/channels"?'active':null} style={{marginleft:'10px'}} href='/account/channels'>Channels</Link>
+    </div>
   </div>
 )
 

@@ -144,6 +144,7 @@ async function publishInstagramCarousel({
   // 2. Wait until all child containers finish
   // ------------------------------------------
   for (const id of childIds) {
+    await sleep(4000);
     await waitForInstagramContainer(id, accessToken);
   }
 
@@ -176,6 +177,7 @@ async function publishInstagramCarousel({
   // ------------------------------------------
   // 4. Wait until parent is ready
   // ------------------------------------------
+  await sleep(4000);
   await waitForInstagramContainer(creationId, accessToken);
 
   // ------------------------------------------
@@ -236,7 +238,7 @@ async function publishSingleInstagramMedia({
   if (!createRes.ok) {
     throw new Error(createData.error?.message || "Create failed");
   }
-
+  await sleep(4000);
   await waitForInstagramContainer(createData.id, accessToken);
 
   const publishRes = await fetch(
@@ -266,8 +268,8 @@ async function publishSingleInstagramMedia({
    WAIT FOR CONTAINER
 ================================================== */
 async function waitForInstagramContainer(id, accessToken) {
-  const maxAttempts = 60;
-  const delayMs = 2000;
+  const maxAttempts = 12;   // was 60
+  const delayMs = 5000;     // was 2000
 
   for (let i = 0; i < maxAttempts; i++) {
     const res = await fetch(
