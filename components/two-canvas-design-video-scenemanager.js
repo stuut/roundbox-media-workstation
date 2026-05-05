@@ -20,6 +20,7 @@ import { savePostPublications } from "@/lib/supabase";
 import { getPostsWithDate } from "@/lib/supabase";
 import { updatePostPublication } from "@/lib/supabase";
 import { createVideoFromImages } from  "@/lib/createVideoFromImages"
+import Cropper from 'cropperjs';
 
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
@@ -41,7 +42,9 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Crop,
   Replace,
   EllipsisVertical,
-  ArrowLeft
+  ArrowLeft,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
 import { updateFileDescriptionValue } from "@/lib/supabase";
@@ -5522,6 +5525,7 @@ function hitPolygon(px, py, polygon) {
     if (isTextEditingRef.current){
       //textHilightRef.current = true
       const object = getActiveElement()
+      if(!object)return
       if(object.type !== 'text')return
       if (hitObject(object, pos.x, pos.y)) {
 
@@ -8727,6 +8731,15 @@ const handleFileFunction = async (data) => {
   }
 }
 
+const editImage = () => {
+
+  const activeElement = getActiveElement()
+  if (!activeElement) return
+  setFileEdit(activeElement)
+
+  setShowFileEdit(true)
+}
+
   return (
     <>
     <div style={canvasLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
@@ -9421,7 +9434,6 @@ const handleFileFunction = async (data) => {
                 />
               </div>
 
-
               {/*}
               <div style={{margin: '0px 0px 0px 0px', width:150}}>
                 <FontSelection callBack={fontSelectionCallback} selectedFont={selectedFont}/>
@@ -9468,7 +9480,8 @@ const handleFileFunction = async (data) => {
                 <Replace width='25px' height='24px' onClick={replaceImageFunction}/>
               </div>
               <img onClick={editInPhotoshop} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
-            </>
+              <Sparkles onClick={editImage}/>
+          </>
           }
           <div style={{margin: '0px 0px 0px 15px'}}>
             <button className={`btn  ${showEffects? 'primary':''}`} onClick={()=> {
@@ -11739,12 +11752,41 @@ const Share = ({
   const [path, setPath]= useState('video_reels')
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
+  const [summary, setSummary]= useState(null)
 
   console.log('Share')
 
   const handlePathChange = (event) => {
     setPath(event.target.value);
   };
+
+  const summarise = async() => {
+    setLoader(true)
+
+        try {
+          //const text = postData._def.extendedProps.caption
+
+          const response = await fetch('/api/summarise-video', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ text : postInfo?.data.caption}),
+          });
+
+          const data = await response.json();
+          setSummary(data.post);
+
+        } catch(error) {
+          // Consider implementing your own error handling logic here
+          setLoader(false)
+          return showError(error.message);
+        }
+        finally {
+          setLoader(false)
+        }
+
+  }
 
   const handlePostStateChange = (event) => {
     setPostState(event.target.value);
@@ -11767,9 +11809,7 @@ const Share = ({
   const getChannelData = async() => {
     const channels = await getChannels(userId)
 
-
     const preSelectedPage = channels.find((channel)=> channel.external_account_id === postInfo?.data.facebook_page_id && channel.platform === 'facebook')
-
 
     setSelectedSocialPage(preSelectedPage)
     setSocialPages(channels)
@@ -11780,7 +11820,6 @@ const Share = ({
 
   useEffect(() => {
     if (hasRun.current) return;
-
 
       hasRun.current = true;
       displayVideo();
@@ -11811,8 +11850,6 @@ const Share = ({
   ) => {
 
     if (timeTravel(scheduleDate)) return
-
-    console.log('scheduleFacebookLoop')
 
     const video = videoBlobRef.current
 
@@ -12148,7 +12185,7 @@ const getPostsScheduledPosts = async() => {
         }}
       />
       <div className='col-2 column-gap-2' style={{height:'100%'}}>
-        <div style={{position:'relative'}}>
+        <div style={{position:'relative', overflowY: 'scroll', paddingRight: '10px'}}>
 
           <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
               <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
@@ -12191,7 +12228,7 @@ const getPostsScheduledPosts = async() => {
                     onChange={handlePathChange}
                   /><span style={{fontSize:'.9em'}}>Post</span>
                 </div>
-              { postInfo&&
+              {postInfo&&
                 <>
                   <p className='font-label'>Post Link</p>
                   <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
@@ -12216,6 +12253,16 @@ const getPostsScheduledPosts = async() => {
                   className={'form-input'}
                   cols={8}
                 />
+                <button className="btn secondary btn-sm" onClick={summarise}>Summarise</button>
+                {summary &&
+                  <textarea
+                    style={{minHeight:200}}
+                    onChange={(e) => setSummary(e.target.value)}
+                    value={summary}
+                    className={'form-input'}
+                    cols={8}
+                  />
+                }
                 <div className="properties-container" style={{margin:'15px 0px'}}>
                   <p className='font-label'>Schedule Date & Time</p>
                   <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
@@ -12264,10 +12311,10 @@ const getPostsScheduledPosts = async() => {
                   <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText}</button>
                 }
                 {(videoSrc &&selectedSocialPages.length>0) &&
-                  <button disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText} Multiple</button>
+                  <button style={{marginLeft:'10px'}} disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText} Multiple</button>
                 }
 
-                <button className="btn primary" onClick={getPostsScheduledPosts}>Get Posts</button>
+              {/*}  <button className="btn primary" onClick={getPostsScheduledPosts}>Get Posts</button>*/}
 
             </div>
         </div>
@@ -12601,7 +12648,42 @@ const MediaEdit = ({
 setShowFileEdit,
 file
 }) => {
-const [fileDescription, setFileDescription] = useState(file.file_description??'')
+const [fileDescription, setFileDescription] = useState(file?.file_description??'')
+const [editAction, setEditAction] = useState('')
+const [scale, setScale] = useState(0)
+const [offset, setOffset] = useState({
+  x: 0,
+  y: 0
+})
+const fileEditContainerRef = useRef()
+
+const resize = () => {
+    const container = fileEditContainerRef.current
+    const containerWidth = container.offsetWidth
+    const containerHeight = container.offsetHeight
+
+
+    let displayWidth = file.originalWidth;
+    let displayHeight = file.originalHeight;
+
+    const scaleX = containerWidth / displayWidth;
+    const scaleY = containerHeight / displayHeight;
+
+
+    const scaleMaths = Math.min(scaleX, scaleY);
+
+    setScale(scaleMaths);
+
+
+}
+
+useEffect(()=>{
+  if (scale === 0 && offset.x === 0 && offset.y === 0){
+    resize()
+  }
+
+},[])
+
 
 
 const save = async() => {
@@ -12610,38 +12692,99 @@ const save = async() => {
   showSuccess('Image Caption Updated')
 }
 
+const boxRef = useRef(null);
+
+useEffect(() => {
+  const box = boxRef.current;
+  if (!box) return;
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+
+  const onMouseDown = (e) => {
+    isDragging = true;
+    startX = e.clientX - box.offsetLeft;
+    startY = e.clientY - box.offsetTop;
+  };
+
+  const onMouseMove = (e) => {
+    if (!isDragging) return;
+
+    const x = e.clientX - startX;
+    const y = e.clientY - startY;
+
+    box.style.left = `${x}px`;
+    box.style.top = `${y}px`;
+  };
+
+  const onMouseUp = () => {
+    isDragging = false;
+  };
+
+  box.addEventListener("mousedown", onMouseDown);
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+
+  return () => {
+    box.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+  };
+}, []);
+
   return(
     <>
         <div className={'loader_screen'}></div>
-        <div className='share-dialog dropshadow' style={{padding:'40px 15px 15px 15px'}}>
-          <X
-            onClick={() => setShowFileEdit(false)}
-            className="close-icon"
+        <div className='share-dialog dropshadow'>
+          <div
+            className='dropshadow'
             style={{
-              cursor: "pointer",
-              right: "5px",
-              position: "absolute",
-              top: "5px",
-            }}
-          />
-          <div className='col-2 column-gap-2' style={{height:'100%'}}>
-            <div style={{position:'relative'}}>
+              position:'absolute',
+              right:'10px',
+              top:'10px',
+              borderRadius: 'var(--btn-border-radius)',
+              background: 'var(--md-sys-color-surface)',
+              display:'flex',
+              flexDirection:'column',
+              zIndex:'100',
+              padding:'10px',
+              gap: '10px'
+            }}>
+              <X
+                onClick={() => setShowFileEdit(false)}
+                className="close-icon"
+              />
+            <ZoomIn onClick={() => setScale(prev => prev * 1.25)}/>
+            <ZoomOut onClick={() => setScale(prev => prev / 1.25)}/>
+          </div>
+          <div className='col-2' style={{height:'100%'}}>
+            <div style={{position:'relative', flex:.4, padding:'20px'}}>
                 <h2>Edit Image</h2>
                 <hr/>
-                <div style={{marginTop:'25px'}}>
-                  <p className='font-label'>Caption</p>
-                  <textarea
-                      rows="4"
-                      name="imageDescription"
-                      className="form-input input"
-                      value={fileDescription}
-                      onChange={(e) => setFileDescription(e.target.value)}
-                  />
-                  <button className="btn primary" onClick={save}>Save</button>
-                </div>
+                {fileDescription &&
+                  <div style={{marginTop:'25px'}}>
+                    <p className='font-label'>Caption</p>
+                    <textarea
+                        rows="4"
+                        name="imageDescription"
+                        className="form-input input"
+                        value={fileDescription}
+                        onChange={(e) => setFileDescription(e.target.value)}
+                    />
+                    <button className="btn primary" onClick={save}>Save</button>
+                  </div>
+                }
+                <button style={{marginTop:'25px'}} className='btn secondary'>Generative Expand</button>
+
               </div>
-              <div>
-                {file&&
+              <div ref={fileEditContainerRef}
+                style={{
+                  position:'relative',
+                  background: 'var(--md-sys-color-surface-container)'
+                }}
+              >
+                {file &&
                   <>
                     {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
                         <img
@@ -12652,7 +12795,30 @@ const save = async() => {
                           src={file.file_url}
                         />
                     }
+                    {file.imageSrc &&
+                      <>
 
+                      <img
+                        style={{
+                          width: file.originalWidth,
+                          height: file.originalHeight,
+                          left: '50%',
+                          top: '50%',
+                          position:'absolute',
+                          background: "white",
+                          boxShadow: "0 0",
+                          transformOrigin: "0 0",
+                          transform: `scale(${scale}) translate(-50%, -50%)`,
+                          willChange: 'transform'
+                        }}
+                        src={file.imageSrc}
+                      />
+                      <ExpandEditor file={file} scale={scale}/>
+
+                      {/* EXPAND BOX */}
+
+                      </>
+                    }
                   </>
 
                 }
@@ -12664,4 +12830,204 @@ const save = async() => {
   )
 
 
+}
+
+
+export default function ExpandEditor({ file }) {
+  const containerRef = useRef(null);
+  const boxRef = useRef(null);
+
+  const [box, setBox] = useState({
+    x: 80,
+    y: 80,
+    width: 400,
+    height: 400,
+  });
+
+  // -----------------------------
+  // DRAG BOX
+  // -----------------------------
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+
+    let dragging = false;
+
+    let offsetX = 0;
+    let offsetY = 0;
+
+    const onMouseDown = (e) => {
+      dragging = true;
+
+      const rect = el.getBoundingClientRect();
+
+      // IMPORTANT: store click offset INSIDE the box
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+    };
+
+    const onMouseMove = (e) => {
+      if (!dragging) return;
+
+      const container = containerRef.current;
+      const containerRect = container.getBoundingClientRect();
+
+      setBox((prev) => ({
+        ...prev,
+        x: e.clientX - containerRect.left - offsetX,
+        y: e.clientY - containerRect.top - offsetY,
+      }));
+    };
+
+    const onMouseUp = () => {
+      dragging = false;
+    };
+
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      el.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (bottom-right)
+  // -----------------------------
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setBox((prev) => ({
+        ...prev,
+        width: Math.max(100, prev.width + dx),
+        height: Math.max(100, prev.height + dy),
+      }));
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // EXPORT EXPAND METADATA
+  // -----------------------------
+  const getExpandData = () => {
+    const data = {
+      expandWidth: box.width,
+      expandHeight: box.height,
+      offsetX: box.x,
+      offsetY: box.y,
+      originalWidth: file.originalWidth,
+      originalHeight: file.originalHeight,
+    };
+
+    console.log("EXPAND DATA:", data);
+    return data;
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
+      {/* ORIGINAL IMAGE */}
+      {/*}
+      <img
+        src={file.imageSrc}
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          maxWidth: "60%",
+          maxHeight: "60%",
+          zIndex: 1,
+        }}
+      />*/}
+
+      {/* EXPAND BOX */}
+      <div
+        ref={boxRef}
+        style={{
+          position: "absolute",
+          left: box.x,
+          top: box.y,
+          width: box.width,
+          height: box.height,
+          border: "2px dashed #00b7ff",
+          background: "rgba(0,183,255,0.08)",
+          cursor: "move",
+          zIndex: 2,
+        }}
+      >
+        {/* RESIZE HANDLE */}
+        <div
+          id="resize-handle"
+          style={{
+            position: "absolute",
+            right: -6,
+            bottom: -6,
+            width: 14,
+            height: 14,
+            background: "#00b7ff",
+            cursor: "nwse-resize",
+          }}
+        />
+      </div>
+
+      {/* ACTION BUTTON */}
+      <button
+        onClick={getExpandData}
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          zIndex: 10,
+          padding: 10,
+        }}
+      >
+        Export Expand
+      </button>
+    </div>
+  );
 }

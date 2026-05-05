@@ -56,6 +56,53 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 }
 
+.fc-daygrid-dot-event.fc-event-mirror, .fc-daygrid-dot-event:hover {
+    background: transparent;
+}
+
+
+.fc-event {
+    background-color: transparent;
+    border: none;
+    color: var(--md-sys-color-on-primary);
+    display: block;
+}
+
+
+
+.fc-h-event {
+    background-color: transparent;
+    border: none;
+    color: var(--md-sys-color-on-primary);
+    display: block;
+}
+
+.fc-h-event .scheduled,
+.fc-event .scheduled{
+  background-color: var(--md-sys-color-secondary);
+}
+
+.fc-h-event .published,
+.fc-event .published{
+
+  background-color: var(--md-sys-color-primary);
+}
+
+
+
+.fc-timegrid-slots tr {
+    height: 10vw;
+}
+
+.fc-media-screen{
+  height:100%;
+}
+
+.fc-timegrid-event-harness > .fc-timegrid-event {
+    inset: unset;
+    position: unset;
+}
+
 /* For Firefox */
 input[type="range"]::-moz-range-track {
   background: #e9e9e9;
@@ -182,11 +229,30 @@ position: relative;
   margin: 8px 0px
 }
 
+.button-icon{
+  flex: 0 0 15px;
+}
 
+.icon-button{
+  display:inline-flex !important;
+  align-items: center;
+  column-gap: 5%;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+
+.properties-container,
+.animation-container{
+  background-color: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface);
+  padding:10px;
+  border-radius: var(--btn-border-radius);
+}
 
 .canvas-zoom-dropdown{
   border-radius:var(--btn-border-radius);
-  background-color:#ffffff;
+  background-color:var(--md-sys-color-surface);
   padding:10px;
   white-space: nowrap;
 }
@@ -793,9 +859,6 @@ h2{
     padding: var(--sm-btn-padding-y) var(--sm-btn-padding-x);
 }
 
-.fc-h-event{
-  border:0px
-}
 
 .kanban-task{
   margin: 15px 0px;
@@ -845,6 +908,11 @@ border: var(--input-border-width) solid var(--md-sys-color-surface-dim);
   background:var(--md-danger-background);
   color:var(--md-sys-color-on-error-container);
   border: var(--input-border-width) solid var(--md-sys-color-on-error-container);
+}
+
+.label{
+  font-size:.8em;
+  display:block;
 }
 
 .dropdown-label{
@@ -1061,7 +1129,7 @@ max-width:50px
   border-radius:50%
 }
 
-.fc-event.calendar-task.task-hilight{
+.s.calendar-task.task-hilight{
 background: rgba(65, 95, 145, .5)
 }
 

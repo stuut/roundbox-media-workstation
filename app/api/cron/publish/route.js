@@ -331,7 +331,7 @@ export async function GET(request) {
         )
       `
       )
-      .eq("status", "failed")
+      .eq("status", "scheduled")
       .lte("scheduled_at", new Date().toISOString())
       .limit(10) // batch size
 
