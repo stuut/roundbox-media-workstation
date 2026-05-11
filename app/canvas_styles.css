@@ -1,16 +1,4 @@
 
-.fc-event {
-    background-color: var(--md-sys-color-primary);
-    border: 1px solid var(--md-sys-color-primary);
-    display: block;
-}
-
-.fc-h-event {
-    background-color: var(--fc-event-bg-color);
-    border: 1px solid var(--fc-event-border-color);
-    display: block;
-}
-
 
 
 .logo{
@@ -19,6 +7,8 @@
   margin-right: 15px;
   fill: url(#myGradient) var(--md-sys-color-primary);
 }
+
+
 
 
 

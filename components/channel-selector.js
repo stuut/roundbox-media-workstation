@@ -8,21 +8,33 @@ import {
   X
 } from 'lucide-react';
 
-export const ChannelSelector = ({userId, postInfo, callback}) => {
+export const ChannelSelector = ({
+  userId,
+  postInfo,
+  setSocialPagesParent,
+  callback
+}) => {
   const [open, setOpen] = useState(false)
   const [socialPages, setSocialPages] = useState([])
   const [selectedChannelIds, setSelectedChannelIds] = useState([])
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
+  const [pageFilter, setPageFilter] = useState('')
 
 
   useEffect(() => {
     if (!userId) return
 
     const loadInfo = async () => {
+
       //const facebookPages = await getFacebookPages(userId)
       //const instagramPages = await getInstagramPages(userId)
 
       const channels = await getChannels(userId)
+
+      if (setSocialPagesParent){
+          setSocialPagesParent(channels)
+      }
+
 
 
       const facebookPages = channels.filter((channel)=> channel.platform === 'facebook')
@@ -33,6 +45,7 @@ export const ChannelSelector = ({userId, postInfo, callback}) => {
       if (!facebookPages || !instagramPages) return
 
       const newPages = facebookPages.map(facebookPage => {
+
         const instagramPage = instagramPages.find(
           insta => insta.metadata?.facebook_page_id === facebookPage.metadata?.facebook_page_id
         )
@@ -52,18 +65,22 @@ export const ChannelSelector = ({userId, postInfo, callback}) => {
       })
 
 
-
       setSocialPages(newPages)
+      //postInfo?.data?.facebook_page_id
 
       // ✅ Preselect safely
-      if (postInfo?.data?.facebook_page_id) {
+      if (postInfo?._def?.extendedProps?.platform_account) {
         const preSelectedIds = [
           ...facebookPages
-          .filter(p => p.metadata.facebook_page_id === postInfo.data.facebook_page_id)
-            .map(p => p.id),
+          .filter(p => p.external_account_id === postInfo?._def?.extendedProps?.platform_account.external_account_id)
+              .map(p => p.id),
 
           ...instagramPages
-            .filter(p => p.metadata.facebook_page_id === postInfo.data.facebook_page_id)
+          .filter(p => p.external_account_id === postInfo?._def?.extendedProps?.platform_account.external_account_id)
+            .map(p => p.id),
+
+          ...onesignalPages
+          .filter(p => p.external_account_id === postInfo?._def?.extendedProps?.platform_account.external_account_id)
             .map(p => p.id)
         ]
 
@@ -183,7 +200,23 @@ return(
           width: '100%',
           minWidth: '315px'
         }} className='canvas-zoom-dropdown dropshadow'>
-          {sortedSocialPages.map((social, index)=> {
+          <input
+            id="pageFilter"
+            type="text"
+            className={'form-input'}
+            value={pageFilter}
+            onChange={(e) => setPageFilter(e.target.value)}
+          />
+          {sortedSocialPages
+            .filter((social)=>{
+              return social?.facebook?.name.toLowerCase().includes(pageFilter.toLowerCase()) ||
+                social?.instagram?.name.toLowerCase().includes(pageFilter.toLowerCase()) ||
+                social?.oneSignal?.name.toLowerCase().includes(pageFilter.toLowerCase())
+
+
+              }
+            )
+            .map((social, index)=> {
             return(
               <div key={index}>
                   <div style={{margin:'10px 0px'}} className="properties-container">

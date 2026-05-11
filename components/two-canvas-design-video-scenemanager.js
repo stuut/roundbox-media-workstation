@@ -9040,7 +9040,12 @@ const editImage = () => {
           activeTool={activeTool}
           canvasEditorHeight={canvasEditorHeight}
         >
-          <div>
+          <div
+            style={{
+              height:`calc(${canvasEditorHeight}px - 75px)`,
+              overflowY:'scroll'
+            }}
+          >
             <FeedsPanel
               selectedFeed={selectedFeed}
               setSelectedFeed={setSelectedFeed}
@@ -9681,7 +9686,10 @@ const ToolSVG = ({
         <ToolIcon className="tool-icon" />
       </div>
       {(isOpen && position !== "tool_tip" && children )&& (
-        <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`}} className={`dropshadow ${position === "left" ? "side_menu_left" : "side_menu_right"}`}>
+        <div style={{
+          maxHeight:`calc(${canvasEditorHeight}px - 10px)`
+        }}
+          className={`dropshadow ${position === "left" ? "side_menu_left" : "side_menu_right"}`}>
           <div style={{ display: "flex" }}>
             <strong>
               <p style={{ paddingLeft: "10px" }}>{label}</p>
@@ -11743,21 +11751,24 @@ const Share = ({
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(`https://${postInfo?.data.base_url}/${postInfo?.data.slug}`)
-  const [caption, setCaption] = useState(postInfo? postInfo?.data.caption.split('\n')[0] + '\n' + `https://${postInfo?.data.base_url}/${postInfo?.data.slug}` : '')
+  const [caption, setCaption] = useState(postInfo? postInfo?.data.caption.split('\n')[0] : '')
   const videoBlobRef = useRef(null)
   const [videoSrc, setVideoSrc] = useState(null)
   const [loader, setLoader] = useState(false)
   const [videoLoader, setVideoLoader] = useState(false)
   const [scheduled, setScheduled] = useState(false)
   const [path, setPath]= useState('video_reels')
+  const [postType, setPostType]= useState('video_reels')
+
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
   const [summary, setSummary]= useState(null)
 
-  console.log('Share')
+  console.log('postInfo', postInfo)
 
   const handlePathChange = (event) => {
     setPath(event.target.value);
+    setPostType(event.target.value)
   };
 
   const summarise = async() => {
@@ -11849,7 +11860,11 @@ const Share = ({
     publication
   ) => {
 
-    if (timeTravel(scheduleDate)) return
+    if (timeTravel(scheduleDate)){
+      showError('No Time Travel')
+      setLoader(false)
+      return
+    }
 
     const video = videoBlobRef.current
 
@@ -11888,7 +11903,7 @@ const Share = ({
             video_id: videoId,
             upload_phase : 'finish',
             video_state : postState,
-            description: caption,
+            description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
             title :postInfo.data.title,
             scheduled_publish_time: scheduledPublishTime,
             access_token: accessToken
@@ -11901,28 +11916,23 @@ const Share = ({
       showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
     }
 
+    showSuccess('Video Scheduled')
+
     const videoData = await facebookResponse.json();
     const postId = videoData.post_id
 
-    const commentResponse = await fetch(`https://graph.facebook.com/${videoId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message : 'Check out the full details here: '+postLink,
-          access_token: selectedSocialPage.access_token
-        }),
-      })
 
-      if (!commentResponse.ok) {
-        //throw new Error(`Adding comments failed with status: ${facebookResponse.status}`);
-        setLoader(false)
-        showError(`Adding comments failed with status: ${facebookResponse.status}`)
-      }
+      await addFacebookComment(
+        videoId,
+        postLink,
+        selectedSocialPage.access_token
+      );
 
-      showSuccess('Video Scheduled')
+
+      showSuccess('Comment Added')
       setScheduled(true)
+
+
       postScheduled(postInfo)
 
       // update database
@@ -11937,12 +11947,6 @@ const Share = ({
 
       await updatePostPublication(publication.id, updateData)
 
-
-
-      //videoId
-
-
-
     }catch(error){
       showError(`Facebook error: ${error}`)
        setLoader(false)
@@ -11950,8 +11954,51 @@ const Share = ({
 
   }
 
+  async function addFacebookComment(postId, postLink, accessToken, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const commentResponse = await fetch(
+          `https://graph.facebook.com/${postId}/comments`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: 'Check out the full details here: ' + postLink,
+              access_token: accessToken,
+            }),
+          }
+        );
+
+        if (!commentResponse.ok) {
+          throw new Error(
+            `Adding comments failed with status: ${commentResponse.status}`
+          );
+        }
+
+        return await commentResponse.json();
+      } catch (error) {
+        if (attempt === retries) {
+          throw error;
+        }
+
+        // wait 1 second before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
 
   const scheduleMultiple = async() => {
+
+        if (timeTravel(scheduleDate)){
+          showError('No Time Travel')
+          return
+        }
+
+
+
        setLoader(true)
 
        if (!videoBlobRef.current) return
@@ -11965,14 +12012,14 @@ const Share = ({
                user_id:userId,
                caption:caption,
                title:postInfo.data.title,
-               type:path,
+               type:postType,
                meta_data:postInfo
              })
 
              const savedPostFile = await savePostFile({
                post_id:savedPost.id,
                file_id:uploadedVideo.id,
-               usage_type:path
+               usage_type:postType
              })
 
              const scheduledAtUTC = new Date(scheduleDate).toISOString()
@@ -12014,7 +12061,11 @@ const Share = ({
 
      setLoader(true)
 
-    if (timeTravel(scheduleDate)) return
+     if (timeTravel(scheduleDate)){
+       showError('No Time Travel')
+       setLoader(false)
+       return
+     }
 
     const type = 'mp4'
     const video = videoBlobRef.current
@@ -12057,7 +12108,7 @@ const Share = ({
             video_id: videoId,
             upload_phase : 'finish',
             video_state : postState,
-            description: description,
+            description: description + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
             title : postInfo.data.title,
             scheduled_publish_time: scheduledPublishTime,
             access_token: accessToken
@@ -12072,6 +12123,8 @@ const Share = ({
 
     const videoData = await facebookResponse.json();
     const postId = videoData.post_id
+
+    //
 
     const commentResponse = await fetch(`https://graph.facebook.com/${videoId}/comments`, {
         method: 'POST',
@@ -12184,12 +12237,13 @@ const getPostsScheduledPosts = async() => {
           top: "5px",
         }}
       />
+      <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+          <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+      </div>
       <div className='col-2 column-gap-2' style={{height:'100%'}}>
         <div style={{position:'relative', overflowY: 'scroll', paddingRight: '10px'}}>
 
-          <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-              <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
-          </div>
+
             <h2>Share To Social Media</h2>
             <hr/>
             <div style={{marginTop:'25px'}}>
@@ -12199,6 +12253,7 @@ const getPostsScheduledPosts = async() => {
                   <CircleCheck />
                 </div>
               }
+              {/*}
                 <p className='font-label'>Facebook Page</p>
                 <select id="rss-select" className="form-input select" onChange={(e) => onSocialChange(e.target.value)} value={selectedSocialPage?.external_account_id || ""}>
                   <option value="" disabled>
@@ -12209,6 +12264,7 @@ const getPostsScheduledPosts = async() => {
                   })
                   }
                 </select>
+                */}
 
                 <ChannelSelector userId={userId} postInfo={postInfo} callback={channelSelectorCallback}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>
@@ -12306,12 +12362,12 @@ const getPostsScheduledPosts = async() => {
                     dateFormat="MMMM d, yyyy h:mm aa"
                   />
                 </div>
-
+                {/*}
                 {(videoSrc && selectedSocialPage) &&
                   <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText}</button>
-                }
+                }*/}
                 {(videoSrc &&selectedSocialPages.length>0) &&
-                  <button style={{marginLeft:'10px'}} disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText} Multiple</button>
+                  <button style={{marginLeft:'10px'}} disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
                 }
 
               {/*}  <button className="btn primary" onClick={getPostsScheduledPosts}>Get Posts</button>*/}

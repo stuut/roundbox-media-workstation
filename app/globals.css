@@ -56,8 +56,107 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 }
 
+.scheduled_badge{
+  background: var(--md-sys-color-tertiary-container);
+  padding: 5px 5px 5px 15px;
+  border-radius: 25px;
+  margin: 15px 0px;
+  color: var(--md-sys-color-on-tertiary);
+  display: flex;
+  align-items: center;
+}
+
+.scheduled_badge svg{
+  margin-left: auto
+}
+
+
+.col-2,
+.col-3{
+  display:flex;
+  flex-direction: row;
+
+}
+
+.col-3 > div{
+  flex:1;
+  width: 30%;
+}
+
+
+.col-2 > div{
+  flex:1;
+  width: 48%;
+}
+
+.column-gap-3{
+  column-gap: 3%;
+}
+.column-gap-2{
+  column-gap: 4%;
+}
+
+.video-container {
+  width: 100%; /* Ensures the container takes the full width of its parent */
+  //aspect-ratio: 16 / 9; /* Sets the aspect ratio to 16:9 */
+}
+
+.video {
+  width: 100%; /* Ensures the video fills the container's width */
+  height: 100%; /* Ensures the video fills the container's height */
+border-radius: var(--btn-border-radius);
+}
+
+
 .fc-daygrid-dot-event.fc-event-mirror, .fc-daygrid-dot-event:hover {
     background: transparent;
+}
+
+.facebook-preview-url{
+  padding: 0;
+  color: #606770;
+    font-size: 12px;
+    line-height: 11px;
+    text-transform: uppercase;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.facebook-preview-title{
+  font-weight: 600;
+    overflow: hidden;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 20px;
+    margin: 3px 0 0;
+    padding-top: 2px;
+    letter-spacing: normal;
+    max-height: 110px;
+word-wrap: break-word;
+-webkit-box-orient: vertical;
+    display: -webkit-box;
+    text-overflow: ellipsis;
+    white-space: normal;
+        width: 100%;
+        text-decoration: none;
+}
+
+.facebook-preview-description{
+margin-top: 3px;
+color: #606770;
+    font-size: 14px;
+    line-height: 20px;
+    word-break: break-word;
+    font-family: Helvetica, Arial, sans-serif;
+    max-height: 80px;
+    overflow: hidden;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    display: -webkit-box;
+    text-overflow: ellipsis;
+    white-space: normal;
+    width: 100%;
 }
 
 .loader_screen{

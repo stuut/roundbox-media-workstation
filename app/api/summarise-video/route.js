@@ -34,7 +34,7 @@ export async function POST(req) {
 
     const prompt = `
       Create an engaging video reel post caption (1–3 short paragraphs) for either Instagram or facebook from the following article text.
-      Keep it conversational and visually appealing with emojis and short sentences.
+      Keep it conversational, informative and visually appealing with emojis and short sentences.
 
       Text:
       """${text}"""

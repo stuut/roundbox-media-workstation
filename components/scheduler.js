@@ -15,13 +15,19 @@ import interactionPlugin, { Draggable } from '@fullcalendar/interaction'
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import { getAllPosts } from '@/lib/supabase';
+import { savePost } from "@/lib/supabase";
+import { savePostFile } from "@/lib/supabase";
+import { deletePost } from "@/lib/supabase";
+import { savePostPublications } from "@/lib/supabase";
 const removeMd = require('remove-markdown');
 import { ChannelSelector } from '@/components/channel-selector';
 import { getAllPostsSocialFilter } from '@/lib/supabase';
+import { updatePostPublication } from '@/lib/supabase';
 import {
-  X
+  X,
+  ExternalLink,
+  CircleCheck
 } from 'lucide-react';
-
 const FEEDS = [
   {
     label: 'Hilltops Phoenix',
@@ -86,6 +92,24 @@ const FEEDS = [
   },
 ]
 
+
+const capitilise = (str) => {
+  return `${str[0].toUpperCase()}${str.slice(1)}`;
+}
+
+const timeTravel = (date) => {
+
+  var scheduled = moment(date).add(30, 'm').toDate()
+  var now = new Date();
+
+  if(moment(date).diff(moment(now), "minutes") < 30){
+    return true
+  }else{
+    return false
+  }
+
+}
+
 let eventGuid = 0
 let todayStr = new Date().toISOString().replace(/T.*$/, '') // YYYY-MM-DD of today
 
@@ -136,12 +160,19 @@ export const Scheduler = ({user})=>{
   const channelSelectorCallback = (pages) => {
     setSelectedSocialPages(pages)
     getPostsFilter(pages)
+
+
+
+
   }
 
   const getPostsFilter = async (pages) => {
     if (pages.length === 0) return
     const platformIds = pages.map((page)=> page.id)
     const socialFilterData = await getAllPostsSocialFilter(platformIds)
+
+    const testFilter = socialFilterData.filter((filter)=>filter.post.title === "Short Course To Empower Young Women ")
+
     updateCalendarEvents(socialFilterData)
 
   }
@@ -158,30 +189,37 @@ const updateCalendarEvents = (data) => {
       setCalendarEvents([])
   }else{
 
-
-
     const calendarEvents = data.map((post)=>{
 
-      console.log('post', post.post)
+      let media = post?.post?.post_files
+
+      if (media?.length === 0){
+        media = post?.post?.meta_data.data.media
+      }
 
       return {
+        id: post.id,
         start: post.scheduled_at,
         end: post.scheduled_at,
         allDay: false,
         title: post?.post?.title,
         caption: post?.post?.caption,
-        id:post?.post?.id,
         scheduleDate: post?.scheduled_at,
         publishDate: post?.post?.meta_data?.data?.publishedDate??null,
         link: post?.post?.meta_data?.data?.link??null,
         slug: post?.post?.meta_data?.data?.slug??null,
+        base_url: post?.post?.meta_data?.data?.base_url??null,
         status: post.status??'',
         type:post?.post?.type??'',
-        media:post?.post?.post_files??null,
-        error: post?.last_error??''
+        media: media??null,
+        error: post?.last_error??'',
+        metaData: {...post?.post?.meta_data, ...post.meta_data, ...post.platform_account.meta_data},
+        platform_account:post?.platform_account,
+        post_publication_id:post.id,
 
       }
     })
+
 
   //  handleEvents(calendarEvents)
      setCalendarEvents(calendarEvents)
@@ -191,14 +229,37 @@ const updateCalendarEvents = (data) => {
 
 }
 
+const hasRun = useRef(false);
 
   useEffect(() => {
-    getPostsInit()
+    if (!hasRun.current) {
+        getPostsInit()
+        hasRun.current = true; // Mark as run to prevent double execution in dev
 
+    }
   },[])
 
   const handleEventReceive = (data) => {
-    console.log('handleEventRecieve', data)
+    console.log('handleEventRecieve', data.event._def.extendedProps.scheduleDate)
+
+    var scheduled = data.event.start
+
+    var now = new Date();
+
+    if(scheduled.getTime() < now.getTime()){
+      showError("No Time travel")
+      return
+    }
+
+
+    data.event.mutate({
+      extendedProps: {
+        scheduleDate: scheduled
+      },
+    })
+
+    console.log('data after', data.event._def.extendedProps.scheduleDate)
+
     setPostData(data.event)
 
   }
@@ -226,6 +287,8 @@ const updateCalendarEvents = (data) => {
   }
 
 
+
+
   function renderEventContent(eventInfo) {
 
 
@@ -248,17 +311,72 @@ const updateCalendarEvents = (data) => {
     )
   }
 
+  const deletePostCallback = async(postData) =>{
+
+
+
+    await deletePost([postData._def.extendedProps.post_publication_id])
+
+    //const isFacebook = postData?._def?.extendedProps?.platform_account?.platform
+
+
+    const isFacebook = postData?._def?.extendedProps?.platform_account?.platform
+    const postType = postData._def.extendedProps.type
+
+
+
+
+    if (postData._def.extendedProps.status === 'published' && isFacebook){
+      const accessToken = postData._def.extendedProps.platform_account.access_token
+
+      let id
+      if (postType === 'video_reels'){
+        id = postData?._def.extendedProps?.metaData?.video_id
+      }else if (postType === 'text' || postType === 'link' || postType === 'photos') {
+        id = postData?._def.extendedProps?.metaData?.post_id
+      }
+
+
+    const facebookDeleteResponse = await fetch(`https://graph.facebook.com/v24.0/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({access_token:accessToken}),
+      })
+
+      if (!facebookDeleteResponse.ok) {
+        //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
+        showError(`Error deleting post: ${facebookDeleteResponse.status}`)
+      }
+    }
+
+
+    setCalendarEvents(prev => prev.filter((post)=> post.id !== postData.id))
+
+    showSuccess('Post Deleted')
+  }
+
 
   return(
     <div style={{display:'flex', height: '100%'}}>
       {postData&&
-        <Share postData={postData} userId={user.id} close={setPostData}/>
+        <Share
+        postData={postData}
+        userId={user.id}
+        close={setPostData}
+        deletePostCallBack={deletePostCallback}
+      />
 
       }
       <div style={{flex:1, padding:'20px'}}>
         <div style={{position:'relative', zIndex:100, marginBottom:'10px'}}>
           <p className='label'>Channel Filter</p>
-          <ChannelSelector userId={user.id} callback={channelSelectorCallback}/>
+          <ChannelSelector
+            userId={user.id}
+
+          callback={channelSelectorCallback}
+        />
         </div>
 
         {/*}
@@ -297,6 +415,9 @@ const updateCalendarEvents = (data) => {
           selectable={true}
           selectMirror={true}
           dayMaxEvents={true}
+          nowIndicator={true}
+          expandRows={true}
+          slotEventOverlap={true}
           //initialEvents={INITIAL_EVENTS} // alternatively, use the `events` setting to fetch from a feed
           select={handleEventClick}
           eventContent={renderEventContent} // custom render function
@@ -418,9 +539,15 @@ const FeedsPanel = ({
               status: 'unpublished',
               caption: removeMd(item.fields[selectedFeed.text]),
               publishedDate: item.fields[selectedFeed.publishedDate],
-              type:'post',
+              type:'link',
+              platform_account:{
+                external_account_id:selectedFeed.facebook_page_id
+              },
+              usePreview: false
             }
         })
+
+        console.log('posts', posts)
 
 
         setPosts(posts)
@@ -463,7 +590,11 @@ const FeedsPanel = ({
               status: 'unpublished',
               caption: decodeCaptionEntities(item.content.rendered),
               publishedDate: item.date,
-              type:'post',
+              type:'link',
+              platform_account:{
+                external_account_id:selectedFeed.facebook_page_id
+              },
+              usePreview: true
             }
         })
         setPosts(posts)
@@ -554,12 +685,12 @@ return (
 const Share = ({
   postData,
   userId,
+  deletePostCallBack,
   close
 }) => {
 
-  console.log('postData', postData)
-
   const [scheduleDate, setScheduleDate] = useState(postData.start)
+//const [scheduleDate, setScheduleDate] = useState(postData?._def.extendedProps.scheduleDate)
   const [selectedSocialPage, setSelectedSocialPage] = useState(null)
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
@@ -570,28 +701,510 @@ const Share = ({
   const [loader, setLoader] = useState(false)
   const [videoLoader, setVideoLoader] = useState(false)
   const [scheduled, setScheduled] = useState(false)
-  const [path, setPath]= useState('video_reels')
+  const [postType, setPostType] = useState(postData?._def.extendedProps.type)
+  const [status, setStatus] = useState(postData?._def.extendedProps?.status)
+
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
   const [summary, setSummary]= useState(null)
+  const [channelPreviews, setChannelPreviews]= useState([])
+  const [selectedChannelPreview, setSelectedChannelPreview]= useState('facebook')
+
+
+const type = postData._def.extendedProps.type
+
+const onChannelPreviewChange = (channel) => {
+  setSelectedChannelPreview(channel)
+}
+
+  const handlePostTypeChange = (event) => {
+    setPostType(event.target.value)
+  };
+
+  useEffect(()=>{
+
+    if (postData?._def.extendedProps.type){
+
+      setPostType(postData?._def.extendedProps.type)
+    }
+
+  },[postData])
+
+  const handlePostStateChange = (event) => {
+    setPostState(event.target.value);
+    if (event.target.value === 'SCHEDULED'){
+      setButtonText('Schedule')
+    }else if (event.target.value === 'PUBLISHED'){
+      setButtonText('Publish Now')
+    }else{
+      setButtonText('Save Draft')
+    }
+  };
+
+  const summarise = async() => {
+    setLoader(true)
+
+        try {
+          //const text = postData._def.extendedProps.caption
+
+          const response = await fetch('/api/summarise-video', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ text : postData?.data.caption}),
+          });
+
+          const data = await response.json();
+          setSummary(data.post);
+
+        } catch(error) {
+          // Consider implementing your own error handling logic here
+          setLoader(false)
+          return showError(error.message);
+        }
+        finally {
+          setLoader(false)
+        }
+
+  }
+
+  const channelSelectorCallback = (pages) => {
+    setSelectedSocialPages(pages)
+
+    // get unique vales
+
+    const uniqueChannels = [...new Set(pages.map(item => item.platform))];
+
+    console.log('uniqueIds', uniqueChannels)
+    setChannelPreviews(uniqueChannels)
+
+
+  }
+
+  const scheduleMultiple = async(status) => {
+
+        if (timeTravel(scheduleDate)){
+          showError('No Time Travel')
+          return
+        }
+
+
+
+       setLoader(true)
+
+        try{
+             //const uploadedMedia = await uploadFile(videoBlobRef.current)
+             //const videoId = uploadedVideo.id
+             const savedPost = await savePost({
+               user_id:userId,
+               caption:caption,
+               title:postData.title,
+               type:postType,
+               meta_data:{
+                 event_id:postData.id,
+                 data:postData._def.extendedProps
+               }
+             })
+
+             if (postType === 'photos' || postType === 'videos' || postType === 'photo_stories' ||  postType === 'video_reels'){
+               const savedPostFile = await savePostFile({
+                 post_id:savedPost.id,
+                 file_id:media.id,
+                 usage_type:postType
+               })
+             }
+
+             const scheduledAtUTC = new Date(scheduleDate).toISOString()
+
+
+             const publications = selectedSocialPages.map((acc) => ({
+               post_id: savedPost.id,
+               platform_id: acc.id,
+               scheduled_at: scheduledAtUTC,
+               platform:acc.platform,
+               status: status
+             }))
+
+             const savedPostPublications = await savePostPublications(publications)
+
+             const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
+
+             for (const publication of savedPostPublicationsFacebook) {
+               const channel = socialPages.find((social)=> social.id === publication.platform_id)
+
+               if (postType === 'video_reels'){
+                 await scheduleFacebookReel(
+                   channel.external_account_id,
+                   channel.access_token,
+                   uploadedVideo.file_url,
+                   publication
+                 )
+               }else{
+
+                 await FacebookPublish(
+                   channel.external_account_id,
+                   channel.access_token,
+                   publication,
+                   status = 'scheduled'
+                 )
+               }
+
+             }
+
+        }catch(error){
+          console.log('error', error)
+          showError(error)
+          setLoader(false)
+        }
+
+     setLoader(false)
+  }
+
+  const getFacebookPostEndpoint = (postType) => {
+
+
+    switch (postType) {
+      case 'text':
+      case 'link':
+      case 'carousel':
+        return 'feed'
+        break;
+      case 'photos':
+        return 'photos'
+        break;
+      case 'video':
+        return 'videos'
+        break;
+      case 'photo_stories':
+        return 'photo_stories'
+        break;
+      case 'video_reels':
+        return 'video_reels'
+        break;
+      default:
+        return null
+    }
+
+}
+
+const getFacebookPostData = (postType) => {
+  switch (postType) {
+    case 'text':
+      return {
+        message: caption,
+      }
+
+    case 'link':
+    case 'carousel':
+      return {
+        message: caption,
+        link: postLink,
+      }
+
+    case 'photos':
+      return {
+        message: caption,
+        published: publish,
+        url: media[0].file_url,
+      }
+
+    case 'video':
+      return {
+        description: caption,
+        published: publish,
+        file_url: videoUrlState,
+      }
+
+    case 'photo_stories':
+      return {
+        link: postLinkState,
+        published: published,
+        photo_id: media[0].file_url,
+      }
+
+    case 'video_reels':
+      return {
+        video_id: videoId,
+        upload_phase: 'finish',
+        video_state: postState,
+        description:
+          caption +
+          '\n\n' +
+          `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
+        title: postInfo.data.title,
+        scheduled_publish_time: scheduledPublishTime
+      }
+
+    default:
+      return null
+  }
+}
+
+  const FacebookPublish = async (
+    pageId,
+    accessToken,
+    publication,
+    schedule = true
+  ) => {
+
+    if (timeTravel(scheduleDate)){
+      showError('No Time Travel')
+      setLoader(false)
+      return
+    }
+
+    const scheduledPublishTime = (moment(scheduleDate).unix())
+    const endPoint = getFacebookPostEndpoint(postType)
+    const data = getFacebookPostData(postType)
+
+
+    if (!endPoint || !data){
+      showError('no end point or data')
+      return
+    }
+
+    if (schedule){
+      data.scheduled_publish_time = scheduledPublishTime
+      data.published = false
+
+    }else{
+      data.published = true
+    }
+
+    data.access_token = accessToken
+
+
+    try{
+
+      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${endPoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        })
+
+    if (!facebookResponse.ok) {
+      //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
+      setLoader(false)
+      showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+    }
+
+    showSuccess('Post Scheduled')
+
+    const postResponseJson = await facebookResponse.json();
+    const postId = postResponseJson.id
+
+    await addFacebookComment(
+      postId,
+      postLink,
+      accessToken
+    );
+
+      showSuccess('Comment Added')
+      setScheduled(true)
+      //postScheduled(postInfo)
+
+      // update database
+      const updateData = {
+        status: "published",
+        meta_data:{
+          post_id:postId,
+          ...postResponseJson
+        },
+        published_at: new Date().toISOString()
+      }
+
+      await updatePostPublication(publication.id, updateData)
+
+    }catch(error){
+      showError(`Facebook error: ${error}`)
+      setLoader(false)
+    }
+  }
+
+  const scheduleFacebookReel = async (
+    pageId,
+    accessToken,
+    video_url,
+    publication
+  ) => {
+
+    if (timeTravel(scheduleDate)){
+      showError('No Time Travel')
+      setLoader(false)
+      return
+    }
+
+    const video = videoBlobRef.current
+
+    const formData = new FormData();
+    formData.append('fileUrl', video_url);
+    //formData.append('videoBlob', video);
+    formData.append('accessToken', accessToken);
+    formData.append('socialId', pageId);
+
+      const response = await fetch('/api/uploadFacebookReel', {
+        method: 'POST',
+        body: formData,
+      });
+      // Ensure the response is successful
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`);
+      }
+
+      const uploadedVideo = await response.json();
+
+      if (!uploadedVideo) return
+
+      const videoId = uploadedVideo.videoId;
+
+    // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
+    const scheduledPublishTime = (moment(scheduleDate).unix())
+
+    try{
+
+      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${path}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            video_id: videoId,
+            upload_phase : 'finish',
+            video_state : postState,
+            description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
+            title :postInfo.data.title,
+            scheduled_publish_time: scheduledPublishTime,
+            access_token: accessToken
+          }),
+        })
+
+    if (!facebookResponse.ok) {
+      //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
+      setLoader(false)
+      showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+    }
+
+    showSuccess('Post Scheduled')
+
+    const videoData = await facebookResponse.json();
+    const postId = postResponseJson.post_id
+
+    await addFacebookComment(
+      videoId,
+      postLink,
+      selectedSocialPage.access_token
+    );
+
+      showSuccess('Comment Added')
+      setScheduled(true)
+      postScheduled(postInfo)
+
+      // update database
+      const updateData = {
+        status: "published",
+        meta_data:{
+          video_id:videoId,
+          ...videoData
+        },
+        published_at: new Date().toISOString()
+      }
+
+      await updatePostPublication(publication.id, updateData)
+
+    }catch(error){
+      showError(`Facebook error: ${error}`)
+       setLoader(false)
+    }
+
+  }
+
+
+  async function addFacebookComment(postId, postLink, accessToken, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const commentResponse = await fetch(
+          `https://graph.facebook.com/${postId}/comments`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: 'Check out the full details here: ' + postLink,
+              access_token: accessToken,
+            }),
+          }
+        );
+
+        if (!commentResponse.ok) {
+          throw new Error(
+            `Adding comments failed with status: ${commentResponse.status}`
+          );
+        }
+
+        return await commentResponse.json();
+      } catch (error) {
+        if (attempt === retries) {
+          throw error;
+        }
+
+        // wait 1 second before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  const deletePostDatabase = async() =>{
+      console.log('deletePostDatabase', postData)
+      await deletePostCallBack(postData)
+      close(null)
+  }
+
+  const lookUpPost = async() => {
+
+    //1509386042722586_1426677366146182
+    const accessToken = postData._def.extendedProps.platform_account.access_token
+    const id = postData?._def.extendedProps?.metaData?.post_id
+
+    const facebookesponse = await fetch(`https://graph.facebook.com/v24.0/${id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fields:'message,created_time,shares',
+          access_token:accessToken
+        }),
+      })
+  }
 
   return(
     <>
       <div className={'loader_screen'} style={{zIndex:1000}} onClick={() => close(null)}></div>
-      <div className='share-dialog dropshadow' style={{padding:'40px 15px 15px 15px', zIndex:1001}}>
+      <div className='share-dialog dropshadow' style={{zIndex:1001}}>
         <X
           onClick={() => close(null)}
           className="close-icon"
           style={{
             cursor: "pointer",
-            right: "5px",
+            right: "20px",
             position: "absolute",
             top: "5px",
+            zIndex: '10'
           }}
         />
+        <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+            <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+        </div>
+          <div className='col-2' style={{height:'100%'}}>
+            <div className='col' style={{position:'relative', overflowY: 'scroll', padding: '15px', flex:1}}>
 
-          <div className='col-2 column-gap-2' style={{height:'100%'}}>
-            <div>
+              <h2>Share To Social Media</h2>
+              <hr/>
+
               {postData._def.extendedProps.error&&
                 <div style={{
                   background: 'var(--md-sys-color-error)',
@@ -602,23 +1215,358 @@ const Share = ({
                   {postData._def.extendedProps.error}
                 </div>
               }
+              {status&&
+                <div className="scheduled_badge">
+                  <strong>{capitilise(status)}</strong>
+                  <CircleCheck />
+                </div>
+              }
 
-              <DatePicker
-                style={{minWidth:'300px'}}
-                minDate={moment().toDate()}
-                minTime={calculateMinTime(scheduleDate)}
-                maxTime={moment().endOf('day').toDate()}
-                selected={scheduleDate}
-                onChange={(date) => setScheduleDate(date)}
-                showTimeSelect
-                className={'form-input'}
-                dateFormat="MMMM d, yyyy h:mm aa"
+
+              <ChannelSelector
+                userId={userId}
+                postInfo={postData}
+                setSocialPagesParent={setSocialPages}
+                callback={channelSelectorCallback}
               />
+            
+
+
+
+
+              <h4>{postData.title}</h4>
+
+              <div className="properties-container" style={{margin:'15px 0px'}}>
+                <p className='label'>Post Type</p>
+                <input
+                  style={{marginRight:'5px'}}
+                  type="radio"
+                  value="text"
+                  checked={postType === 'text'}
+                  onChange={handlePostTypeChange}
+                /><span style={{fontSize:'.9em'}}>Text</span>
+                <input
+                  style={{marginLeft:'10px', marginRight:'5px'}}
+                  type="radio"
+                  value="video_reels"
+                  checked={postType === 'video_reels'}
+                  onChange={handlePostTypeChange}
+                /><span style={{fontSize:'.9em'}}>Reel</span>
+                <input
+                  style={{marginLeft:'10px', marginRight:'5px'}}
+                  type="radio"
+                  value="link"
+                  checked={postType === 'link'}
+                  onChange={handlePostTypeChange}
+                /><span style={{fontSize:'.9em'}}>Link</span>
+                <input
+                  style={{marginLeft:'10px', marginRight:'5px'}}
+                  type="radio"
+                  value="photos"
+                  checked={postType === 'photos'}
+                  onChange={handlePostTypeChange}
+                /><span style={{fontSize:'.9em'}}>Photos</span>
+              </div>
+            {postData&&
+              <>
+                <p className='label'>Post Link</p>
+                <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
+                  <input
+                    id="post-link-share"
+                    style={{border:0, margin: '1px'}}
+                    value={postLink}
+                    onChange={(e) => setPostLink(e.target.value)}
+                    className={'form-input'}
+                  />
+                  <a href={postLink} target="new-window" style={{height: '24px'}}>
+                    <ExternalLink/>
+                  </a>
+                </div>
+              </>
+            }
+              <p className='label'>Post Caption</p>
+              <textarea
+                style={{minHeight:200}}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                className={'form-input'}
+                cols={8}
+              />
+              <button className="btn secondary btn-sm" onClick={summarise}>Summarise</button>
+              {summary &&
+                <textarea
+                  style={{minHeight:200}}
+                  onChange={(e) => setSummary(e.target.value)}
+                  value={summary}
+                  className={'form-input'}
+                  cols={8}
+                />
+              }
+              <div className="properties-container" style={{margin:'15px 0px'}}>
+                <p className='label'>Schedule Date & Time</p>
+                <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
+                  <div>
+                    <input
+                      style={{marginRight:'5px'}}
+                      type="radio"
+                      value="SCHEDULED"
+                      checked={postState === 'SCHEDULED'}
+                      onChange={handlePostStateChange}
+                      disabled={status === 'published'}
+                    /><strong style={{fontSize:'.9em'}}>Schedule</strong>
+                  </div>
+                  <div>
+                    <input
+                      style={{marginRight:'5px'}}
+                      type="radio"
+                      value="PUBLISHED"
+                      checked={postState === 'PUBLISHED'}
+                      onChange={handlePostStateChange}
+                      disabled={status === 'published'}
+                    /><strong style={{fontSize:'.9em'}}>Publish Now</strong>
+                  </div>
+                  <div style={{marginLeft: 'auto'}}>
+                    <input
+                      style={{marginRight:'5px'}}
+                      type="radio"
+                      value="DRAFT"
+                      checked={postState === 'DRAFT'}
+                      onChange={handlePostStateChange}
+                      disabled={status === 'published'}
+                    /><span style={{fontSize:'.9em'}}>Set as draft</span>
+                  </div>
+                </div>
+                <DatePicker
+                  style={{minWidth:'300px'}}
+                  minDate={moment().toDate()}
+                  minTime={calculateMinTime(scheduleDate)}
+                  maxTime={moment().endOf('day').toDate()}
+                  selected={scheduleDate}
+                  onChange={(date) => setScheduleDate(date)}
+                  showTimeSelect
+                  className={'form-input'}
+                  dateFormat="MMMM d, yyyy h:mm aa"
+                />
+              </div>
+              {(selectedSocialPages.length>0) &&
+                <button style={{marginLeft:'10px'}} disabled={status === 'published'} className="btn primary" onClick={() => scheduleMultiple('scheduled')}>{buttonText}</button>
+              }
+
+              {postData._def.extendedProps.post_publication_id &&
+                <button style={{marginLeft:'10px'}} className="btn danger" onClick={deletePostDatabase}>Delete Post</button>
+            }
+            {/*}<button onClick={lookUpPost}>Look Up Post</button>*/}
+
             </div>
-            <div>
+            <div className='col' style={{
+              flex:1,
+              position: 'relative',
+              overflowY: 'scroll',
+              padding: '30px 15px 10px 15px',
+              backgroundColor: 'var(--md-sys-color-surface-container)'
+            }}>
+              <select id="channel-select" className="form-input select" onChange={(e) => onChannelPreviewChange(e.target.value)} value={selectedChannelPreview}>
+                {channelPreviews.map((channel, index)=>{
+                  return <option key={index} value={channel}>{channel}</option>
+                })
+                }
+              </select>
+
+              {(type === 'link' &&  postLink && selectedChannelPreview === 'facebook') &&
+                <FacebookLinkPreview url={postLink} postData={postData} caption={caption}/>
+              }
+              {(type === 'video_reels' && postData?._def?.extendedProps?.media[0]?.file_id?.file_type === "video/mp4") &&
+                <div className="video-container">
+                  <video
+                    src={postData?._def?.extendedProps?.media[0]?.file_id.file_url}
+                    controls // Adds play, pause, etc. controls
+                    className='video'
+                    // poster="thumbnail.jpg" // Optional: specify a placeholder image
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              }
+
             </div>
         </div>
       </div>
     </>
   )
 }
+
+const FacebookLinkPreview = ({
+  url,
+  postData,
+  caption,
+}) => {
+  const [openGraph, setOpenGraph] = useState(null)
+  const [openGraphError, setOpenGraphError] = useState(null)
+  const hasRun = useRef(false);
+
+const getOpenGraph = async () => {
+  try {
+
+    const response = await fetch('/api/open-graph', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url : url}),
+    });
+
+    if (!response.ok) {
+      if (response.status === 500) {
+
+        return showError(response.status);
+      }
+      return showError(response.status);
+    }
+
+    const data = await response.json();
+
+    const isEmpty = Object.keys(data).length === 0;
+
+    if (isEmpty) return
+
+    const openGraphData = {
+      ogTitle: data.result.ogTitle,
+      ogType: data.result.ogType,
+      ogUrl: data.result.ogUrl,
+      ogDescription: data.result.ogDescription,
+      ogImage: data.result.ogImage[0].url
+    }
+
+    setOpenGraph(openGraphData)
+
+  } catch(error) {
+    // Consider implementing your own error handling logic here
+    setOpenGraph(null)
+
+    return showError(error.message);
+  }
+  finally {
+    //setLoader(false)
+  }
+}
+
+const noPreview = () => {
+
+  setOpenGraph({
+    ogTitle: postData?._def?.extendedProps?.title??null,
+    ogUrl: postData?._def?.extendedProps?.link??null,
+    ogDescription: postData?._def?.extendedProps?.caption??null,
+    ogImage: postData?._def.extendedProps?.media[0]?.file_url??null
+  })
+}
+
+
+
+
+useEffect(()=>{
+  if (!hasRun.current && postData._def.extendedProps.usePreview) {
+    getOpenGraph()
+    hasRun.current = true; // Mark as run to prevent double execution in dev
+  }else{
+    noPreview()
+  }
+},[])
+
+
+
+
+
+return(
+  <div style={{marginTop:'25px'}}>
+    <div
+      style={{
+        background:'#ffffff',
+        borderTopLeftRadius: '8px',
+        borderTopRightRadius: '8px',
+        padding:'10px'
+      }}
+    >
+      <ReadMore maxCharacterCount={50}>
+          {caption}
+      </ReadMore>
+    </div>
+      <div style={{background:'#ffffff', borderRadius:'8px'}}>
+        {(openGraph?.ogImage)?(
+              <div className={`${'post-preview '}`} style={{paddingTop:'52.3%',
+                backgroundImage: `url(${openGraph.ogImage})`,
+                backgroundPosition: 'center',
+                backgroundSize: 'cover',
+                backgroundRepeat: 'no-repeat'
+                }}>
+              </div>
+          ):(
+            <div className={`${'post-preview '}`} style={{paddingTop:'52.3%'}}>
+            no OG Image
+            </div>
+          )
+        }
+        <div style={{
+          padding: '10px 12px',
+          border: '0.5px solid #e3e3e3',
+          borderBottomLeftRadius: '8px',
+          borderBottomRightRadius: '8px'
+        }}>
+          <div className="facebook-preview-url">
+          {openGraph?.ogUrl?(
+            openGraph.ogUrl
+          ):(
+            `No Url`
+          )
+
+          }
+          </div>
+          <div className="facebook-preview-title">
+            {openGraph?.title? openGraph.title : postData.title}
+          </div>
+          {/*}
+          <div className="facebook-preview-description">
+            {openGraph?.description? openGraph.description: postData._def.extendedProps.description }
+          </div>
+          */}
+        </div>
+    </div>
+
+  </div>
+)
+}
+
+
+const ReadMore = ({ children, maxCharacterCount = 100 }) => {
+  const text = children;
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // If text is shorter than the limit, just show it all
+  if (text.length <= maxCharacterCount) {
+    return <p>{text}</p>;
+  }
+
+  return (
+    <p style={{
+      fontSize: '.9375rem',
+      fontWeight: '400',
+      whiteSpace: 'pre-wrap',
+      margin: '5px 0px 5px 0px',
+      overflowWrap: 'breakWord',
+    }}>
+      {isExpanded ? text : `${text.substring(0, maxCharacterCount)}...`}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          fontSize: '.9375rem',
+          cursor: 'pointer',
+          border: 'none',
+          background: 'none',
+          marginLeft: '5px',
+          fontWeight: '600',
+        }}
+      >
+        {isExpanded ? 'Show Less' : 'Read More'}
+      </button>
+    </p>
+  );
+};
