@@ -23,10 +23,22 @@ const removeMd = require('remove-markdown');
 import { ChannelSelector } from '@/components/channel-selector';
 import { getAllPostsSocialFilter } from '@/lib/supabase';
 import { updatePostPublication } from '@/lib/supabase';
+import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
+import { Carousel } from 'react-responsive-carousel';
+import { ReactSortable } from "react-sortablejs";
+import { useFilesContext } from "@/context/files-context"
+import { useEditItemContext } from "@/context/edit-item-context"
+import Switch from '@mui/material/Switch';
+import { Summary } from '@/components/summary'
+
 import {
   X,
   ExternalLink,
-  CircleCheck
+  CircleCheck,
+  GripVertical,
+  SquarePen,
+  Trash2,
+  Crop
 } from 'lucide-react';
 const FEEDS = [
   {
@@ -93,6 +105,67 @@ const FEEDS = [
 ]
 
 
+
+async function getImageType(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    const contentType = response.headers.get('Content-Type');
+    console.log('File Type:', contentType); // e.g., "image/png"
+    return contentType;
+  } catch (error) {
+    console.error('Error fetching image type:', error);
+  }
+}
+
+export const checkRatio = (w, h) => {
+
+  function roundLikePHP(num, dec){
+    var num_sign = num >= 0 ? 1 : -1;
+    return parseFloat((Math.round((num * Math.pow(10, dec)) + (num_sign * 0.0001)) / Math.pow(10, dec)).toFixed(dec));
+  }
+
+
+  let round =  w / h
+
+  let ratio = roundLikePHP(round, 2);
+
+
+      if (ratio === 1)
+        return false;
+
+    // Portrait: min 0.8 | max 0.99
+    // Landscape: min 1.01 | max 1.91
+    if (w < h)
+        if (ratio >= 0.8 && ratio <= 0.99)
+            return false;
+
+    if (w > h)
+        if (ratio >= 1.01 && ratio <= 1.91)
+            return false;
+
+    return true;
+}
+
+
+const checkImageSize = async (imageUrl) => {
+    const img = new Image();
+    img.src = imageUrl;
+
+    let imageLoadPromise = new Promise((resolve, reject) => {
+      img.onload = () => {
+        let checkRatioVal = checkRatio(img.width, img.height)
+        resolve(checkRatioVal)
+      };
+
+    })
+
+  let imageStatus = await imageLoadPromise
+
+  return imageStatus
+
+};
+
+
 const capitilise = (str) => {
   return `${str[0].toUpperCase()}${str.slice(1)}`;
 }
@@ -139,6 +212,89 @@ const calculateMinTime = date => {
   return moment().startOf('day').toDate();
 }
 
+const decodeEntities = (str) => {
+// this prevents any overhead from creating the object each timesocialId
+  var element = document.createElement('div');
+
+  function decodeHTMLEntities (str) {
+    if(str && typeof str === 'string') {
+
+      str = str.replace(/(.*[\s+\"\']wp-caption-text[\s+\"\'].*)/g, '');
+      // strip script/html tags
+      str = str.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, '');
+      str = str.replace(/<\/?\w(?:[^"'>]|"[^"]*"|'[^']*')*>/gmi, '');
+
+      str = str.replace("&#8230;", "...");
+      str = str.replace("&#8217;", "'");
+      str = str.replace('&nbsp;', '\n');
+      str = str.replaceAll("\\s+","");
+      str = str.replace("\u00A0","");
+      str = str.replace('&#8211;', '');
+
+      str = str.split('\n').join('\n\n');
+      str = str.trim();
+
+      element.innerHTML = str;
+      str = element.textContent;
+      element.textContent = '';
+    }
+
+    return str;
+  }
+
+  return decodeHTMLEntities(str);
+}
+
+const decodeCaptionEntities = (str) => {
+// this prevents any overhead from creating the object each timesocialId
+  var element = document.createElement('div');
+
+  function decodeHTMLEntities (str) {
+    if(str && typeof str === 'string') {
+
+      let captions = str.match(/(.*[\s+\"\']wp-caption-text[\s+\"\'].*)/g, '');
+
+      str = str.replace(/(.*[\s+\"\']wp-caption-text[\s+\"\'].*)/g, '');
+      // strip script/html tags
+      str = str.replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, '');
+      str = str.replace(/<\/?\w(?:[^"'>]|"[^"]*"|'[^']*')*>/gmi, '');
+
+
+
+      if (captions !== null){
+        for (let i = 0; i < captions.length; i++) {
+          captions[i] = captions[i].replace(/<script[^>]*>([\S\s]*?)<\/script>/gmi, '');
+          captions[i] = captions[i].replace(/<\/?\w(?:[^"'>]|"[^"]*"|'[^']*')*>/gmi, '');
+          if (captions.length > 1){
+            str = str+ '\n' + 'IMAGE '+(i+1)+': ' + captions[i]
+          }else{
+            str = str+ '\n' + 'IMAGE: ' + captions[i]
+          }
+
+        }
+      }
+
+      str = str.replace("&#8230;", "...");
+      str = str.replace("&#8217;", "'");
+      str = str.replace('&nbsp;', '\n');
+      str = str.replaceAll("\\s+","");
+      str = str.replace("\u00A0","");
+      str = str.replace('&#8211;', '');
+
+      str = str.split('\n').join('\n\n');
+      str = str.trim();
+
+      element.innerHTML = str;
+      str = element.textContent;
+      element.textContent = '';
+    }
+
+    return str;
+  }
+
+  return decodeHTMLEntities(str);
+}
+
 export const Scheduler = ({user})=>{
   const [selectedFeed, setSelectedFeed] = useState(FEEDS[0])
   const [calendarEvents, setCalendarEvents] = useState([])
@@ -148,6 +304,7 @@ export const Scheduler = ({user})=>{
   const cal = useRef();
   const [postData, setPostData] = useState(null)
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
+
 
 
 
@@ -191,7 +348,14 @@ const updateCalendarEvents = (data) => {
 
     const calendarEvents = data.map((post)=>{
 
-      let media = post?.post?.post_files
+      const media = post?.post?.post_files.map((media)=>{
+        return {
+          source: 'internal',
+          ...media.file_id
+        }
+      })
+
+      console.log('media', media)
 
       if (media?.length === 0){
         media = post?.post?.meta_data.data.media
@@ -370,7 +534,7 @@ const hasRun = useRef(false);
 
       }
       <div style={{flex:1, padding:'20px'}}>
-        <div style={{position:'relative', zIndex:100, marginBottom:'10px'}}>
+        <div style={{position:'relative', zIndex:2, marginBottom:'10px'}}>
           <p className='label'>Channel Filter</p>
           <ChannelSelector
             userId={user.id}
@@ -522,15 +686,32 @@ const FeedsPanel = ({
 
         if (filterPosts.length < 1) return
 
+
+
         const posts = filterPosts.map((item)=>{
+
+
+          const urlString = 'https:' + item?.fields[selectedFeed.image]?.fields?.file?.url;
+          const url = new URL(urlString);
+          const fileName = url.pathname.split('/').pop();
+          const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+
+            console.log('item', item)
+
+
+
             return {
               id: item.sys.id,
               scheduleDate: item.fields[selectedFeed.scheduleDate],
               link: selectedFeed.website+'/'+item.fields[selectedFeed.slug],
               media: [
                 {
-                  file_url:'https:' + item.fields[selectedFeed.image].fields.file?.url,
-                  file_description: item.fields[selectedFeed.image].fields.file?.description,
+                  id:item?.fields[selectedFeed.image]?.sys?.id,
+                  file_url:'https:' + item?.fields[selectedFeed.image]?.fields?.file?.url,
+                  file_description: item?.fields[selectedFeed.image]?.fields?.file?.description,
+                  file_name: nameWithoutExtension,
+                  file_type: null,
+                  source: 'external'
                 }
               ],
               title: item.fields[selectedFeed.title],
@@ -574,14 +755,28 @@ const FeedsPanel = ({
         }
 
         const posts = response.map((item)=>{
+
+          console.log('item', item)
+
+
+          const urlString = item._embedded['wp:featuredmedia'][0].source_url;
+          const url = new URL(urlString);
+          const fileName = url.pathname.split('/').pop();
+          const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+
+
             return {
               id : item.id.toString(),
               scheduleDate: pathIndex(item, selectedFeed.scheduleDate),
               link: item.slug? 'https://' + selectedFeed.website +'/' + item.slug : null,
               media: [
                 {
+                  id:item._embedded && item._embedded['wp:featuredmedia'][0].id,
                   file_url:(item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null,
-                  file_description: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].caption.rendered : null,
+                  file_description: (item._embedded && item._embedded['wp:featuredmedia'])? decodeEntities(item._embedded['wp:featuredmedia'][0].caption.rendered) : null,
+                  file_name: nameWithoutExtension,
+                  file_type: null,
+                  source: 'external'
                 }
               ],
               title: decodeEntities(item.title.rendered),
@@ -689,6 +884,7 @@ const Share = ({
   close
 }) => {
 
+  const { showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
   const [scheduleDate, setScheduleDate] = useState(postData.start)
 //const [scheduleDate, setScheduleDate] = useState(postData?._def.extendedProps.scheduleDate)
   const [selectedSocialPage, setSelectedSocialPage] = useState(null)
@@ -696,6 +892,7 @@ const Share = ({
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(`https://${postData?._def.extendedProps.base_url}/${postData?._def.extendedProps.slug}`)
   const [caption, setCaption] = useState(postData? postData?._def.extendedProps.caption: '')
+  const [media, setMedia] = useState(postData?._def.extendedProps.media??[])
   const videoBlobRef = useRef(null)
   const [videoSrc, setVideoSrc] = useState(null)
   const [loader, setLoader] = useState(false)
@@ -706,16 +903,20 @@ const Share = ({
 
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
-  const [summary, setSummary]= useState(null)
+  //const [summary, setSummary]= useState(null)
   const [channelPreviews, setChannelPreviews]= useState([])
   const [selectedChannelPreview, setSelectedChannelPreview]= useState('facebook')
+  const [instagramError, setInstagramError] = useState(false)
+
+
+
 
 
 const type = postData._def.extendedProps.type
 
-const onChannelPreviewChange = (channel) => {
-  setSelectedChannelPreview(channel)
-}
+  const onChannelPreviewChange = (channel) => {
+    setSelectedChannelPreview(channel)
+  }
 
   const handlePostTypeChange = (event) => {
     setPostType(event.target.value)
@@ -730,6 +931,10 @@ const onChannelPreviewChange = (channel) => {
 
   },[postData])
 
+
+
+
+
   const handlePostStateChange = (event) => {
     setPostState(event.target.value);
     if (event.target.value === 'SCHEDULED'){
@@ -740,7 +945,7 @@ const onChannelPreviewChange = (channel) => {
       setButtonText('Save Draft')
     }
   };
-
+/*
   const summarise = async() => {
     setLoader(true)
 
@@ -767,7 +972,7 @@ const onChannelPreviewChange = (channel) => {
           setLoader(false)
         }
 
-  }
+  }*/
 
   const channelSelectorCallback = (pages) => {
     setSelectedSocialPages(pages)
@@ -1040,8 +1245,8 @@ const getFacebookPostData = (postType) => {
     const video = videoBlobRef.current
 
     const formData = new FormData();
-    formData.append('fileUrl', video_url);
-    //formData.append('videoBlob', video);
+    //formData.append('fileUrl', video_url);
+    formData.append('videoBlob', video);
     formData.append('accessToken', accessToken);
     formData.append('socialId', pageId);
 
@@ -1181,10 +1386,19 @@ const getFacebookPostData = (postType) => {
       })
   }
 
+
+
+  useEffect(() => {
+    if (!showFiles && selectedFiles.length > 0) {
+        setMedia(prev => [...selectedFiles, ...media])
+    }
+
+  }, [showFiles, selectedFiles]);
+
   return(
     <>
-      <div className={'loader_screen'} style={{zIndex:1000}} onClick={() => close(null)}></div>
-      <div className='share-dialog dropshadow' style={{zIndex:1001}}>
+      <div className={'loader_screen'} style={{zIndex:3}} onClick={() => close(null)}></div>
+      <div className='share-dialog dropshadow' style={{zIndex:4}}>
         <X
           onClick={() => close(null)}
           className="close-icon"
@@ -1229,10 +1443,6 @@ const getFacebookPostData = (postType) => {
                 setSocialPagesParent={setSocialPages}
                 callback={channelSelectorCallback}
               />
-            
-
-
-
 
               <h4>{postData.title}</h4>
 
@@ -1267,8 +1477,29 @@ const getFacebookPostData = (postType) => {
                   onChange={handlePostTypeChange}
                 /><span style={{fontSize:'.9em'}}>Photos</span>
               </div>
-            {postData&&
-              <>
+
+
+              {postType === 'photos' &&
+
+                <div className="properties-container" style={{margin:'15px 0px'}}>
+                  <p className='label'>Media</p>
+                  <button className="btn secondary btn-sm" onClick={() => {
+                    setSelectedFiles([])
+                    setFilePicker(true)
+                    setShowFiles(prevState => !prevState)
+                  }}>Add Files</button>
+                  <MediaList
+                  media={media}
+                  setMedia={setMedia}
+                  channelPreviews={channelPreviews}
+                  setInstagramError={setInstagramError}
+            />
+
+                </div>
+              }
+
+            {postType === 'link' &&
+              <div className="properties-container" style={{margin:'15px 0px'}}>
                 <p className='label'>Post Link</p>
                 <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
                   <input
@@ -1282,8 +1513,19 @@ const getFacebookPostData = (postType) => {
                     <ExternalLink/>
                   </a>
                 </div>
-              </>
+              </div>
             }
+            <Switch
+              sx={{
+                '& .MuiSwitch-switchBase.Mui-checked': {
+                  color: 'var(--md-sys-color-primary)', // Color of the thumb when checked
+                },
+                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                  backgroundColor: 'var(--md-sys-color-surface-tint)', // Color of the track when checked
+                },
+              }}
+            defaultChecked
+          />
               <p className='label'>Post Caption</p>
               <textarea
                 style={{minHeight:200}}
@@ -1292,6 +1534,8 @@ const getFacebookPostData = (postType) => {
                 className={'form-input'}
                 cols={8}
               />
+              <Summary text={caption} defaultPlatform={selectedChannelPreview}/>
+              {/*}
               <button className="btn secondary btn-sm" onClick={summarise}>Summarise</button>
               {summary &&
                 <textarea
@@ -1301,7 +1545,7 @@ const getFacebookPostData = (postType) => {
                   className={'form-input'}
                   cols={8}
                 />
-              }
+              }*/}
               <div className="properties-container" style={{margin:'15px 0px'}}>
                 <p className='label'>Schedule Date & Time</p>
                 <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
@@ -1347,8 +1591,11 @@ const getFacebookPostData = (postType) => {
                   className={'form-input'}
                   dateFormat="MMMM d, yyyy h:mm aa"
                 />
+                {instagramError &&
+                  <p>instagram Error</p>
+                }
               </div>
-              {(selectedSocialPages.length>0) &&
+              {(selectedSocialPages.length>0 && !instagramError) &&
                 <button style={{marginLeft:'10px'}} disabled={status === 'published'} className="btn primary" onClick={() => scheduleMultiple('scheduled')}>{buttonText}</button>
               }
 
@@ -1372,10 +1619,14 @@ const getFacebookPostData = (postType) => {
                 }
               </select>
 
-              {(type === 'link' &&  postLink && selectedChannelPreview === 'facebook') &&
-                <FacebookLinkPreview url={postLink} postData={postData} caption={caption}/>
+              {(postType=== 'link' &&  postLink && selectedChannelPreview === 'facebook') &&
+                <FacebookLinkPreview
+                url={postLink}
+                postData={postData}
+                caption={caption}
+              />
               }
-              {(type === 'video_reels' && postData?._def?.extendedProps?.media[0]?.file_id?.file_type === "video/mp4") &&
+              {(postType === 'video_reels' && postData?._def?.extendedProps?.media[0]?.file_id?.file_type === "video/mp4") &&
                 <div className="video-container">
                   <video
                     src={postData?._def?.extendedProps?.media[0]?.file_id.file_url}
@@ -1386,6 +1637,20 @@ const getFacebookPostData = (postType) => {
                     Your browser does not support the video tag.
                   </video>
                 </div>
+              }
+              {postType === 'link' &&  selectedChannelPreview === 'instagram' &&
+                  <InstagramLinkPreview
+                  image={postData?._def.extendedProps?.media[0]?.file_url}
+                  postData={postData}
+                  caption={caption}
+                />
+              }
+              {postType === 'photos' &&  selectedChannelPreview === 'instagram' &&
+                <InstagramPhotosPreview media={media} />
+              }
+
+              {postType === 'photos' &&  selectedChannelPreview === 'facebook' &&
+                  <FacebookPhotosPreview media={media}/>
               }
 
             </div>
@@ -1474,8 +1739,6 @@ useEffect(()=>{
 
 
 
-
-
 return(
   <div style={{marginTop:'25px'}}>
     <div
@@ -1535,6 +1798,26 @@ return(
 )
 }
 
+const InstagramLinkPreview = ({
+  image,
+  caption
+
+})=>{
+
+  return(
+    <div style={{background:'#ffffff'}}>
+      <img src={image} style={{width:'100%'}}/>
+      <div style={{padding:'10px'}}>
+        <ReadMore maxCharacterCount={50}>
+          {caption}
+        </ReadMore>
+      </div>
+    </div>
+
+  )
+
+}
+
 
 const ReadMore = ({ children, maxCharacterCount = 100 }) => {
   const text = children;
@@ -1570,3 +1853,305 @@ const ReadMore = ({ children, maxCharacterCount = 100 }) => {
     </p>
   );
 };
+
+const MediaList = ({
+  media,
+  setMedia,
+  channelPreviews,
+  setInstagramError
+}) => {
+  const { displayEditItem, setDisplayEditItem, item, setItem} = useEditItemContext();
+
+    const [files, setFiles] = useState(media)
+    const editingIndex = useRef(null)
+    const editImageRef = useRef(null)
+     const evtSourceRef = useRef(null);
+
+
+    const editMedia = (media, index) => {
+      setDisplayEditItem(true)
+      editingIndex.current = index
+      setItem(media)
+    }
+
+    const handleReplace = (index, newItem) => {
+      setMedia(prevItems =>
+        prevItems.map((item, i) => i === index ? newItem : item)
+      );
+    };
+
+    useEffect(() => {
+      if (!displayEditItem && item) {
+          console.log('item', item)
+          handleReplace(editingIndex.current, item)
+      }
+
+    }, [displayEditItem, item]);
+
+
+    const changeSortableState = (newState) => {
+      setMedia(newState)
+    }
+
+    const checkInstagramImages = async (images) => {
+
+        let errorArray = []
+
+         const checkedImages = await Promise.all(images.map(async(image) => {
+           let carouselImageError = await checkImageSize(image.file_url)
+           var temp = Object.assign({}, image);
+           temp.instagram_image_error = carouselImageError
+           if (carouselImageError === true){
+              errorArray.push(true)
+           }
+           return temp;
+         }))
+
+         setFiles(checkedImages)
+
+
+         if (errorArray.length > 0){
+           setInstagramError(true)
+         }else{
+           setInstagramError(false)
+         }
+    }
+
+
+    useEffect(()=>{
+      const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
+
+      if (hasInstagram){
+        checkInstagramImages(media)
+      }else{
+        setInstagramError(false)
+      }
+
+      setFiles(media)
+
+    },[media, channelPreviews])
+
+
+    const removeImage = async (index) => {
+      setMedia(prev => prev.filter((_, i) => i !== index));
+      //setFiles(prev => prev.filter((_, i) => i !== index));
+    }
+
+
+    const checkIfImage = async (item, index) => {
+
+      let fileType
+
+      item
+
+      if (item?.file_type){
+        fileType = item?.file_type
+      }else{
+        fileType = await getImageType(item.file_url)
+        setMedia(prev => prev.map((prev, i)=>{
+            if (i === index){
+              prev.file_type = fileType
+            }
+            return prev
+        }))
+
+      }
+      return fileType === 'image/png' || fileType  === 'image/jpeg'
+    }
+
+    const startSSE = () => {
+      if (evtSourceRef.current) return; // already running
+
+      const evtSource = new EventSource('/api/events');
+      evtSourceRef.current = evtSource;
+
+      evtSource.onmessage = async (event) => {
+
+
+        const updatedFile = getFileName(event.data);
+        const currentFile = getFileName(editImageRef.current);
+
+        if (updatedFile === currentFile) {
+
+
+        }
+      };
+
+      evtSource.onerror = () => {
+        console.warn('SSE error, reconnecting next edit if needed.');
+        evtSource.close();
+        evtSourceRef.current = null; // allow future reconnect
+      };
+    };
+
+
+
+
+    const editInPhotoshop = async (image) => {
+
+        const res = await fetch('/api/edit-in-photoshop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image:image.file_url}),
+        });
+
+        const data = await res.json();
+
+    if (data.publicUrl) {
+        editImageRef.current = data.publicUrl
+        startSSE();
+      }
+    }
+
+
+  return(
+    <ReactSortable
+      list={media}
+      setList={(newState) => changeSortableState(newState)}
+      onDragOver={()=>onSortItems()}
+      onDragStart={()=>onSortItems()}
+      onDragEnd={()=>onSortItems()}
+      >
+  {files.map((item, index) => {
+
+      if (checkIfImage(item, index)){
+        return(
+            <div key={index}
+              style={{
+              display:'flex',
+              alignItems: 'center',
+              marginTop:'10px',
+              background: 'var(--md-sys-color-surface-dim)',
+              padding:'10px',
+              borderRadius: '10px'
+            }}>
+              <GripVertical size={30} />
+                <div style={{marginLeft:'10px'}}>
+                  <img style={{
+                  width:50,
+                  height:50,
+                  objectFit:'cover',
+                  borderRadius:'5px',
+                  border: `${!item?.instagram_image_error?'5px solid var(--md-sys-color-surface-container)':'5px solid var(--md-sys-color-error)'}`
+                }}
+                src={item.file_url}/>
+                </div>
+              <div style={{marginLeft:'auto', height: '30px', display:'flex', alignItems:'center'}}>
+                <img onClick={() => editInPhotoshop(item)} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
+                <Crop size={30} onClick={() => editMedia(item, index)}/>
+                <SquarePen style={{marginLeft:'10px'}} size={30} />
+                <Trash2 style={{marginLeft:'10px'}} size={30} onClick={() => removeImage(index)}/>
+              </div>
+            </div>
+          )
+      }else{
+        return null
+      }
+
+
+     })
+  }
+  </ReactSortable>
+
+  )
+}
+
+const InstagramImage = ({
+  image,
+  channelPreviews,
+  setInstagramError
+}) => {
+  const [error, setError] = useState(false)
+  const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
+
+  const checkImage = async() => {
+
+    if (hasInstagram ){
+        const imageCheck = await checkImageSize(image.file_url)
+        if (imageCheck){
+          setError(true)
+          setInstagramError(true)
+        }
+    }
+
+  }
+useEffect(()=>{
+  checkImage()
+},[channelPreviews, image])
+
+  return(
+    <img style={{
+    width:50,
+    height:50,
+    objectFit:'cover',
+    borderRadius:'5px',
+    border: `${!image?.instagram_image_error?'5px solid var(--md-sys-color-surface-container)':'5px solid var(--md-sys-color-error)'}`
+  }}
+  src={image.file_url}/>
+  )
+}
+
+const FacebookPhotosPreview = ({media}) => {
+  return(
+    <div className="grid-container">
+    {media.map((item, index)=>{
+        return(
+          <div key={index} className="grid-item">
+            <img src={item.file_url}/>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+
+const InstagramPhotosPreview = ({media}) => {
+    const [currentSlide, setCurrentSlide] = useState(0)
+
+
+    const onCarouselChange = (args) => {
+      //editCarouselImage(args)
+      setCurrentSlide(args)
+    };
+
+    const getConfigurableProps = () => ({
+      showArrows: true,
+      showStatus: false,
+      showIndicators: false,
+      infiniteLoop: true,
+      showThumbs: true,
+      useKeyboardArrows: true,
+      autoPlay: false,
+      stopOnHover: true,
+      swipeable: true,
+      dynamicHeight: true,
+      emulateTouch: true,
+      autoFocus: false,
+      selectedItem: 0,
+      interval: 2000,
+      transitionTime: 500,
+      swipeScrollTolerance: 5,
+      ariaLabel: 'ariaLabel',
+    });
+
+
+  return(
+    <Carousel infiniteLoop {...getConfigurableProps()}
+   //onClickItem={(e) => imageClick(e)}
+     onChange={(args) => onCarouselChange(args)}
+     showThumbs={false}
+     selectedItem={currentSlide}
+  >
+  {media.map((item, index) => {
+      return(
+        <div>
+          <img src={item.file_url} style={{width:'100%'}}/>
+        </div>
+      )
+     })
+  }
+  </Carousel>
+
+  )
+}

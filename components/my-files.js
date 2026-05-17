@@ -126,7 +126,6 @@ const handleFileFunction = async (data) => {
 
 const deleteSelectedFiles = async () => {
 
-
   const fileIds = selectedFiles.map((file)=>{
     return file.id
   })
@@ -169,10 +168,39 @@ const deleteSelectedFiles = async () => {
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Gemini')} className={`${'btn'} ${filesDisplay ==='Gemini'?'primary':'secondary'}`}>Gemini</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Veo</button>
 
-            </div>
+                </div>
                 <div style={{flex:3, padding:'15px', overflowY: 'scroll', maxHeight: '800px'}}>
                   {(filesDisplay ==='My Files' || filesDisplay ==='Gemini') &&
                     <div>
+                      <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '10px'}}>
+                        {selectedFiles.map((file, index)=>{
+                          return(
+                                <div key={file.id}>
+                                  {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
+                                    <img style={{width:'100px', height:'100px', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
+                                  }
+                                  {file.file_type === 'application/pdf'&&
+                                    <>
+                                      <img className={`${'media-file'}`} src={'/pdf-icon.png'}/>
+                                    </>
+                                  }
+                                  {file.file_type === 'video/mp4'&&
+                                    <>
+                                      <div className={`${'media-file'}`}>
+                                         <video
+                                           src={file.file_url}
+                                           controls
+                                           autoPlay={false}
+                                           className="video_thumb"
+                                           playsInline
+                                         />
+                                      </div>
+                                    </>
+                                  }
+                                </div>
+                            )
+                        })}
+                      </div>
                       <div style={{display:'flex', alignItems:'center'}}>
                         <input
                           style={{marginBottom:'10px'}}
@@ -186,6 +214,7 @@ const deleteSelectedFiles = async () => {
                           <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
                         }
                       </div>
+
                     <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
                       {files.map((file, index)=>{
                         return (

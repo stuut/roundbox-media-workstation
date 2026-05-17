@@ -59,7 +59,7 @@ input[type="range"]::-webkit-slider-runnable-track {
 .scheduled_badge{
   background: var(--md-sys-color-tertiary-container);
   padding: 5px 5px 5px 15px;
-  border-radius: 25px;
+  border-radius: 10px;
   margin: 15px 0px;
   color: var(--md-sys-color-on-tertiary);
   display: flex;
@@ -817,6 +817,112 @@ h2{
 }
 
 
+.reactEasyCrop_CropArea {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(0, 0, 0, 0.5)!important;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 9999em;
+    color: rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.reactEasyCrop_CropAreaGrid::before {
+    content: ' ';
+    box-sizing: border-box;
+    position: absolute;
+    border: 1px solid rgba(0, 0, 0, 0.5)!important;
+    top: 0;
+    bottom: 0;
+    left: 33.33%;
+    right: 33.33%;
+    border-top: 0 !important;
+    border-bottom: 0 !important;
+}
+
+.reactEasyCrop_CropAreaGrid::after {
+    content: ' ';
+    box-sizing: border-box;
+    position: absolute;
+    border: 1px solid rgba(0, 0, 0, 0.5)!important;
+    top: 33.33%;
+    bottom: 33.33%;
+    left: 0;
+    right: 0;
+    border-left: 0 !important;
+    border-right: 0 !important;
+}
+
+.lucide.active{
+  color:var(--md-sys-color-primary);
+}
+
+.crop-image-viewer {
+    width: 100%;
+    max-width: 950px;
+}
+.reactEasyCrop_CropArea {
+    color: rgba(255, 255, 255, .5) !important;
+}
+
+.reactEasyCrop_Container{
+  border-top-right-radius: var(--border-radius);
+  border-top-left-radius: var(--border-radius);
+}
+
+
+.crop-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 80px;
+}
+
+.controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  width: 50%;
+  transform: translateX(-50%);
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Two equal columns */
+  gap: 4px; /* Space between photos */
+}
+
+.grid-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Prevents distortion */
+}
+
+/* Make the first image span both columns for a featured look */
+.grid-item:first-child {
+  grid-column: span 2;
+  aspect-ratio: 16 / 9; /* Common horizontal layout */
+}
+
+
+.media.active img,
+.media-image.active img{
+  border: var(--active-border-width) solid var(--md-sys-color-primary);
+
+}
+
+
+.media-image{
+  border-radius: 5px;
+}
+
+
 .table-row .table-cell:first-child{
   max-width:70px;
   min-width:70px
@@ -836,7 +942,7 @@ h2{
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, .5);
-  z-index: 2;
+  z-index: 100;
 }
 
 .ai-overlay{

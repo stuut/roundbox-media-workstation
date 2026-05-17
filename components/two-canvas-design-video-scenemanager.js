@@ -21,6 +21,7 @@ import { getPostsWithDate } from "@/lib/supabase";
 import { updatePostPublication } from "@/lib/supabase";
 import { createVideoFromImages } from  "@/lib/createVideoFromImages"
 import Cropper from 'cropperjs';
+import { Summary } from '@/components/summary'
 
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
@@ -77,7 +78,7 @@ import createCanvasContext from "canvas-context";
 import { AVC } from "media-codecs";*/
 
 
-
+const isDev = process.env.NODE_ENV === 'development';
 
 
 function getDisplayTime(text, options = {}) {
@@ -840,8 +841,6 @@ export const Danva = (({postData, user}, ref) => {
       offscreenCanvasExportRef.current = offscreenCanvasExport
 
 
-      return new Promise(async(resolve) => {
-
         const zip = new JSZip();
 
         //let pending = videoRegistryRef.current.size;
@@ -893,15 +892,29 @@ export const Danva = (({postData, user}, ref) => {
 
                let blob = await Promise.race([
                  new Promise(resolve =>
-                   offscreenCanvasExportRef.current.toBlob(resolve, "image/jpeg", 0.8)
+                   offscreenCanvasExportRef.current.toBlob(
+                     resolve,
+                     "image/jpeg",
+                     0.8
+                   )
                  ),
                  new Promise((_, reject) =>
-                   setTimeout(() => reject(new Error(`toBlob timeout at frame ${frame}`)), 10000)
+                   setTimeout(
+                     () => reject(new Error(`toBlob timeout at frame ${frame}`)),
+                     10000
+                   )
                  )
                ]);
 
+               if (!blob) {
+                 throw new Error(`Blob generation failed at frame ${frame}`);
+               }
 
-               zip.file(`frame${String(frame).padStart(4,"0")}.jpg`, blob);
+               if (blob.size === 0) {
+                 throw new Error(`Empty blob at frame ${frame}`);
+               }
+
+               zip.file(`frame${String(frame).padStart(4, "0")}.jpg`, blob);
 
                if (browserFFmpeg){
                  frames.push(blob);
@@ -981,6 +994,8 @@ export const Danva = (({postData, user}, ref) => {
             },
             responseType: 'blob', // important to get a Blob instead of JSON
           });
+
+
           mp4Blob = res.data;
 
         }
@@ -1002,7 +1017,7 @@ export const Danva = (({postData, user}, ref) => {
 
         }else{
           showSuccess('Converted To Video')
-          resolve(mp4Blob)
+          return mp4Blob
           if (showCanvasLoader){
             setCanvasLoader(false)
           }
@@ -1010,7 +1025,7 @@ export const Danva = (({postData, user}, ref) => {
           setVideoConvertProgress(0)
         }
 
-      })
+
 
     }
 
@@ -3293,10 +3308,13 @@ const applyTemplate = async(type, template) => {
         ]
         */
 
+        let endpoint = '/api/post-video-generator'
 
+        if (isDev){
+          endpoint = '/api/gemma/post-video-generator'
+        }
 
-
-      const res = await fetch('/api/post-video-generator', {
+      const res = await fetch(endpoint, {
           method: 'POST',
           body: JSON.stringify({ text:activeScenePostInfo.caption, title:activeScenePostInfo.title}),
         });
@@ -8947,7 +8965,6 @@ const editImage = () => {
             <div
               style={{
                 height:`calc(${canvasEditorHeight}px - 75px)`,
-                overflowY:'scroll'
               }}
             >
               <Media
@@ -8974,7 +8991,6 @@ const editImage = () => {
           <div
             style={{
               height:`calc(${canvasEditorHeight}px - 75px)`,
-              overflowY:'scroll'
             }}>
             <Media
               user={user}
@@ -9000,7 +9016,6 @@ const editImage = () => {
           <div
             style={{
               height:`calc(${canvasEditorHeight}px - 75px)`,
-              overflowY:'scroll'
             }}>
             <Media
               user={user}
@@ -10105,8 +10120,6 @@ const Media = ({
   const [uploading, setUploading] = useState(false)
   const [fileDescription, setFileDescription] = useState('')
 
-
-
   const getData = async (userId) => {
 
     try {
@@ -10126,26 +10139,17 @@ const Media = ({
 }, [user]);
 
 const selectFileFunction = (data) => {
-  if (selectedFiles.some((obj)=> data.id === obj.id)){
-    setSelectedFiles(prev => prev.filter(remove => remove.id !== data.id));
+
+  if (label === 'Replace Image'){
+      setSelectedFiles([data])
   }else{
-    setSelectedFiles(selectedFiles => [...selectedFiles, data])
+    if (selectedFiles.some((obj)=> data.id === obj.id)){
+      setSelectedFiles(prev => prev.filter(remove => remove.id !== data.id));
+    }else{
+      setSelectedFiles(selectedFiles => [...selectedFiles, data])
+    }
   }
 }
-
-/*
-const showFileEditDialog = (event) => {
-  setUploadFileState(event.target.files[0])
-  setShowFileEdit(true)
-}
-
-const hideFileScriptionDialog = () => {
-  setShowFileEdit(false)
-  if (uploadFileState){
-    uploadFile()
-  }
-}*/
-
 
 const uploadFile = async (event) => {
   try {
@@ -10266,7 +10270,8 @@ const deleteCallback = (fileId) => {
       flexWrap: 'wrap',
       overflowY: 'scroll',
       overflowX: 'hidden',
-      alignContent: 'flex-start'
+      alignContent: 'flex-start',
+      height: 'calc(100% - 65px)'
     }}>
 
       {files.length === 0?(
@@ -10789,7 +10794,7 @@ useEffect(() => {
               </div>
             ))}
           </div>
-        <div style={{overflowY:'scroll', height: '130px'}}>
+        <div style={{overflowY:'scroll', height: '100px'}}>
           {/* Element tracks */}
           <div style={{position:'relative', display:'flex', gap:'2px'}}>
             {scenes?.map((scene, index)=>{
@@ -11751,7 +11756,7 @@ const Share = ({
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(`https://${postInfo?.data.base_url}/${postInfo?.data.slug}`)
-  const [caption, setCaption] = useState(postInfo? postInfo?.data.caption.split('\n')[0] : '')
+  const [caption, setCaption] = useState(postInfo? postInfo?.data.caption : '')
   const videoBlobRef = useRef(null)
   const [videoSrc, setVideoSrc] = useState(null)
   const [loader, setLoader] = useState(false)
@@ -11762,7 +11767,6 @@ const Share = ({
 
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
-  const [summary, setSummary]= useState(null)
 
   console.log('postInfo', postInfo)
 
@@ -11771,13 +11775,14 @@ const Share = ({
     setPostType(event.target.value)
   };
 
+/*
   const summarise = async() => {
     setLoader(true)
 
         try {
           //const text = postData._def.extendedProps.caption
 
-          const response = await fetch('/api/summarise-video', {
+          const response = await fetch('/api/gemma/summarise-video', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
@@ -11797,7 +11802,7 @@ const Share = ({
           setLoader(false)
         }
 
-  }
+  }*/
 
   const handlePostStateChange = (event) => {
     setPostState(event.target.value);
@@ -11840,15 +11845,29 @@ const Share = ({
 
 
   const displayVideo = async() => {
-    console.log('displayVideo', displayVideo)
     setVideoLoader(true)
-    const videoBlob = await exportVideoFrames(false, false)
+    try {
+      const videoBlob = await exportVideoFrames(false, false)
 
-    videoBlobRef.current = videoBlob
+      videoBlobRef.current = videoBlob
 
-    const objectUrl = URL.createObjectURL(videoBlob); //
-    setVideoSrc(objectUrl)
-    setVideoLoader(false)
+      const objectUrl = URL.createObjectURL(videoBlob)
+
+      setVideoSrc(objectUrl)
+
+    } catch (error) {
+
+      console.log(error)
+
+      showError('Error creating video ' + error)
+
+      return
+
+    } finally {
+
+      setVideoLoader(false)
+
+    }
   }
 
 
@@ -12309,16 +12328,7 @@ const getPostsScheduledPosts = async() => {
                   className={'form-input'}
                   cols={8}
                 />
-                <button className="btn secondary btn-sm" onClick={summarise}>Summarise</button>
-                {summary &&
-                  <textarea
-                    style={{minHeight:200}}
-                    onChange={(e) => setSummary(e.target.value)}
-                    value={summary}
-                    className={'form-input'}
-                    cols={8}
-                  />
-                }
+                <Summary text={caption} defaultPlatform={'facebook'}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>
                   <p className='font-label'>Schedule Date & Time</p>
                   <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
@@ -13086,4 +13096,11 @@ export default function ExpandEditor({ file }) {
       </button>
     </div>
   );
+}
+
+export const Summarise = ({}) => {
+  return(
+    <div>
+    </div>
+  )
 }

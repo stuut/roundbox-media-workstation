@@ -164,9 +164,10 @@ border-radius: var(--btn-border-radius);
     display:block
 }
 
+
 .media-image img{
     object-fit: cover;
-    height: 100px;
+    height: 120px;
     border-radius: var(--input-border-radius);
 }
 
@@ -201,10 +202,7 @@ border-radius: var(--btn-border-radius);
 }
 
 
-.media.active,
-.media-image.active img{
-  border: var(--active-border-width) solid var(--md-sys-color-primary);
-}
+
 
 .theme-icon{
   height:35px;
@@ -365,7 +363,7 @@ hr {
   border-radius: var(--btn-border-radius);
   padding: 10px;
   top: 0px;
-  min-width: 275px;
+  min-width: 281px;
   height: auto;
 }
 

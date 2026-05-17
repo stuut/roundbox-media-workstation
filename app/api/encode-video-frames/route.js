@@ -25,6 +25,9 @@ export async function POST(req) {
 
     // Write zip to tmp file
     const zipBuffer = Buffer.from(await framesZip.arrayBuffer());
+    console.log("Zip buffer size:", zipBuffer.length); // should be > 0
+    if (zipBuffer.length < 4) throw new Error("ZIP buffer too small");
+
     const zipPath = `${tmpDir}/frames.zip`;
     await fsp.writeFile(zipPath, zipBuffer);
 
@@ -42,7 +45,7 @@ export async function POST(req) {
     if (audioFile) {
       audioPath = `${tmpDir}/audio.mp3`;
       const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
-      await fs.writeFile(audioPath, audioBuffer);
+      await fsp.writeFile(audioPath, audioBuffer);
     }
 
     const outputPath = `${tmpDir}/output.mp4`;
@@ -85,8 +88,7 @@ export async function POST(req) {
       });
     });
 
-    //const outputFile = await fsp.readFile(outputPath);
-    const outputFile = fs.createReadStream(outputPath);
+    const outputFile = await fsp.readFile(outputPath);
 
 
     // Cleanup

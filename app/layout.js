@@ -5,6 +5,7 @@ import { hasEnvVars } from "@/utils/supabase/check-env-vars"
 import { ThemeProvider } from "next-themes"
 import Link from "next/link"
 import { ItemProvider } from '@/context/item-context'
+import { EditItemProvider } from '@/context/edit-item-context'
 import { UserProvider } from '@/context/user-context'
 import { FilesProvider } from '@/context/files-context'
 import { AIProvider } from '@/context/ai-context'
@@ -13,6 +14,7 @@ import MyFiles from "@/components/my-files"
 import UserChat from "@/components/user-chat"
 import ToastProvider from "@/components/toast-provider"
 import ImportItems from "@/components/import-items"
+import EditFile from "@/components/edit-item"
 import { Poppins } from "next/font/google"
 import { Raleway } from 'next/font/google';
 
@@ -107,6 +109,7 @@ export default async function RootLayout({ children, params  }) {
           defaultTheme="system"
         >
         <UserProvider>
+          <EditItemProvider>
           <FilesProvider>
           <AIProvider>
           <ItemProvider>
@@ -118,18 +121,21 @@ export default async function RootLayout({ children, params  }) {
                       {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                     </div>
                   </nav>
-                <MyFiles/>
-                <AISideBar/>
+
                 <ImportItems/>
                 <div style={{height: 'calc(100% - 71.5px)'}}>
                   {children}
                 </div>
+                <MyFiles/>
+                <EditFile/>
+                <AISideBar/>
                 <UserChat/>
               </div>
             </main>
           </ItemProvider>
         </AIProvider>
         </FilesProvider>
+      </EditItemProvider>
       </UserProvider>
         </ThemeProvider>
       </body>

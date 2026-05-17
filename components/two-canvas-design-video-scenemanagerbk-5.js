@@ -10030,9 +10030,10 @@ console.log('postInfo', postInfo)
 const uploadFile = async (videoBlob) => {
   try {
 
+    /*
     if (!event.target.files || event.target.files.length === 0) {
       throw new Error('You must select an image to upload.')
-    }
+    }*/
 
     const file = videoBlob;
     const fileExt = 'mp4';

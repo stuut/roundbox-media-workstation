@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, memo, useMemo } from "react";
 import { getChannels } from "@/lib/supabase";
+import Checkbox from '@mui/material/Checkbox';
 import {
   Facebook,
   Instagram,
@@ -137,10 +138,22 @@ const sortedSocialPages = useMemo(() => {
 
 
 return(
+  <>
+    {open &&
+      <div
+        onClick={() => setOpen(prev => !prev)}
+        style={{
+        position:'fixed',
+        height:'100%',
+        width:'100%',
+        left: '0px',
+        top: '0px',
+      }}/>
+    }
     <div style={{position:'relative'}}>
       <button style={{
         width:'100%',
-        paddingLeft: '18px',
+        paddingLeft: '10px',
         marginTop:'0px'
       }} onClick={() => setOpen(prev => !prev)} className='btn primary icon-button'>
         {selectedSocialPages.length<1?
@@ -276,19 +289,26 @@ return(
       </div>
     }
     </div>
+  </>
 )
 
 }
 
 const SelectCheckBox = ({ style, id, callBackFunction, checked }) => {
   return (
-    <input
+    <Checkbox
       style={style}
       id={id}
       className="form-check-input"
       type="checkbox"
       onChange={() => callBackFunction(id)}
       checked={checked}
+      sx={{
+        color: 'var(--md-sys-color-secondary)',
+        '&.Mui-checked': {
+          color: 'var(--md-sys-color-primary)',
+        },
+      }}
     />
   )
 }
