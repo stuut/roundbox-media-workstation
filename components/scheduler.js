@@ -897,6 +897,8 @@ const Share = ({
   close
 }) => {
 
+  console.log('postData', postData)
+
   const { showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
   const [scheduleDate, setScheduleDate] = useState(postData.start)
 //const [scheduleDate, setScheduleDate] = useState(postData?._def.extendedProps.scheduleDate)

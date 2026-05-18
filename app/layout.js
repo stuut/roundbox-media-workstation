@@ -17,7 +17,7 @@ import ImportItems from "@/components/import-items"
 import EditFile from "@/components/edit-item"
 import { Poppins } from "next/font/google"
 import { Raleway } from 'next/font/google';
-import MUIProvider from '@/components/MUIProvider';
+import MUIProvider from '@/components/mui-provider';
 
 
 const raleway = Raleway({
