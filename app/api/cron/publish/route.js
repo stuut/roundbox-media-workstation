@@ -36,51 +36,64 @@ async function publishToFacebook(job) {
 
 
 async function publishToInstagram(job) {
+
+
   const igId = job.platform_account.external_account_id;
   const accessToken = job.platform_account.access_token;
   const caption = job.post.caption;
-  const files = job.post.post_files;
+  const files = job?.post?.post_files??[]
 
-  // --------------------------------------------------
-  // CAROUSEL POST
-  // --------------------------------------------------
-  if (job.post.type === "carousel") {
-    return await publishInstagramCarousel({
+  if (!files?.length) throw new Error("No media");
+
+
+  if (files.length > 1) {
+    return publishInstagramCarousel({
       igId,
       accessToken,
       caption,
-      files,
+      files
     });
   }
 
-  // --------------------------------------------------
-  // REEL
-  // --------------------------------------------------
-  if (job.post.type === "video_reels") {
-    return await publishSingleInstagramMedia({
+  const file = files[0];
+  const { file_id } = file;
+  const fileUrl = file_id?.file_url;
+
+  const isVideo =
+  file.file_id?.file_type?.startsWith("video") ||
+  file.file_id?.file_url?.match(/\.(mp4|mov|m4v)$/i);
+
+
+  if (isVideo) {
+    let mediaType = "REELS"
+    if (job.post.type === 'video') {
+      mediaType = "VIDEO"
+    }else if (job.post.type === 'photo_stories') {
+      media_type = "STORIES"
+    }
+    return publishSingleInstagramMedia({
       igId,
       accessToken,
       caption,
       mediaField: "video_url",
-      mediaUrl: files[0].file_id.file_url,
+      mediaUrl: fileUrl,
       extraFields: {
-        media_type: "REELS",
-        share_to_feed: "true",
+        media_type: mediaType,
+        share_to_feed: true,
       },
     });
   }
 
-  // --------------------------------------------------
-  // IMAGE POST
-  // --------------------------------------------------
-  return await publishSingleInstagramMedia({
+  return publishSingleInstagramMedia({
     igId,
     accessToken,
     caption,
     mediaField: "image_url",
-    mediaUrl: files[0].file_id.file_url,
+    mediaUrl: fileUrl,
   });
+
 }
+
 
 /* ==================================================
    CAROUSEL
@@ -108,7 +121,7 @@ async function publishInstagramCarousel({
     const url = file.file_id.file_url;
 
     const isVideo =
-      file.type === "video" ||
+      file.file_type === "video/mp4" ||
       url.match(/\.(mp4|mov|m4v)$/i);
 
     const body = new URLSearchParams({

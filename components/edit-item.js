@@ -123,7 +123,6 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
 
 
 
-
    const cropImage = async () => {
      setLoader(true)
 
@@ -134,8 +133,8 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
        );
 
        const formData = new FormData()
-       formData.append('file', file)
-       formData.append('tag', '.jpg');
+         formData.append('file', file)
+         formData.append('tag', '.jpg');
 
        try{
          const res = await fetch('/api/upload', {
@@ -164,8 +163,6 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
    }
 
    const handleFileFunction = async (data) => {
-
-     console.log('data', data)
 
      try{
        const fileinfo = await storeFileInfo({

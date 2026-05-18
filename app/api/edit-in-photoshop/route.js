@@ -5,20 +5,39 @@ import fs from 'fs';
 import https from 'https';
 import http from 'http';
 
-function downloadImage(url, dest) {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http;
+function getExtensionFromContentType(contentType = "") {
+  if (contentType.includes("image/png")) return "png";
+  if (contentType.includes("image/jpeg")) return "jpg";
+  if (contentType.includes("image/jpg")) return "jpg";
+  if (contentType.includes("image/webp")) return "webp";
+  if (contentType.includes("image/gif")) return "gif";
+  return "bin"; // fallback
+}
 
-    const file = fs.createWriteStream(dest);
-    client.get(url, (response) => {
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close(resolve);
-      });
-    }).on('error', (err) => {
-      fs.unlink(dest, () => {});
-      reject(err);
-    });
+export function downloadImage(url, destBase) {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith("https") ? https : http;
+
+    client
+      .get(url, (response) => {
+        const contentType = response.headers["content-type"];
+        const ext = getExtensionFromContentType(contentType);
+
+        const filePath = `${destBase}.${ext}`;
+        const file = fs.createWriteStream(filePath);
+
+        response.pipe(file);
+
+        file.on("finish", () => {
+          file.close(() => resolve(filePath));
+        });
+
+        file.on("error", (err) => {
+          fs.unlink(filePath, () => {});
+          reject(err);
+        });
+      })
+      .on("error", reject);
   });
 }
 
@@ -50,15 +69,14 @@ export async function POST(req) {
 
     // Case 2: Remote URL
     else if (image.startsWith('http')) {
-      const fileName = `edit-${Date.now()}.png`;
-      filePath = path.join(
+      const basePath = path.join(
         process.cwd(),
-        'public',
-        'edit-images',
-        fileName
+        "public",
+        "edit-images",
+        `edit-${Date.now()}`
       );
 
-      await downloadImage(image, filePath);
+      filePath = await downloadImage(image, basePath);
     }
 
     else {

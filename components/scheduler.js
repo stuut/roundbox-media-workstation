@@ -14,6 +14,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin, { Draggable } from '@fullcalendar/interaction'
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline'
 import timeGridPlugin from '@fullcalendar/timegrid'
+import listPlugin from '@fullcalendar/list'
 import { getAllPosts } from '@/lib/supabase';
 import { savePost } from "@/lib/supabase";
 import { savePostFile } from "@/lib/supabase";
@@ -30,6 +31,8 @@ import { useFilesContext } from "@/context/files-context"
 import { useEditItemContext } from "@/context/edit-item-context"
 import Switch from '@mui/material/Switch';
 import { Summary } from '@/components/summary'
+import { storeFileInfo } from "@/lib/supabase";
+import { uploadFile } from '@/lib/upload-file'
 
 import {
   X,
@@ -104,6 +107,14 @@ const FEEDS = [
   },
 ]
 
+const getFileName = (path) => path.split('/').pop(); // sample-image.jpg
+
+async function fileFromServer(path) {
+  const response = await fetch(path);
+  const blob = await response.blob();
+  const fileName = path.split("/").pop();
+  return new File([blob], fileName, { type: blob.type });
+}
 
 
 async function getImageType(url) {
@@ -337,6 +348,8 @@ export const Scheduler = ({user})=>{
 
   const getPostsInit = async () => {
     const data = await getAllPosts()
+    console.log('data', data)
+
     updateCalendarEvents(data)
   }
 
@@ -566,22 +579,22 @@ const hasRun = useRef(false);
         <FullCalendar
           ref={cal}
           allDaySlot={false}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
           slotLabelInterval={"00:30:00"}
           defaultTimedEventDuration={"00:30:00"}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
           }}
-          initialView='dayGridMonth'
+          initialView='timeGridWeek'
+          slotEventOverlap={false}
           editable={true}
           selectable={true}
           selectMirror={true}
           dayMaxEvents={true}
           nowIndicator={true}
           expandRows={true}
-          slotEventOverlap={true}
           //initialEvents={INITIAL_EVENTS} // alternatively, use the `events` setting to fetch from a feed
           select={handleEventClick}
           eventContent={renderEventContent} // custom render function
@@ -1436,7 +1449,6 @@ const getFacebookPostData = (postType) => {
                 </div>
               }
 
-
               <ChannelSelector
                 userId={userId}
                 postInfo={postData}
@@ -1489,6 +1501,7 @@ const getFacebookPostData = (postType) => {
                     setShowFiles(prevState => !prevState)
                   }}>Add Files</button>
                   <MediaList
+                  userId={userId}
                   media={media}
                   setMedia={setMedia}
                   channelPreviews={channelPreviews}
@@ -1855,6 +1868,7 @@ const ReadMore = ({ children, maxCharacterCount = 100 }) => {
 };
 
 const MediaList = ({
+  userId,
   media,
   setMedia,
   channelPreviews,
@@ -1865,6 +1879,7 @@ const MediaList = ({
     const [files, setFiles] = useState(media)
     const editingIndex = useRef(null)
     const editImageRef = useRef(null)
+    const editImageData = useRef(null)
      const evtSourceRef = useRef(null);
 
 
@@ -1973,6 +1988,51 @@ const MediaList = ({
 
         if (updatedFile === currentFile) {
 
+          const file = await fileFromServer(event.data);
+
+          console.log('editImageData.current', editImageData.current)
+
+          const formData = new FormData()
+          formData.append('file', file)
+
+          try{
+            const res = await fetch('/api/upload', {
+              method: 'POST',
+              body: formData,
+            })
+
+            const result = await res.json()
+
+            if (res.ok) {
+              const fileInfo = await storeFileInfo({
+                user_id:userId,
+                file_url:result.url,
+                file_type:file.type,
+                file_name:file.name,
+                file_description:editImageData.current.file_description??null
+              })
+
+              const newItem = {...fileInfo, source:'internal', chosen: editImageData.current.chosen}
+
+              console.log('editImageData.current', editImageData.current)
+
+              console.log('newItem', newItem)
+
+
+              setMedia(prevItems =>
+                prevItems.map((item, i) => item.id === editImageData.current.id ? newItem : item)
+              );
+
+
+            } else {
+              console.log(result.error)
+              showError(result.error)
+            }
+          }catch(error){
+            console.log(error)
+            showError('file upload error', error)
+          }
+
 
         }
       };
@@ -1999,6 +2059,7 @@ const MediaList = ({
 
     if (data.publicUrl) {
         editImageRef.current = data.publicUrl
+        editImageData.current = image
         startSSE();
       }
     }
