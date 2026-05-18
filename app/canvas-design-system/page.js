@@ -27,14 +27,15 @@ export default async function Page() {
   const userId = user.id
 
   return (
-    <div style={{
-      height: '100%',
-      position: 'relative'
-    }}>
-      {/*}<ImageGeneration/>*/}
-      {/*}<CanvasDesignSystem/>*/}
-      <Danva  user={ user}/>
+        <div style={{
+          height: '100%',
+          position: 'relative'
+        }}>
+          {/*}<ImageGeneration/>*/}
+          {/*}<CanvasDesignSystem/>*/}
+          <Danva  user={ user}/>
 
-    </div>
+        </div>
+  
   );
 }

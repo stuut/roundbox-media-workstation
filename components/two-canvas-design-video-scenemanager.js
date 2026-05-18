@@ -22,6 +22,8 @@ import { updatePostPublication } from "@/lib/supabase";
 import { createVideoFromImages } from  "@/lib/createVideoFromImages"
 import Cropper from 'cropperjs';
 import { Summary } from '@/components/summary'
+import Slider from '@mui/material/Slider';
+
 
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
@@ -69,7 +71,6 @@ var WPAPI = require( 'wpapi' );
 import WavesurferPlayer from '@wavesurfer/react'
 const workflowJson = require('../outpainting_api.json');
 //const workflowJson = require('../outpainting_api_v2.json');
-
 
 
 /*
@@ -8869,7 +8870,7 @@ const editImage = () => {
               <div>
                 <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                     <label style={{marginRight:'5px'}}>Size</label>
-                    <input style={{marginRight:'5px'}} type="range" id="size" min="5" max="500" value={brushSize} onChange={(e) => setBrushSize(e.target.value)}/>
+                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={5} max={500} value={brushSize} onChange={(e) => setBrushSize(e.target.value)}/>
                     <span className="size_display" style={{width:'30px'}}>{brushSize}</span>
                 </div>
 
@@ -8877,17 +8878,17 @@ const editImage = () => {
                   <>
                     <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                         <label style={{marginRight:'5px'}}>Hardness</label>
-                        <input style={{marginRight:'5px'}} type="range" id="size" min="0" max="100" value={brushHardness} onChange={(e) => setBrushHardness(e.target.value)}/>
+                        <Slider style={{marginRight:'5px'}} type="range" id="size" min={0} max={100} value={brushHardness} onChange={(e) => setBrushHardness(e.target.value)}/>
                         <span className="size_display"  style={{width:'30px'}}>{brushHardness}</span>
                     </div>
                     <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                         <label style={{marginRight:'5px'}}>Opacity</label>
-                        <input style={{marginRight:'5px'}} type="range" id="size" min="1" max="100" value={brushOpacity} onChange={(e) => setBrushOpacity(e.target.value)}/>
+                        <Slider style={{marginRight:'5px'}} type="range" id="size" min={1} max={100} value={brushOpacity} onChange={(e) => setBrushOpacity(e.target.value)}/>
                         <span className="size_display" style={{width:'30px'}}>{brushOpacity}</span>
                     </div>
                     <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                         <label style={{marginRight:'5px'}}>Flow</label>
-                        <input style={{marginRight:'5px'}} type="range" id="size" min="1" max="100" value={brushFlow} onChange={(e) => setBrushFlow(e.target.value)}/>
+                        <Slider style={{marginRight:'5px'}} type="range" id="size" min={1} max={100} value={brushFlow} onChange={(e) => setBrushFlow(e.target.value)}/>
                         <span id="sizeDisplay">{brushFlow}</span>
                     </div>
                   </>
@@ -8906,17 +8907,17 @@ const editImage = () => {
               <div>
                 <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                     <label style={{marginRight:'5px'}}>Size</label>
-                    <input style={{marginRight:'5px'}} type="range" id="size" min="5" max="500" value={eraserSize} onChange={(e) => setEraserSize(e.target.value)}/>
+                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={5} max={500} value={eraserSize} onChange={(e) => setEraserSize(e.target.value)}/>
                     <span className="size_display" style={{width:'30px'}}>{eraserSize}</span>
                 </div>
                 <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                     <label style={{marginRight:'5px'}}>Opacity</label>
-                    <input style={{marginRight:'5px'}} type="range" id="size" min="1" max="100" value={eraserOpacity} onChange={(e) => setEraserOpacity(e.target.value)}/>
+                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={1} max={100} value={eraserOpacity} onChange={(e) => setEraserOpacity(e.target.value)}/>
                     <span className="size_display" style={{width:'30px'}}>{eraserOpacity}</span>
                 </div>
                 <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                     <label style={{marginRight:'5px'}}>Hardness</label>
-                    <input style={{marginRight:'5px'}} type="range" id="size" min="0" max="100" value={eraserHardness} onChange={(e) => setEraserHardness(e.target.value)}/>
+                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={0} max={100} value={eraserHardness} onChange={(e) => setEraserHardness(e.target.value)}/>
                     <span className="size_display"  style={{width:'30px'}}>{eraserHardness}</span>
                 </div>
 
@@ -11408,11 +11409,11 @@ const EffectsPanel = ({
         />
         <div>
           <label className='font-label'>Blur</label>
-          <input
+          <Slider
             type="range"
             step="1"
-            min="0"
-            max="100"
+            min={0}
+            max={100}
             max={duration}
             value={effect.shadowBlur}
             onChange={(e) => updateEffect(index, { shadowBlur: parseFloat(e.target.value) || 0 })}
@@ -11701,27 +11702,25 @@ const PropertiesPanel = ({
               value={element.strokeWeight}
               onChange={(e) => onElementUpdateProperty('strokeWeight', Number(e.target.value))}
               step={1}
-              className="form-input input font-label-input"
             />
           </div>
         }
 
         <div style={{margin: '0px 0px 0px px', }}>
-          <div style={{display:'flex', gap:'5px'}} className='font-label'>  <p>Opacity</p> <p>{element.opacity* 100}%</p></div>
-          <input
+          <div style={{display:'flex', gap:'5px'}} className='font-label'>  <p>Opacity</p> <p>{Math.round(element.opacity * 100)}%</p></div>
+          <Slider
             id='properties-opacity'
             type='range'
             value={[(element.opacity ?? 1) * 100]}
-            onChange={(e) => onElementUpdateProperty('opacity', e.target.value / 100)}
+            onChange={(e) => onElementUpdateProperty('opacity', (e.target.value / 100).toFixed(2))}
             min={0}
             max={100}
             step={1}
-            className="form-input input font-label-input"
           />
         </div>
         <div style={{margin: '0px 0px 0px px', }}>
           <div style={{display:'flex', gap:'5px'}} className='font-label'><p>Rotation</p> <p>{Math.round(radToDeg(element.angle))}</p></div>
-          <input
+          <Slider
             id="properties-angle"
             type="range"
             value={radToDeg(element.angle || 0)}
@@ -11731,7 +11730,6 @@ const PropertiesPanel = ({
             min={0}
             max={360}
             step={1}
-            className="form-input input font-label-input"
           />
         </div>
       </div>

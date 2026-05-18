@@ -17,6 +17,7 @@ import ImportItems from "@/components/import-items"
 import EditFile from "@/components/edit-item"
 import { Poppins } from "next/font/google"
 import { Raleway } from 'next/font/google';
+import MUIProvider from '@/components/MUIProvider';
 
 
 const raleway = Raleway({
@@ -53,29 +54,6 @@ export const metadata = {
 
 export default async function RootLayout({ children, params  }) {
 
-  if (params.slug === 'canvas-design-system') {
-    return (
-    <html lang="en" className={`${poppins.variable} ${raleway.variable}`} suppressHydrationWarning>
-        <body className="bg-background text-foreground">
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-          >
-          <UserProvider>
-          <FilesProvider>
-            <main className="full-height">
-              <div style={{height:'100%'}}>
-                {children}
-              </div>
-            </main>
-          </FilesProvider>
-        </UserProvider>
-        </ThemeProvider>
-      </body>
-    </html>
-    )
-  }else{
-
   return (
     <html lang="en" className={`${poppins.variable} ${raleway.variable}`} suppressHydrationWarning>
       <body className="bg-background text-foreground">
@@ -108,6 +86,8 @@ export default async function RootLayout({ children, params  }) {
           attribute="class"
           defaultTheme="system"
         >
+          <MUIProvider>
+
         <UserProvider>
           <EditItemProvider>
           <FilesProvider>
@@ -137,9 +117,10 @@ export default async function RootLayout({ children, params  }) {
         </FilesProvider>
       </EditItemProvider>
       </UserProvider>
+    </MUIProvider>
         </ThemeProvider>
       </body>
     </html>
   )
-  }
+
 }

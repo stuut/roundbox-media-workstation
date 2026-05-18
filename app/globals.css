@@ -1,4 +1,9 @@
-
+:root {
+  --md-sys-color-primary: rgb(54 94 157)
+  --md-sys-color-background: rgb(249 249 255);
+  --md-sys-color-surface: rgb(249 249 255);
+  --md-sys-color-on-surface: rgb(26 28 32);
+}
 
 
 
