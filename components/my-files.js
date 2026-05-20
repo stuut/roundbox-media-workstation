@@ -38,15 +38,7 @@ export default function MyFiles() {
     }
   };
 
-  useEffect(() => {
-    if (user){
 
-      const fileTypes = [...imageTypes, ...audioTypes, ...videoTypes]
-
-      getData(user.id, fileTypes)
-    }
-
-}, []);
 
 
 useEffect(()=>{
@@ -66,9 +58,9 @@ useEffect(()=>{
     }
 
 
-  if (user){
-    getData(user.id, filterArray)
-  }
+    if (user){
+      getData(user.id, filterArray)
+    }
 
 },[fileFilters] )
 
