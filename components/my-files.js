@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFilesContext } from "@/context/files-context"
 import { useUserContext } from "@/context/user-context"
 import { isObjectInArray } from '@/lib/utils'
@@ -7,12 +7,18 @@ import { getFiles } from "@/lib/supabase";
 import ImageGeneration from "components/image-generation"
 import VideoGeneration from "components/video-generation"
 import DisplayVideo from "components/display-video"
-
+import {Upload, Pause, Play} from 'lucide-react';
+import Checkbox from '@mui/material/Checkbox';
 import { storeFileInfo } from "@/lib/supabase";
 import { deleteFiles } from "@/lib/supabase";
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
+import JSZip from "jszip";
+
+const imageTypes = ['image/png', 'image/jpeg']
+const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
+const videoTypes = ['video/mp4', 'video/webm']
 
 export default function MyFiles() {
   const { user } = useUserContext();
@@ -20,11 +26,12 @@ export default function MyFiles() {
   const [userId, setUserId] = useState(null)
   const [filesDisplay, setFilesDisplay] = useState('My Files')
   const [uploading, setUploading] = useState(false)
+  const [fileFilters, setFileFilters] = useState([])
 
 
-  const getData = async (userId) => {
+  const getData = async (userId, fileTypes) => {
     try {
-      const myFiles = await getFiles(userId);
+      const myFiles = await getFiles(userId, fileTypes);
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
@@ -33,11 +40,37 @@ export default function MyFiles() {
 
   useEffect(() => {
     if (user){
-      //setUserId(user.id)
-      getData(user.id)
+
+      const fileTypes = [...imageTypes, ...audioTypes, ...videoTypes]
+
+      getData(user.id, fileTypes)
     }
 
-}, [user]);
+}, []);
+
+
+useEffect(()=>{
+
+  const filterArray = []
+
+    if (fileFilters.includes('images')){
+      filterArray.push(...imageTypes)
+    }
+
+    if (fileFilters.includes('videos')){
+      filterArray.push(...videoTypes)
+    }
+
+    if (fileFilters.includes('audio')){
+      filterArray.push(...audioTypes)
+    }
+
+
+  if (user){
+    getData(user.id, filterArray)
+  }
+
+},[fileFilters] )
 
 
 const selectFileFunction = (data) => {
@@ -156,6 +189,47 @@ const deleteSelectedFiles = async () => {
 
 }
 
+
+const checkboxFunction = (item) => {
+
+    setFileFilters((prev) =>
+     prev.includes(item)
+       ? prev.filter((i) => i !== item) // Remove if exists
+       : [...prev, item]                // Add if missing
+   );
+
+}
+
+async function downloadAndZip() {
+  const zip = new JSZip();
+
+  // 1. Fetch all files and add them to the zip
+  const downloadPromises = selectedFiles.map(async (file, index) => {
+    const response = await fetch(file.file_url);
+    const blob = await response.blob();
+
+    // Extract filename from URL or use a default
+    const filename = file.file_url.split('/').pop() || `file-${index}`;
+    zip.file(filename, blob);
+  });
+
+  await Promise.all(downloadPromises);
+
+  // 2. Generate the ZIP blob
+  const zipBlob = await zip.generateAsync({ type: "blob" });
+
+  // 3. Trigger the browser download
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(zipBlob);
+  link.download = "files.zip";
+  link.click();
+
+  // Cleanup
+  URL.revokeObjectURL(link.href);
+}
+
+
+
   return (
     <>
       {showFiles&&
@@ -175,9 +249,9 @@ const deleteSelectedFiles = async () => {
                       <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '10px'}}>
                         {selectedFiles.map((file, index)=>{
                           return(
-                                <div key={file.id}>
+                                <div key={file.id} style={{width:'25%'}}>
                                   {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                                    <img style={{width:'100px', height:'100px', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
+                                    <img style={{width:'100%', height:'auto', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
                                   }
                                   {file.file_type === 'application/pdf'&&
                                     <>
@@ -186,13 +260,17 @@ const deleteSelectedFiles = async () => {
                                   }
                                   {file.file_type === 'video/mp4'&&
                                     <>
-                                      <div className={`${'media-file'}`}>
+                                      <div>
                                          <video
                                            src={file.file_url}
                                            controls
                                            autoPlay={false}
                                            className="video_thumb"
                                            playsInline
+                                           style={{
+                                             minWidth:'unset',
+                                             borderRadius: '5px'
+                                           }}
                                          />
                                       </div>
                                     </>
@@ -203,23 +281,94 @@ const deleteSelectedFiles = async () => {
                       </div>
                       <div style={{display:'flex', alignItems:'center'}}>
                         <input
-                          style={{marginBottom:'10px'}}
+                          style={{display:'none'}}
                           type="file"
-                          id="single"
+                          id="file-upload"
                           accept="image/*,.pdf,.doc"
                           onChange={uploadFile}
                           disabled={uploading}
                         />
+                        <label
+                          className="btn secondary icon-button"
+                          htmlFor="file-upload"
+                          style={{
+                            padding: '10px 15px',
+                            marginTop:'0px',
+                            marginBottom: '0px',
+                            marginLeft: '5px'
+                          }}
+                        >
+                          <Upload className='button-icon'/>
+                          {`Upload File`}
+                        </label>
                         {selectedFiles.length>0 &&
-                          <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
+                          <>
+                            <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
+                            <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
+                            <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
+                          </>
                         }
+                          </div>
+                      <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
+                        <div style={{marginLeft:'5px'}}>
+                          <Checkbox
+                            id={'iimages'}
+                            className="form-check-input"
+                            type="checkbox"
+                            onChange={() => checkboxFunction('images')}
+                            checked={fileFilters.includes('images')}
+                            sx={{
+                              color: 'var(--md-sys-color-secondary)',
+                              '&.Mui-checked': {
+                                color: 'var(--md-sys-color-primary)',
+                              },
+                            }}
+                          />
+                          <span style={{marginLeft:'5px'}}>Images</span>
+                        </div>
+                        <div style={{marginLeft:'5px'}}>
+                          <Checkbox
+                            id={'iimages'}
+                            className="form-check-input"
+                            type="checkbox"
+                            onChange={() => checkboxFunction('videos')}
+                            checked={fileFilters.includes('videos')}
+                            sx={{
+                              color: 'var(--md-sys-color-secondary)',
+                              '&.Mui-checked': {
+                                color: 'var(--md-sys-color-primary)',
+                              },
+                            }}
+                          />
+                          <span style={{marginLeft:'5px'}}>videos</span>
+                        </div>
+                        <div style={{marginLeft:'5px'}}>
+                          <Checkbox
+                            id={'iimages'}
+                            className="form-check-input"
+                            type="checkbox"
+                            onChange={() => checkboxFunction('audio')}
+                            checked={fileFilters.includes('audio')}
+                            sx={{
+                              color: 'var(--md-sys-color-secondary)',
+                              '&.Mui-checked': {
+                                color: 'var(--md-sys-color-primary)',
+                              },
+                            }}
+                          />
+                          <span style={{marginLeft:'5px'}}>audio</span>
+                        </div>
+
                       </div>
 
                     <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
                       {files.map((file, index)=>{
+                        const isVideo = file.file_type === "video/mp4" || file.file_url.match(/\.(mp4|mov|m4v)$/i);
+
+
                         return (
                           <div key={file.id} style={{width:'18%', margin:'1%'}}>
-                            <div>
+
                               {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
                                 <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
                               }
@@ -228,21 +377,27 @@ const deleteSelectedFiles = async () => {
                                   <img className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={'/pdf-icon.png'}/>
                                 </>
                               }
-                              {file.file_type === 'video/mp4'&&
+                              {(file.file_type === 'video/mp4' || file.file_type === 'video/webm' || isVideo)&&
                                 <>
-                                  <div className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
+                                  <div className={`${'media-file video'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
                                      <video
                                        src={file.file_url}
                                        controls
                                        autoPlay={false}
                                        className="video_thumb"
                                        playsInline
+                                       style={{minWidth:'unset'}}
                                      />
                                   </div>
                                 </>
                               }
-                              <p style={{fontSize:'.8em'}}>{file.file_name}</p>
-                            </div>
+                              {(file.file_type === 'audio/mpeg' || file.file_type === 'audio/wav' || file.file_type === 'audio/aac' || file.file_type === 'audio/webm' || file.file_type === 'audio/ogg')&&
+                                <div className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
+                                  <Audio file={file}/>
+                                </div>
+                              }
+                              {/*}<p style={{fontSize:'.8em'}}>{file.file_name}</p>*/}
+
                           </div>
                         )
                       })}
@@ -273,5 +428,42 @@ const deleteSelectedFiles = async () => {
       </div>
       }
     </>
+  )
+}
+
+const Audio = ({
+  file
+}) => {
+
+  const audioRef = useRef(null)
+  const [isPlaying, setIsPLaying] = useState(false)
+
+  const handleClick = () => {
+    if (audioRef.current.paused) {
+      audioRef.current.play();
+      setIsPLaying(true)
+    } else {
+      audioRef.current.pause();
+      setIsPLaying(false)
+    }
+  }
+
+
+
+  return(
+    <div className="audio-player">
+      <button
+        className="play-button btn primary video-button"
+        onClick={handleClick}
+      >
+        {isPlaying ? (
+          <Pause/>
+        ) : (
+          <Play/>
+        )}
+      </button>
+      <div className="audio-label">{file.file_name}</div>
+      <audio ref={audioRef} src={file.file_url} type="audio/mpeg"></audio>
+    </div>
   )
 }

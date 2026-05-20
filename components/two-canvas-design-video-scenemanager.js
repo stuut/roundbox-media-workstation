@@ -1009,7 +1009,7 @@ export const Danva = (({postData, user}, ref) => {
           a.download = `${projectTitle || 'video'}.mp4`;
           a.click();
           URL.revokeObjectURL(url);
-          resolve()
+          
             if (showCanvasLoader){
               setCanvasLoader(false)
             }
@@ -3309,7 +3309,7 @@ const applyTemplate = async(type, template) => {
         ]
         */
 
-        let endpoint = '/api/post-video-generator'
+        let endpoint = '/api/chat-gpt/post-video-generator'
 
         if (isDev){
           endpoint = '/api/gemma/post-video-generator'
@@ -3321,12 +3321,17 @@ const applyTemplate = async(type, template) => {
         });
         const data = await res.json();
 
-        const aiString = data.article.replace(/^```json\s*/, '').replace(/```$/, '').trim();
 
 
-        const scenes = JSON.parse(aiString);
+      //  const aiString = data.article.replace(/^```json\s*/, '').replace(/```$/, '').trim();
 
 
+
+        const parse = JSON.parse(data.article);
+
+        console.log('data', parse)
+
+        const scenes = parse.script
 
         scenes.push({
           "type": "call to action",
@@ -8684,10 +8689,14 @@ const uploadFile = async (file) => {
 
     const fileExt = file.name.split('.').pop();
     const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+
     const fileType = file.type;
     const fileName = file.name
-    const formData = new FormData()
+
     const fileDescription = ''
+
+    const formData = new FormData()
+
     formData.append('file', file)
 
     try{
@@ -9656,7 +9665,7 @@ saveAsTemplate
             setOpen(false)
           }}>Save as Template</p>
           <p onClick={() => {
-            exportVideoFrames(true)
+            exportVideoFrames(true, true)
             setOpen(false)
           }}>Export Video</p>
             <button
@@ -11954,7 +11963,7 @@ const Share = ({
 
       // update database
       const updateData = {
-        status: "published",
+        status: "scheduled",
         meta_data:{
           video_id:videoId,
           ...videoData
@@ -12370,10 +12379,10 @@ const getPostsScheduledPosts = async() => {
                     dateFormat="MMMM d, yyyy h:mm aa"
                   />
                 </div>
-                {/*}
+
                 {(videoSrc && selectedSocialPage) &&
-                  <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText}</button>
-                }*/}
+                  <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText} Facebook only</button>
+                }
                 {(videoSrc &&selectedSocialPages.length>0) &&
                   <button style={{marginLeft:'10px'}} disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
                 }

@@ -14,20 +14,36 @@ RectangleHorizontal,
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
-
+import { updateFileDescriptionValue } from "@/lib/supabase";
 
 export default function EditFile() {
   const { user } = useUserContext();
-  const { displayEditItem, setDisplayEditItem, item, setItem} = useEditItemContext();
+  const { displayEditItem, setDisplayEditItem, item, setItem, activeTool, setActiveTool} = useEditItemContext();
+
+  console.log('activeTool', activeTool)
 
 return(
   <>
     {displayEditItem&&
       <div className='overlay' onClick={(e) => setDisplayEditItem(false)}>
-        <div className='center-absolute' style={{width:'100%', maxWidth:'900px'}}>
-          <div className="card" onClick={(e) => e.stopPropagation()} style={{margin:0}}>
-            <div className="crop-image-viewer">
-              <CropComponent user={user} image={item} setItem={setItem} setDisplayEditItem={setDisplayEditItem}/>
+        <div className='center-absolute' style={{width:'100%', maxWidth:'1200px', height:'800px'}}>
+          <div className="card" onClick={(e) => e.stopPropagation()} style={{margin:0, height:'100%'}}>
+            <div style={{display:'flex'}}>
+              <div style={{flex:1, zIndex: 1}}>
+                <h4>MENU</h4>
+                <p className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}> Crop </p>
+                <p className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
+              </div>
+              <div style={{flex:4, position:'relative'}}>
+                {activeTool === 'crop' &&
+                <CropComponent user={user} image={item} setItem={setItem} setDisplayEditItem={setDisplayEditItem}/>
+                }
+                {activeTool === 'caption' &&
+
+                <CaptionComponent user={user} image={item} setItem={setItem} setDisplayEditItem={setDisplayEditItem}/>
+
+                }
+              </div>
             </div>
           </div>
         </div>
@@ -183,7 +199,6 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
          user_id: user.id
        }
 
-       console.log('newFile', newFile)
        setItem(newFile)
        showSuccess('file uploaded')
        setDisplayEditItem(false)
@@ -255,31 +270,37 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
           />
         </div>
         <div className="controls">
-          <Slider
-          value={zoom}
-          min={0}
-          max={4}
-          step={0.005}
-          defaultValue={1}
-          aria-label="Default"
-          valueLabelDisplay="auto"
-          onChange={(e, zoom) => setZoom(zoom)}
-          />
-          <Slider
-          value={rotation}
-          min={0}
-          max={360}
-          step={1}
-          defaultValue={1}
-          aria-label="Default"
-          valueLabelDisplay="auto"
-          onChange={(e, zoom) => setRotation(zoom)}
-          />
-          <div style={{alignItems: 'center', display:'flex', marginLeft:'10px'}}>
-          <Square onClick={()=> setRatio(1/1)} size={35} className={`cropped-image ${ratio===1/1?'active':''}`} alt="crop ratio 1/1" />
-          <RectangleVertical onClick={()=> setRatio(4/5)} size={35}  className={`cropped-image ${ratio===4/5?'active':''}`} alt="crop ratio 4/5" />
-          <RectangleHorizontal onClick={()=> setRatio(1.91/1)} size={35}  className={`cropped-image ${ratio===1.91/1?'active':''}`}  alt="crop ratio 1.91/1" />
-          <Palette onClick={()=> setShowColourPicker(prevState => !prevState)} size={35} className={`cropped-image ${showColourPicker?'active':''}`} alt="show colour picker" />
+          <div style={{alignItems: 'center', display:'flex', marginLeft:'10px', gap:'10px'}}>
+            <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'5px'}}>
+              <p className='label'> Scale</p>
+              <Slider
+              value={zoom}
+              min={0}
+              max={4}
+              step={0.005}
+              defaultValue={1}
+              aria-label="Default"
+              valueLabelDisplay="auto"
+              onChange={(e, zoom) => setZoom(zoom)}
+              />
+            </div>
+            <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'15px'}}>
+              <p className='label'> Rotate</p>
+              <Slider
+              value={rotation}
+              min={0}
+              max={360}
+              step={1}
+              defaultValue={1}
+              aria-label="Default"
+              valueLabelDisplay="auto"
+              onChange={(e, zoom) => setRotation(zoom)}
+              />
+            </div>
+            <Square onClick={()=> setRatio(1/1)} size={35} className={`cropped-image ${ratio===1/1?'active':''}`} alt="crop ratio 1/1" />
+            <RectangleVertical onClick={()=> setRatio(4/5)} size={35}  className={`cropped-image ${ratio===4/5?'active':''}`} alt="crop ratio 4/5" />
+            <RectangleHorizontal onClick={()=> setRatio(1.91/1)} size={35}  className={`cropped-image ${ratio===1.91/1?'active':''}`}  alt="crop ratio 1.91/1" />
+            <Palette onClick={()=> setShowColourPicker(prevState => !prevState)} size={35} className={`cropped-image ${showColourPicker?'active':''}`} alt="show colour picker" />
            <button
            style={{height:'40px', marginLeft:'10px'}}
               onClick={cropImage}
@@ -294,4 +315,43 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
 </div>
   )
 
+}
+
+const CaptionComponent = ({
+  user,
+  image,
+  setItem,
+  setDisplayEditItem
+}) => {
+  const [fileDescription, setFileDescription] = useState(image?.file_description??'')
+
+  const save = async() => {
+
+  await updateFileDescriptionValue(fileDescription, image.id)
+
+    const newFile = {...image, file_description: fileDescription}
+
+    setItem(newFile)
+    showSuccess('Image Caption Updated')
+    setDisplayEditItem(false)
+  }
+
+
+  return(
+    <div>
+        <div style={{marginTop:'25px'}}>
+          <img style={{maxWidth:'400px', borderRadius:'10px'}} src={image.file_url} />
+          <p className='font-label'>Caption</p>
+          <textarea
+              rows="4"
+              name="imageDescription"
+              className="form-input input"
+              value={fileDescription}
+              onChange={(e) => setFileDescription(e.target.value)}
+          />
+          <button disabled={!fileDescription} className="btn primary" onClick={save}>Save</button>
+        </div>
+
+    </div>
+  )
 }

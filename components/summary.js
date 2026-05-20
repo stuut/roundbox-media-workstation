@@ -17,6 +17,7 @@ export const Summary = ({text, defaultPlatform}) => {
   const platforms = [ 'facebook', 'twitter', 'linkedin', 'instagram', 'threads']
   const tones = ['professional', 'casual', 'witty', 'inspirational', 'urgent']
 
+  const isDev = process.env.NODE_ENV === 'development';
 
   const handlePlatormChange = (event) => {
     setPlatform(event.target.value)
@@ -33,7 +34,13 @@ export const Summary = ({text, defaultPlatform}) => {
         try {
           //const text = postData._def.extendedProps.caption
 
-          const response = await fetch('/api/gemma/summarise', {
+          let endpoint = '/api/chat-gpt/summarise'
+
+          if (isDev){
+            endpoint = '/api/gemma/summarise'
+          }
+
+          const response = await fetch(endpoint, {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
@@ -68,7 +75,7 @@ export const Summary = ({text, defaultPlatform}) => {
 
 return(
   <div className='properties-container'>
-    <p className="label">Summarise Caption</p>
+    <strong>Summarise Caption</strong>
     <div style={{display:'flex', gap:'10px'}}>
         <div style={{flex:1}}>
             <p className="label">Platform</p>

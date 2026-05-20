@@ -7,6 +7,7 @@ const EditItemContext = createContext(null)
 export function EditItemProvider({children}) {
   const [displayEditItem, setDisplayEditItem] = useState(false);
   const [item, setItem] = useState(null);
+  const [activeTool, setActiveTool] = useState(null)
 
 
  return (
@@ -14,7 +15,9 @@ export function EditItemProvider({children}) {
       displayEditItem,
       setDisplayEditItem,
       item,
-      setItem
+      setItem,
+      activeTool,
+      setActiveTool
     }}>
         {children}
     </EditItemContext.Provider>

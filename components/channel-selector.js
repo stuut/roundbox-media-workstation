@@ -13,14 +13,14 @@ export const ChannelSelector = ({
   userId,
   postInfo,
   setSocialPagesParent,
-  callback
+  callback,
+  disabled
 }) => {
   const [open, setOpen] = useState(false)
   const [socialPages, setSocialPages] = useState([])
   const [selectedChannelIds, setSelectedChannelIds] = useState([])
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [pageFilter, setPageFilter] = useState('')
-
 
   useEffect(() => {
     if (!userId) return
@@ -151,7 +151,9 @@ return(
       }}/>
     }
     <div style={{position:'relative'}}>
-      <button style={{
+      <button
+        disabled={disabled}
+        style={{
         width:'100%',
         paddingLeft: '10px',
         marginTop:'0px'

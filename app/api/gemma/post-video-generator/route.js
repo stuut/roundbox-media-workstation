@@ -1,7 +1,3 @@
-import OpenAI from 'openai';
-import fetch from 'node-fetch';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 
 export async function POST(req) {
@@ -48,17 +44,31 @@ export async function POST(req) {
 
   try{
 
-     const completion = await openai.chat.completions.create({
-       model: "gpt-4o", // ✅ use latest model (faster, cheaper, higher quality)
-       messages: [{ role: "user", content: prompt }],
-       temperature: 0.8, // ✅ makes posts sound more natural
-       max_tokens: 300, // ✅ prevents overly long responses
-       //max_completion_tokens: 300,  // ✅ prevents overly long responses with gpt-5
-     });
+    const response = await fetch("http://localhost:11434/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gemma3",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        stream: false,
+        format: "json",
+        options: {
+          temperature: 0.6,
+        },
+      }),
+    });
 
-     const message = completion.choices[0]?.message?.content?.trim() || "";
 
-     return Response.json({article: message},{status: 307});
+    const data = await response.json();
+
+     return Response.json({article: data?.message?.content?.trim() || ""},{status: 200});
 
   }catch(error){
       console.log(error)

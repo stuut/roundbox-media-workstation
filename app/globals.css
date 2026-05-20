@@ -374,6 +374,53 @@ position: relative;
   white-space: nowrap;
 }
 
+.media-file.video.active .video_thumb{
+  border-radius:0px
+}
+
+.media-file.video{
+  width:unset;
+  border-radius:5px
+}
+
+.media-file.video .video_thumb {
+  border-radius:5px;
+  display: block;
+}
+
+.audio-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: sans-serif;
+  background: #f0f0f0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.play-pause-btn {
+  width: 40px;
+  height: 40px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-pause-btn:focus {
+  outline: none;
+}
+
+.audio-label {
+  user-select: none;
+}
+
 
 .properties-container,
 .animation-container{
@@ -524,6 +571,11 @@ h2{
   font-size:.8em
 }
 
+.video_thumb_media_list{
+  width:50px;
+  height:50px
+}
+
 .kanban-count{
   width: 25px;
   height: 25px;
@@ -532,6 +584,7 @@ h2{
   margin-left: auto;
 }
 
+.edit_image_menu_item.active,
 .header-links a.active{
   color:var(--md-sys-color-primary);
   font-weight:bold
@@ -873,8 +926,7 @@ h2{
 }
 
 .reactEasyCrop_Container{
-  border-top-right-radius: var(--border-radius);
-  border-top-left-radius: var(--border-radius);
+    background: var(--md-sys-color-surface-container);
 }
 
 
@@ -888,7 +940,7 @@ h2{
 
 .controls {
   position: absolute;
-  bottom: 20px;
+  bottom: 40px;
   left: 50%;
   width: 50%;
   transform: translateX(-50%);
