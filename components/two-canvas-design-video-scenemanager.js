@@ -1009,7 +1009,7 @@ export const Danva = (({postData, user}, ref) => {
           a.download = `${projectTitle || 'video'}.mp4`;
           a.click();
           URL.revokeObjectURL(url);
-          
+
             if (showCanvasLoader){
               setCanvasLoader(false)
             }
@@ -3311,6 +3311,7 @@ const applyTemplate = async(type, template) => {
 
         let endpoint = '/api/chat-gpt/post-video-generator'
 
+
         if (isDev){
           endpoint = '/api/gemma/post-video-generator'
         }
@@ -3326,12 +3327,22 @@ const applyTemplate = async(type, template) => {
       //  const aiString = data.article.replace(/^```json\s*/, '').replace(/```$/, '').trim();
 
 
+        if (isDev){
+          endpoint = '/api/gemma/post-video-generator'
+        }
+
 
         const parse = JSON.parse(data.article);
 
-        console.log('data', parse)
 
-        const scenes = parse.script
+        let scenes = parse.scenes
+
+
+        if (isDev){
+          scenes = parse.script
+        }
+
+
 
         scenes.push({
           "type": "call to action",

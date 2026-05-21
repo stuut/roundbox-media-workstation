@@ -333,13 +333,17 @@ export const Scheduler = ({user})=>{
   const cal = useRef();
   const [postData, setPostData] = useState(null)
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
+  const [loader, setLoader] = useState(false)
 
 
-  const scheduleCallBack = () =>{
+  const reloadEvents = async() => {
     if (selectedSocialPages.length > 0){
       getPostsFilter(selectedSocialPages)
     }else{
-      getAllPosts()
+
+      const data = await getAllPosts()
+      console.log('getAllPosts', data)
+      updateCalendarEvents(data)
     }
   }
 
@@ -358,9 +362,6 @@ export const Scheduler = ({user})=>{
     if (pages.length === 0) return
     const platformIds = pages.map((page)=> page.id)
     const socialFilterData = await getAllPostsSocialFilter(platformIds)
-
-    const testFilter = socialFilterData.filter((filter)=>filter.post.title === "Short Course To Empower Young Women ")
-
     updateCalendarEvents(socialFilterData)
 
   }
@@ -560,21 +561,31 @@ const hasRun = useRef(false);
     )
   }
 
+  const checkOnesignal = () => {
+
+    const options = {method: 'GET', mode: 'cors', headers: {Authorization: 'Key ODlmNjJhNWMtMGI2OC00MzRmLTg1OTMtNmIxOTI2Mjc5YTZm'}};
+
+
+
+    fetch('https://api.onesignal.com/notifications?app_id=d140ee1c-d1b9-4d2b-925b-92bf419ca774&limit=100&kind=1&time_offset=2026-05-19T00:00:00.000Z', options)
+      .then(res => res.json())
+      .then(res => console.log(res))
+      .catch(err => console.error(err));
+  }
+
+
+
+
   const deletePostCallback = async(postData) =>{
 
 
 
     await deletePost([postData._def.extendedProps.post_publication_id])
 
-
-
-    const isFacebook = postData?._def?.extendedProps?.platform_account?.platform
     const postType = postData._def.extendedProps.type
 
 
-
-
-    if (isFacebook){
+    if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
       const accessToken = postData._def.extendedProps.platform_account.access_token
 
       let id
@@ -582,6 +593,11 @@ const hasRun = useRef(false);
         id = postData?._def.extendedProps?.metaData?.video_id
       }else if (postType === 'text' || postType === 'link' || postType === 'photos') {
         id = postData?._def.extendedProps?.metaData?.post_id
+      }
+
+      if (!id) {
+        showError('No id')
+        return
       }
 
 
@@ -597,6 +613,39 @@ const hasRun = useRef(false);
         //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
         showError(`Error deleting post: ${facebookDeleteResponse.status}`)
       }
+
+
+      notify('Facebook post Deleted')
+
+
+    }
+
+
+    if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
+
+      const id = postData?._def.extendedProps?.metaData?.notification_idq
+      const appId = postData?._def.extendedProps?.platform_account?.external_account_id
+
+      if (!id || !appId) {
+        showError('No id')
+        return
+      }
+
+      const onesignalDeleteResponse = await fetch(`https://onesignal.com/api/v1/notifications/${id}?app_id=${appId}`, {
+          headers: {
+            Authorization: "Basic "+serviceInfo.oneSignalRestApiKey,
+          },
+          method: "DELETE"
+        })
+
+        if (!onesignalDeleteResponse.ok) {
+          //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
+          showError(`Error deleting one signal post: ${onesignalDeleteResponse.status}`)
+        }
+
+        notify('Notification Deleted')
+
+
     }
 
 
@@ -604,6 +653,8 @@ const hasRun = useRef(false);
 
     showSuccess('Post Deleted')
   }
+
+
 
 
   return(
@@ -615,11 +666,12 @@ const hasRun = useRef(false);
         close={setPostData}
         deletePostCallBack={deletePostCallback}
         cal={cal}
-        scheduleCallBack={scheduleCallBack}
+        scheduleCallBack={reloadEvents}
       />
 
       }
       <div style={{flex:1, padding:'20px'}}>
+        <button onClick={checkOnesignal}>Check One Signal</button>
         <div style={{position:'relative', zIndex:2, marginBottom:'10px'}}>
           <p className='label'>Channel Filter</p>
           <ChannelSelector
@@ -649,16 +701,30 @@ const hasRun = useRef(false);
         />
       </div>
       <div style={{flex:4, minWidth: 0}}>
+        <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+            <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+        </div>
         <FullCalendar
           ref={cal}
           allDaySlot={false}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
           slotLabelInterval={"00:30:00"}
           defaultTimedEventDuration={"00:30:00"}
+          // 1. Define the custom button
+          customButtons={{
+            reload: {
+              text: 'Reload',
+              click: function() {
+                reloadEvents();
+              },
+            },
+          }}
+
+
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            right: 'reload, dayGridMonth,timeGridWeek,timeGridDay,listWeek'
           }}
           initialView='timeGridWeek'
           slotEventOverlap={false}
@@ -990,6 +1056,16 @@ const Share = ({
   const [selectedChannelPreview, setSelectedChannelPreview]= useState('facebook')
   const [instagramError, setInstagramError] = useState(false)
   const [unsavedChanges, setUnsavedChanges] = useState(false)
+  const [customCaptions, setCustomCaptions] = useState(false)
+
+  const [customCaptionsData, setCustomCaptionsData] = useState([])
+
+
+  const customCaptionsToggle = (e) => {
+    setCustomCaptions(!customCaptions)
+    console.log('customCaptionsToggle', e.target.value)
+  }
+
 
 
 const type = postData._def.extendedProps.type
@@ -1049,16 +1125,16 @@ const type = postData._def.extendedProps.type
 
         try{
 
-             const savedPost = await savePost({
-               user_id:userId,
-               caption:caption,
-               title:postData.title,
-               type:postType,
-               meta_data:{
-                 event_id:postData.id,
-                 data:postData._def.extendedProps
-               }
-             })
+               const savedPost = await savePost({
+                 user_id:userId,
+                 caption:caption,
+                 title:postData.title,
+                 type:postType,
+                 meta_data:{
+                   event_id:postData.id,
+                   data:postData._def.extendedProps
+                 }
+               })
 
                for (const file of media) {
                  if (file.source === 'external'){
@@ -1099,8 +1175,6 @@ const type = postData._def.extendedProps.type
 
              const savedPostPublicationsOneSignal = savedPostPublications.filter((publication)=>publication.platform === 'One Signal')
 
-             console.log('savedPostPublicationsOneSignal', savedPostPublicationsOneSignal)
-
 
              for (const publication of savedPostPublicationsFacebook) {
                const channel = socialPages.find((social)=> social.id === publication.platform_id)
@@ -1114,24 +1188,37 @@ const type = postData._def.extendedProps.type
                  )
                }else{
 
-                 await FacebookSchedule(
+                 await facebookSchedule(
                    channel.external_account_id,
                    channel.access_token,
                    publication,
                    status = 'scheduled'
                  )
                }
-
              }
+
+              for (const publication of savedPostPublicationsOneSignal) {
+
+                const channel = socialPages.find((social)=> social.id === publication.platform_id)
+
+                await onesignalSchedule(
+                  channel,
+                  publication
+                )
+
+              }
 
         }catch(error){
           console.log('error', error)
           showError(error)
           setLoader(false)
+
         }
 
      scheduleCallBack()
      setLoader(false)
+     showSuccess('All Posts Scheduled')
+     close(null)
   }
 
   const getFacebookPostEndpoint = (postType) => {
@@ -1205,8 +1292,7 @@ const getFacebookPostData = (postType) => {
           caption +
           '\n\n' +
           `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
-        title: postInfo.data.title,
-        scheduled_publish_time: scheduledPublishTime
+        title: postInfo.data.title
       }
 
     default:
@@ -1214,7 +1300,82 @@ const getFacebookPostData = (postType) => {
   }
 }
 
-  const FacebookSchedule = async (
+const onesignalSchedule = async(
+  channel,
+  publication,
+) => {
+
+
+        let dateString = moment(scheduleDate).format("YYYY-MM-DD HH:mm:ss")
+        if (channel.metadata.gmt.startsWith("-")){
+          dateString = dateString+' GMT'+channel.metadata.gmt
+        }else{
+          dateString = dateString+' GMT'+'+'+channel.metadata.gmt
+        }
+
+        let method = "POST";
+        let cors = {
+          'mode': 'cors'
+        }
+
+        let headers = {
+          "Content-type": "application/json",
+          "Authorization": "Basic "+channel.access_token,
+        }
+
+        if (channel.metadata.platform === 'web'){
+          body = JSON.stringify({
+            "app_id" : channel.external_account_id,
+            "headings" :  {"en": title},
+            "contents": {"en": title},
+            "included_segments" : ["Subscribed Users"],
+            "url" : postLink,
+            "chrome_web_image" : media[0].file_url,
+            "send_after" : dateString
+          })
+        }else if (channel.metadata.platform === 'mobile'){
+            body = JSON.stringify({
+              "app_id" : channel.external_account_id,
+              "headings" :  {"en": title},
+              "contents": {"en": title},
+              "included_segments" : ["Subscribed Users"],
+              "send_after" : dateString,
+              "big_picture" : imgUrlState,
+              //"big_picture" : imgUrlState? imgUrlState: null,
+              "data" : slug? {
+                "slug" : slug
+              } : null,
+              'ios_badgeType' : "SetTo",
+              'ios_badgeCount' : 1
+            })
+        }
+
+        const onesignalResponse = await fetch("https://onesignal.com/api/v1/notifications", {method, cors, headers, body})
+
+        if (!onesignalResponse.ok) {
+          setLoader(false)
+          showError(`Failed to schedule One Signal: ${onesignalResponse.status}`)
+        }
+
+        const onesignalResponseJson = await onesignalResponse.json();
+        const notificationId = onesignalResponseJson.id
+
+        const updateData = {
+          status: "scheduled",
+          meta_data:{
+            notification_id:notificationId,
+            ...onesignalResponseJson
+          }
+        }
+
+        await updatePostPublication(publication.id, updateData)
+
+        showSuccess('One Signal Post Scheduled')
+
+
+}
+
+  const facebookSchedule = async (
     pageId,
     accessToken,
     publication,
@@ -1258,7 +1419,6 @@ const getFacebookPostData = (postType) => {
         })
 
     if (!facebookResponse.ok) {
-      //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
       setLoader(false)
       showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
     }
@@ -1282,14 +1442,13 @@ const getFacebookPostData = (postType) => {
           post_id:postId,
           ...postResponseJson
         },
-        published_at: new Date().toISOString()
       }
 
       await updatePostPublication(publication.id, updateData)
       //updateScheduledEvent(updateData)
-      setStatus('scheduled')
+      //setStatus('scheduled')
     //  setScheduled(true)
-    close(null)
+
 
 
     }catch(error){
@@ -1401,9 +1560,9 @@ const getFacebookPostData = (postType) => {
 
       await updatePostPublication(publication.id, updateData)
     //  updateScheduledEvent(updateData)
-      setStatus('scheduled')
+      //setStatus('scheduled')
     //  setScheduled(true)
-      close(null)
+      //close(null)
 
     }catch(error){
       showError(`Facebook error: ${error}`)
@@ -1618,6 +1777,8 @@ const createCaption = () => {
               </div>
             }
             <Switch
+
+              onChange={customCaptionsToggle}
               sx={{
                 '& .MuiSwitch-switchBase.Mui-checked': {
                   color: 'var(--md-sys-color-primary)', // Color of the thumb when checked
@@ -1626,7 +1787,7 @@ const createCaption = () => {
                   backgroundColor: 'var(--md-sys-color-surface-tint)', // Color of the track when checked
                 },
               }}
-            defaultChecked
+            checked={customCaptions}
           />
               <p className='label'>Post Caption</p>
               <textarea
@@ -2074,9 +2235,6 @@ const MediaList = ({
         if (updatedFile === currentFile) {
 
           const file = await fileFromServer(event.data);
-
-
-          console.log('editImageData.current', editImageData.current)
 
           const formData = new FormData()
           formData.append('file', file)
