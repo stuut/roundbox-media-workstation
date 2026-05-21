@@ -11722,6 +11722,7 @@ const PropertiesPanel = ({
               value={element.strokeWeight}
               onChange={(e) => onElementUpdateProperty('strokeWeight', Number(e.target.value))}
               step={1}
+              className="form-input input"
             />
           </div>
         }
