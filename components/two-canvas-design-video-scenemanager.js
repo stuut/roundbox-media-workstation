@@ -12391,9 +12391,10 @@ const getPostsScheduledPosts = async() => {
                   />
                 </div>
 
+                {/*}
                 {(videoSrc && selectedSocialPage) &&
                   <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText} Facebook only</button>
-                }
+                }*/}
                 {(videoSrc &&selectedSocialPages.length>0) &&
                   <button style={{marginLeft:'10px'}} disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
                 }

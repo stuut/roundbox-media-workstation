@@ -671,7 +671,7 @@ const hasRun = useRef(false);
 
       }
       <div style={{flex:1, padding:'20px'}}>
-        <button onClick={checkOnesignal}>Check One Signal</button>
+        {/*}<button onClick={checkOnesignal}>Check One Signal</button>*/}
         <div style={{position:'relative', zIndex:2, marginBottom:'10px'}}>
           <p className='label'>Channel Filter</p>
           <ChannelSelector
