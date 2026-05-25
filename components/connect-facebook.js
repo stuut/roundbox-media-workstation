@@ -64,6 +64,7 @@ export const FacebookConnection = ({userId}) => {
             instagram_manage_comments,
             instagram_manage_insights,
             instagram_content_publish,
+            instagram_manage_contents,
             pages_read_engagement,
             pages_manage_metadata,
             pages_read_user_content,

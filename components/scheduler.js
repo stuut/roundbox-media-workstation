@@ -144,7 +144,7 @@ async function getImageType(url) {
     const contentType = response.headers.get('Content-Type');
     return contentType;
   } catch (error) {
-    console.error('Error fetching image type:', error);
+    console.log('Error fetching image type:', error);
   }
 }
 
@@ -338,6 +338,27 @@ export const Scheduler = ({user})=>{
   const [loader, setLoader] = useState(false)
 
 
+
+  const checkcontainer = async() => {
+
+    const user_token = "EAAoUeGVf64cBRhfMfUvnfmloOPJ5ZC4vaK10SYSMYZBmiH7wAyoB4uHeTpYNJDX1ouK4OuArHNooqmvVsOlGFsb7tZA5A66C5c6Tet3kzbvE7QeNZBUBHcGrQPjHo5bt1KxZAkL68FjLtXljkZBFg6uTScyqTMQG1ZBgPgIxJe9jFASNVMAY001KcAPZAIhpC379RdfTyOuaBwZDZD"
+
+    const accessToken = 'EAAoUeGVf64cBRsWJLTKH6ndZAtjMtSVAqKrukxguHsuZB8MKUNqchQKRfXDqIzgjHZCrqjYw8r7ZCzA5Lp0UlJj0M8frnIB2BpBBM0XT1IhuGovdcLmSOSZBPrvfmx9oKBhHbO8ZCmR1ohzV1WIEVlBmUueKL3koFfhJFRHcrCIltGyXyOBLar3e1S9ibFhCoRGnIyBqaTErleRWue9bJgPQZDZD'
+    const id = '18156915760412489'
+
+
+
+    //const res = await fetch('https://graph.facebook.com/v23.0/18156908977412489?fields=status_code&access_token=EAAoUeGVf64cBRv1qrQx0HQpJ1ZBfiwyUathAFBdXDcEXDBXMG4cRqt7AOkE8CZBkebl2HydCHPYPTO3NZBndfs14owVTp8f3f90ZAO63wZBsTbQfuoDHwoZBZAVYyADrX9Rf1MhpbX1C9ZCg8fsTHO0VMUHYXvSKh2SGmFOdEmBaKMnWU3ObEGwtZCvJ4C3IZAtKBXgZCoBiMEwWN5avosGyvfmDDndm7wahIxmHsWPVDTXN9q3cAZDZD');
+
+
+    const res = await fetch(`https://graph.facebook.com/v23.0/${id}?fields=status_code&access_token=${user_token}`)
+
+    const data = await res.json();
+
+    console.log('waitForInstagramContainer', data )
+  }
+
+
   const reloadEvents = async() => {
     if (selectedSocialPages.length > 0){
       getPostsFilter(selectedSocialPages)
@@ -426,8 +447,8 @@ const updateCalendarEvents = (data) => {
           post_publications_id:post.id,
         },
         metaData: {
-          ...post.meta_data,
-          ...post.platform_account.meta_data
+          ...post?.meta_data,
+          ...post?.platform_account?.metadata
         },
         platform_account:post?.platform_account,
 
@@ -702,6 +723,8 @@ const deleteOneSignal = async () => {
       <div style={{flex:1, padding:'20px'}}>
         {/*}<button onClick={checkOnesignal}>Check One Signal</button>*/}
         {/*}  <button onClick={deleteOneSignal}>Delete One Signal</button>*/}
+
+        <button onClick={checkcontainer}>check instagram</button>
         <div style={{position:'relative', zIndex:2, marginBottom:'10px'}}>
           <p className='label'>Channel Filter</p>
           <ChannelSelector

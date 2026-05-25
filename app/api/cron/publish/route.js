@@ -250,6 +250,7 @@ async function publishSingleInstagramMedia({
   const createData = await createRes.json();
 
   if (!createRes.ok) {
+
     throw new Error(createData.error?.message || "Create failed");
   }
 
@@ -267,6 +268,7 @@ async function publishSingleInstagramMedia({
   );
 
   const publishData = await publishRes.json();
+
 
   if (!publishRes.ok) {
     throw new Error(publishData.error?.message || "Publish failed");
@@ -286,12 +288,18 @@ async function waitForInstagramContainer(id, accessToken) {
   const baseDelay = 5000;
   const maxDelay = 15000;
 
+
+
+  const user_token = "EAAoUeGVf64cBRhfMfUvnfmloOPJ5ZC4vaK10SYSMYZBmiH7wAyoB4uHeTpYNJDX1ouK4OuArHNooqmvVsOlGFsb7tZA5A66C5c6Tet3kzbvE7QeNZBUBHcGrQPjHo5bt1KxZAkL68FjLtXljkZBFg6uTScyqTMQG1ZBgPgIxJe9jFASNVMAY001KcAPZAIhpC379RdfTyOuaBwZDZD"
+
   for (let i = 1; i <= maxAttempts; i++) {
     const res = await fetch(
-      `https://graph.facebook.com/v19.0/${id}?fields=status_code&access_token=${accessToken}`
+      `https://graph.facebook.com/v19.0/${id}?fields=status_code&access_token=${user_token}`
     );
 
     const data = await res.json();
+
+    console.log('data', data)
 
     if (!res.ok) {
       throw new Error(data.error?.message || "Status check failed");
@@ -354,6 +362,7 @@ export async function GET(request) {
        .lte("scheduled_at", new Date().toISOString())
       .limit(10) // batch size
 
+    //return Response.json({ jobs })
 
     if (error) throw error
 
