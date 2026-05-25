@@ -43,6 +43,7 @@ export const ChannelSelector = ({
       const onesignalPages = channels.filter((channel)=> channel.platform === 'One Signal')
 
 
+
       if (!facebookPages || !instagramPages) return
 
       const newPages = facebookPages.map(facebookPage => {
@@ -51,13 +52,13 @@ export const ChannelSelector = ({
           insta => insta.metadata?.facebook_page_id === facebookPage.metadata?.facebook_page_id
         )
 
-        const oneSignalPage = onesignalPages.find(
+        const oneSignalPages = onesignalPages.filter(
           onesignal => onesignal.metadata?.facebook_page_id === facebookPage.metadata?.facebook_page_id
         )
 
-        if (instagramPage && oneSignalPage){
-          return { facebook: facebookPage, instagram: instagramPage,  oneSignal: oneSignalPage}
-        } if (instagramPage && !oneSignalPage) {
+        if (instagramPage && oneSignalPages.length > 0){
+          return { facebook: facebookPage, instagram: instagramPage,  oneSignal: oneSignalPages}
+        } if (instagramPage && oneSignalPages.length === 0) {
           return { facebook: facebookPage, instagram: instagramPage }
         }else{
           return { facebook: facebookPage }
@@ -93,6 +94,8 @@ export const ChannelSelector = ({
   }, [userId, postInfo])
 
   const selectSocial = (id) => {
+
+
     setSelectedChannelIds(prev =>
       prev.includes(id)
         ? prev.filter(existingId => existingId !== id)
@@ -102,16 +105,29 @@ export const ChannelSelector = ({
 
   const allPages = useMemo(() => {
     return socialPages.flatMap(page => {
-      return [page.facebook, page.instagram, page.oneSignal].filter(Boolean)
+      return [
+        page.facebook,
+        page.instagram,
+        ...(Array.isArray(page.oneSignal)
+          ? page.oneSignal
+          : [page.oneSignal])
+      ].filter(Boolean)
     })
   }, [socialPages])
 
 
 
 useEffect(()=>{
-    const selectedPages = allPages.filter((page)=> selectedChannelIds.includes(page.id))
+
+    const selectedPages = allPages.filter((page)=> {
+
+      return selectedChannelIds.includes(page.id)
+      }
+    )
+
     setSelectedSocialPages(selectedPages)
     callback(selectedPages)
+
 },[selectedChannelIds])
 
 const sortedSocialPages = useMemo(() => {
@@ -163,9 +179,8 @@ return(
               Choose a Channel...
           </>
           :
-          <div style={{display:'flex', flexDirection:'column'}}>
+          <div style={{display:'flex', flexDirection:'column', paddingLeft:'8px'}}>
             {selectedSocialPages.map((page, index)=>{
-
                 return(
                   <div key={index}
                     style={{
@@ -190,7 +205,7 @@ return(
                       }
                       {page.platform === 'One Signal' &&
                         <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
-                          <Instagram style={{width:'20px', height:'20px'}}/>
+                          <img src='/one-signal-icon-white.svg' style={{width:'20px', height:'20px'}}/>
                           {page.name}
                           <X onClick={()=>selectSocial(page.id)}/>
                         </div>
@@ -226,12 +241,12 @@ return(
             .filter((social)=>{
               return social?.facebook?.name.toLowerCase().includes(pageFilter.toLowerCase()) ||
                 social?.instagram?.name.toLowerCase().includes(pageFilter.toLowerCase()) ||
-                social?.oneSignal?.name.toLowerCase().includes(pageFilter.toLowerCase())
-
-
+                social?.oneSignal?.some(item =>item.name?.toLowerCase().includes(pageFilter.toLowerCase())
+                )
               }
             )
             .map((social, index)=> {
+
             return(
               <div key={index}>
                   <div style={{margin:'10px 0px'}} className="properties-container">
@@ -268,20 +283,28 @@ return(
                       </label>
                     }
                     {social.oneSignal &&
-                      <label style={{ marginRight: '1em', display: 'flex', alignItems: 'center'}}>
-                        <SelectCheckBox
-                          style={{marginRight:'10px'}}
-                          className="form-check-input"
-                          type="checkbox"
-                          callBackFunction={selectSocial}
-                          id={social.oneSignal.id}
-                          checked={selectedChannelIds.includes(social.oneSignal.id)}
-                        />
-                        <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
-                          <img src='/one-signal-icon.svg' style={{width:'20px', height:'20px'}}/>
-                          {social.oneSignal.name}
-                        </div>
-                      </label>
+                      <>
+                        {social.oneSignal.map((social, index)=>{
+                          return(
+                            <label key={index} style={{ marginRight: '1em', display: 'flex', alignItems: 'center'}}>
+                              <SelectCheckBox
+                                style={{marginRight:'10px'}}
+                                className="form-check-input"
+                                type="checkbox"
+                                callBackFunction={selectSocial}
+                                id={social.id}
+                                checked={selectedChannelIds.includes(social.id)}
+                              />
+                              <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
+                                <img src='/one-signal-icon.svg' style={{width:'20px', height:'20px'}}/>
+                                {social.name}
+                              </div>
+                            </label>
+                          )
+                        })
+                      }
+
+                    </>
                     }
                   </div>
               </div>

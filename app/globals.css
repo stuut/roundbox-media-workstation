@@ -189,7 +189,7 @@ color: #606770;
   left: 50%;
   top: 50%;
   transform:translate(-50%, -50%);
-  width:800px;
+  width:900px;
   height:800px;
   background: var(--md-sys-color-surface);
   border-radius: var(--btn-border-radius);
@@ -795,6 +795,18 @@ h2{
   border-radius: 25px;
   padding: 5px 10px;
   display: inline-block;
+}
+
+.alert-danger {
+    color: var(--md-sys-color-error);
+    background-color: var(--md-sys-color-error-container);
+    border-color: var(--md-sys-color-error) !important;
+}
+.alert {
+    padding: 10px;
+    margin-bottom: 20px;
+    border: var(--input-border-width) solid transparent;
+    border-radius: var(--input-border-radius);
 }
 
 .formula{

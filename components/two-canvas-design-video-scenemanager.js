@@ -11161,6 +11161,8 @@ const FeedsPanel = ({
   onDragStart
   }) => {
 
+    const [noPosts, setNoPosts] = useState(false)
+
 
     const onFeedChange = (value) => {
       const feed = FEEDS.find(item => item.label === value);
@@ -11175,17 +11177,12 @@ const FeedsPanel = ({
         setDateFilter(date)
         if (selectedFeed){
           getFeed(selectedFeed, date);
-
         }
-
     }
 
 
-
-
-
     const getFeed = async (selectedFeed, dateFilter) => {
-
+        setNoPosts(false)
 
       if (selectedFeed.CMSType === 'contentful'){
         const client = contentful.createClient({
@@ -11204,7 +11201,12 @@ const FeedsPanel = ({
 
         const filterPosts = response.items.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
 
-        if (filterPosts.length < 1) return
+
+        if (filterPosts.length === 0){
+          setNoPosts(true)
+          return
+        }
+
 
         const posts = filterPosts.map((item)=>{
             return {
@@ -11226,9 +11228,10 @@ const FeedsPanel = ({
 
 
         setPosts(posts)
+
       }else if (selectedFeed.CMSType === 'wordpress'){
 
-        let date = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
+        //let date = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
 
         const wpapiUrl = 'https://' + selectedFeed.website + '/wp-json'
 
@@ -11239,7 +11242,25 @@ const FeedsPanel = ({
         });
 
 
-        const response = await wp.posts().embed().perPage(100).order('desc').orderby('date').after(new Date(date)).get()
+        const start = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
+        const end = moment(dateFilter).format('YYYY-MM-DD')+'T23:59:59';
+
+        const response = await wp.posts()
+          .embed()
+          .perPage(100)
+          .after(start)
+          .before(end)
+          .orderby('date')
+          .order('desc')
+          .get()
+
+        //const response = await wp.posts().embed().perPage(100).order('desc').orderby('date').after(new Date(date)).get()
+
+        if (response.length === 0){
+          setNoPosts(true)
+          return
+        }
+
 
         function multiIndex(obj,is) {  // obj,['1','2','3'] -> ((obj['1'])['2'])['3']
             return is.length ? multiIndex(obj[is[0]],is.slice(1)) : obj
@@ -11266,6 +11287,7 @@ const FeedsPanel = ({
             }
         })
         setPosts(posts)
+
       }
     }
 
@@ -11297,6 +11319,11 @@ const FeedsPanel = ({
         alignContent: 'flex-start',
         gap: '2%'
       }}>
+        {noPosts &&
+          <div className='alert alert-danger'>
+          No Posts
+        </div>
+        }
         {posts.map((post, index)=>{
           const facebook = {facebook_page_id:selectedFeed.facebook_page_id}
           return(
@@ -11988,9 +12015,10 @@ const Share = ({
         status: "scheduled",
         meta_data:{
           video_id:videoId,
+          post_data:publication.meta_data.post_data,
           ...videoData
         },
-        published_at: new Date().toISOString()
+        //published_at: new Date().toISOString()
       }
 
       await updatePostPublication(publication.id, updateData)

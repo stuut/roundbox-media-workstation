@@ -40,7 +40,7 @@ async function publishToInstagram(job) {
 
   const igId = job.platform_account.external_account_id;
   const accessToken = job.platform_account.access_token;
-  const caption = job.post.caption;
+  const caption = job.caption;
   const files = job?.post_files??[]
 
   if (!files?.length) throw new Error("No media");
@@ -337,17 +337,6 @@ export async function GET(request) {
         type,
         last_error,
         meta_data,
-        post:posts (
-          id,
-          title,
-          caption,
-          type,
-          meta_data,
-          post_files: post_files(
-            post_id,
-            file_id:files(*)
-          )
-        ),
         post_files: post_files(
           post_publication_id,
           file_id:files(*)
@@ -365,6 +354,7 @@ export async function GET(request) {
       .lte("scheduled_at", new Date().toISOString())
       .limit(10) // batch size
 
+
     if (error) throw error
 
     if (!jobs || jobs.length === 0) {
@@ -373,6 +363,7 @@ export async function GET(request) {
 
     // 2. Process jobs
     for (const job of jobs) {
+
       try {
         // mark as processing (avoid double execution)
         await supabase

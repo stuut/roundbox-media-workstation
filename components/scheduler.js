@@ -400,11 +400,10 @@ const updateCalendarEvents = (data) => {
 
       if (post?.platform_account === 'facebook' && status === 'scheduled'){
         status = checkPublished(
-          post?.post?.meta_data?.data?.publishedDate,
+          post?.scheduled_at,
           post?.status,
         )
       }
-
 
       return {
         id: post.id,
@@ -415,9 +414,9 @@ const updateCalendarEvents = (data) => {
         caption: post?.caption,
         scheduleDate: post?.scheduled_at,
         publishDate: post?.meta_data?.data?.publishedDate??null,
-        link: post?.meta_data?.data?.link??null,
-        slug: post?.meta_data?.data?.slug??null,
-        base_url: post?.meta_data?.data?.base_url??null,
+        link: post?.meta_data?.post_data?.link??null,
+        slug: post?.meta_data?.post_data?.slug??null,
+        base_url: post?.meta_data?.post_data?.base_url??null,
         status: status??null,
         type:post?.type??'',
         media: media??null,
@@ -567,13 +566,32 @@ const hasRun = useRef(false);
     )
   }
 
+const deleteOneSignal = async () => {
+
+  const id  = '28dd8dbe-be67-43bf-8272-aac52c81a953'
+  const access_token = "ODlmNjJhNWMtMGI2OC00MzRmLTg1OTMtNmIxOTI2Mjc5YTZm'"
+  const app_id = "d140ee1c-d1b9-4d2b-925b-92bf419ca774"
+
+
+  const onesignalDeleteResponse = await fetch(  `https://onesignal.com/api/v1/notifications/${id}?app_id=${app_id}`, {
+      headers: {
+        Authorization: "Basic "+access_token,
+      },
+      method: "DELETE"
+    })
+}
+
+
+
   const checkOnesignal = () => {
 
-    const options = {method: 'GET', mode: 'cors', headers: {Authorization: 'Key ODlmNjJhNWMtMGI2OC00MzRmLTg1OTMtNmIxOTI2Mjc5YTZm'}};
+    const options = {
+      method: 'GET',
+      mode: 'cors',
+      headers: {Authorization: 'Key ODlmNjJhNWMtMGI2OC00MzRmLTg1OTMtNmIxOTI2Mjc5YTZm'}};
 
 
-
-    fetch('https://api.onesignal.com/notifications?app_id=d140ee1c-d1b9-4d2b-925b-92bf419ca774&limit=100&kind=1&time_offset=2026-05-19T00:00:00.000Z', options)
+    fetch('https://api.onesignal.com/notifications?app_id=d140ee1c-d1b9-4d2b-925b-92bf419ca774&limit=100&kind=1&time_offset=2026-05-25T00:00:00.000Z', options)
       .then(res => res.json())
       .then(res => console.log(res))
       .catch(err => console.error(err));
@@ -583,7 +601,9 @@ const hasRun = useRef(false);
 
   const deletePostCallback = async(postData) =>{
 
-    await deletePost([postData._def.extendedProps.database_info.post_publications_id])
+
+    console.log('postData', postData)
+
 
     const postType = postData._def.extendedProps.type
 
@@ -610,6 +630,7 @@ const hasRun = useRef(false);
           if (!facebookDeleteResponse.ok) {
             //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
             showError(`Error deleting post: ${facebookDeleteResponse.status}`)
+            return
           }
 
       }
@@ -620,30 +641,41 @@ const hasRun = useRef(false);
 
     if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
 
-      const id = postData?._def.extendedProps?.metaData?.notification_id
-      const appId = postData?._def.extendedProps?.platform_account?.external_account_id
+      const notificationId = postData?._def.extendedProps?.metaData?.notification_id
+      const channelId = postData?._def.extendedProps?.platform_account?.id
 
-      if (id && appId) {
+      if (notificationId && channelId) {
 
-        const onesignalDeleteResponse = await fetch(`https://onesignal.com/api/v1/notifications/${id}?app_id=${appId}`, {
+        const onesignalDeleteResponse = await fetch('/api/one-signal/delete', {
+            method: 'POST',
             headers: {
-              Authorization: "Basic "+serviceInfo.oneSignalRestApiKey,
+                'Content-Type': 'application/json',
             },
-            method: "DELETE"
-          })
+            body: JSON.stringify({
+              channelId:channelId,
+              notificationId:notificationId
+            }),
+        });
 
           if (!onesignalDeleteResponse.ok) {
             //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
             showError(`Error deleting one signal post: ${onesignalDeleteResponse.status}`)
+            return
+          }
+
+          const onesignalDeleteResponseJson = await onesignalDeleteResponse.json();
+
+          if (onesignalDeleteResponseJson?.success){
+            showSuccess('Notification Deleted')
+          }else{
+            showError('Error deleting one signal post')
+            return
           }
 
       }
-
-        showSuccess('Notification Deleted')
-
-
     }
 
+    await deletePost([postData._def.extendedProps.database_info.post_publications_id])
 
     setCalendarEvents(prev => prev.filter((post)=> post.id !== postData.id))
 
@@ -669,6 +701,7 @@ const hasRun = useRef(false);
       }
       <div style={{flex:1, padding:'20px'}}>
         {/*}<button onClick={checkOnesignal}>Check One Signal</button>*/}
+        {/*}  <button onClick={deleteOneSignal}>Delete One Signal</button>*/}
         <div style={{position:'relative', zIndex:2, marginBottom:'10px'}}>
           <p className='label'>Channel Filter</p>
           <ChannelSelector
@@ -1036,6 +1069,8 @@ const Share = ({
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(`https://${postData?._def.extendedProps.base_url}/${postData?._def.extendedProps.slug}`)
   const [caption, setCaption] = useState(postData? postData?._def.extendedProps.caption: '')
+  const [title, setTitle] = useState(postData?.title??'')
+
   const [media, setMedia] = useState(postData?._def.extendedProps.media??[])
   const videoBlobRef = useRef(null)
   const [videoSrc, setVideoSrc] = useState(null)
@@ -1058,7 +1093,7 @@ const Share = ({
 
   const [customCaptionsData, setCustomCaptionsData] = useState([])
 
-
+    console.log('postData', postData)
 
   const updatePost = async () => {
 
@@ -1143,9 +1178,6 @@ const Share = ({
           caption:caption,
           title:postData.title,
           type:postType,
-          meta_data:{
-          data: postData._def.extendedProps
-          }
         }
       )
     }
@@ -1251,40 +1283,12 @@ const type = postData._def.extendedProps.type
                type:postType,
                user_id:userId,
                meta_data:{
-                 event_id:postData.id,
-                 data:postData._def.extendedProps
+                 post_data:{ event_id:postData.id, ...postData._def.extendedProps}
                }
              }))
 
              const savedPostPublications = await savePostPublications(publications)
 
-             /*
-
-             for (const savedPostPublication of savedPostPublications) {
-
-               for (const file of media) {
-                 if (file.source === 'external'){
-                     const fileInfo = await storeFileInfo({
-                       user_id:userId,
-                       file_url:file.file_url,
-                       file_type:file.file_type,
-                       file_name:file.file_name,
-                       file_description:file.file_description??null
-                     })
-                  await savePostFile({
-                       file_id:fileInfo.id,
-                       usage_type:postType,
-                       post_publication_id:savedPostPublication.id
-                     })
-                 }else{
-                   await savePostFile({
-                     file_id:file.id,
-                     usage_type:postType,
-                     post_publication_id:savedPostPublication.id
-                   })
-                 }
-                }
-             }*/
 
              for (const savedPostPublication of savedPostPublications) {
                 for (const file of media) {
@@ -1309,61 +1313,6 @@ const type = postData._def.extendedProps.type
                   })
                 }
               }
-
-             const save_sample = [
-    {
-        "id": "bbcd3911-a916-4168-80eb-2ed3030af527",
-        "created_at": "2026-05-22T06:02:22.023163+00:00",
-        "post_id": "d9cd5a50-30be-4e46-a38e-db5b839e641b",
-        "platform": "facebook",
-        "scheduled_at": "2026-05-22T23:00:00+00:00",
-        "status": "scheduled",
-        "published_at": "2026-05-22T06:02:22.023163+00:00",
-        "platform_id": "35e17e1c-b4b9-4795-99d9-262721674df4",
-        "meta_data": {
-            "event_id": "4iqSuGUJGtlGp1bAkXtUJa",
-            "data": {
-                "scheduleDate": "2026-05-22T23:00:00.000Z",
-                "link": "www.hilltopsphoenix.com.au/sacred-syndicate-smc-2026-hume-chapter-blanket-run-raises-big-total",
-                "media": [
-                    {
-                        "id": "8VDoe5cbR8uWqi4TrVq6P",
-                        "file_url": "https://images.ctfassets.net/ticbtmcn8ib7/8VDoe5cbR8uWqi4TrVq6P/3729f08f16ffe65e740c362c5e6b74da/page_0_image_0_1779252051.jpg",
-                        "file_description": "IMAGE: (L-R) Glenn Stewart  - Zac’s Place Inc, Michael “Wombat” Mathew - SSSMC Hume Chapter President, Carol  Barker - CanAssist Harden Murrumburrah and Codie “Code” Behler - SSSMC National Secretary.",
-                        "file_name": "page_0_image_0_1779252051",
-                        "file_type": "image/jpeg",
-                        "source": "external"
-                    }
-                ],
-                "slug": "sacred-syndicate-smc-2026-hume-chapter-blanket-run-raises-big-total",
-                "base_url": "www.hilltopsphoenix.com.au",
-                "status": "unpublished",
-                "caption": "Last Saturday, the Sacred Syndicate Social Motorcycle Club (SSSMC) Hume Chapter held their annual Blanket Run for 2026.  \n\nThe Blanket Run collects items such as blankets, quilts, doonas, sheets and pillows which are donated to Zac’s Place Inc.  \n\nThe Run also raises money for Zac’s Place Inc and Can Assist Harden Murrumburrah.  \n\nNow in its third year, there were a total of thirty four registrations on Saturday. \n\nThere were three stops across the region, with the Run heading out of Harden in the morning.  \n\nThe first stop on the Blanket Run was the Court House Hotel in Boorowa. \n\nThe Run then moved to the lunch stop which was held at the Club House Hotel in Yass.  \n\nThe final stop for this year’s Run was at the Harden Bowling Club.  \n\nBetween the registrations and the raffles at each stop, the Blanket Run raised the huge total of $2344 for the two local charities. \n\n$1172 has been donated to Zac’s Place Inc and another $1172 has been donated to Can Assist Harden Murrumburrah.  \n\nSacred Syndicate Social Motorcycle Club Incorporated National President Vince Behler said, “Congratulations to all the winners of the prizes on offer, and thank you to all the riders for digging deep and their behaviour on the ride.”  \n\n“Without riders like yourselves and our sponsors days like these are much harder to host.” \n\nSpecial thanks to the sponsors of the day in no particular order: \n\n•\tPrendergast Livestock \n\n•\tHarden Bearings & Hardware  \n\n•\tTwin Town Pizza  \n\n•\tZiems Quality Meats  \n\n•\tThe Ohana Collection  \n\n•\tDermal Therapies Harden \n\n•\tDJ’s on Neill \n\n•\tBarnes Store Emporium Cafe  \n\n•\tYass Valley Outdoors Pty Ltd  \n\n•\tCafe Dolcetto  \n\n•\tTrader & Co.  \n\n•\tD & L Country  \n\n•\tHard Rock Gym Harden  \n\n•\tPanthers Hair and Beauty Salon  \n\n•\tThe Court House Hotel Boorowa  \n\n•\tClubhouse Hotel Yass  \n\n•\tHarden Bowling Club  \n\n•\tFleet’s Concrete Polishing  \n\n•\tAthair  \n\n•\tThompsons Rural Supplies  \n\n•\tMichael “Wombat” Mathew \n\n•\tLisa “Tango” Pontin  \n\n•\tCandy Hamilton (Recovery Vehicle)  \n\n•\tBehler Family \n\n•\tSacred Syndicate Social Motorcycle Club \n\n“These sponsors went above and beyond with their gifts and hospitality throughout the event and we can’t wait to help support your businesses into the future.” \n\n“Finally thank you to Hume Chapter President “Wombat” and your Chapter for a well organised event, you should all be very proud of what you’ve achieved.” \n\n“Thank you again to the wonderful charities for allowing us to fundraise for them,” said Vince. \n",
-                "publishedDate": "2026-05-21",
-                "type": "link",
-                "platform_account": {
-                    "external_account_id": "1509386042722586"
-                },
-                "usePreview": false
-            }
-        },
-        "last_error": null,
-        "caption": "Last Saturday, the Sacred Syndicate Social Motorcycle Club (SSSMC) Hume Chapter held their annual Blanket Run for 2026.  \n\nThe Blanket Run collects items such as blankets, quilts, doonas, sheets and pillows which are donated to Zac’s Place Inc.  \n\nThe Run also raises money for Zac’s Place Inc and Can Assist Harden Murrumburrah.  \n\nNow in its third year, there were a total of thirty four registrations on Saturday. \n\nThere were three stops across the region, with the Run heading out of Harden in the morning.  \n\nThe first stop on the Blanket Run was the Court House Hotel in Boorowa. \n\nThe Run then moved to the lunch stop which was held at the Club House Hotel in Yass.  \n\nThe final stop for this year’s Run was at the Harden Bowling Club.  \n\nBetween the registrations and the raffles at each stop, the Blanket Run raised the huge total of $2344 for the two local charities. \n\n$1172 has been donated to Zac’s Place Inc and another $1172 has been donated to Can Assist Harden Murrumburrah.  \n\nSacred Syndicate Social Motorcycle Club Incorporated National President Vince Behler said, “Congratulations to all the winners of the prizes on offer, and thank you to all the riders for digging deep and their behaviour on the ride.”  \n\n“Without riders like yourselves and our sponsors days like these are much harder to host.” \n\nSpecial thanks to the sponsors of the day in no particular order: \n\n•\tPrendergast Livestock \n\n•\tHarden Bearings & Hardware  \n\n•\tTwin Town Pizza  \n\n•\tZiems Quality Meats  \n\n•\tThe Ohana Collection  \n\n•\tDermal Therapies Harden \n\n•\tDJ’s on Neill \n\n•\tBarnes Store Emporium Cafe  \n\n•\tYass Valley Outdoors Pty Ltd  \n\n•\tCafe Dolcetto  \n\n•\tTrader & Co.  \n\n•\tD & L Country  \n\n•\tHard Rock Gym Harden  \n\n•\tPanthers Hair and Beauty Salon  \n\n•\tThe Court House Hotel Boorowa  \n\n•\tClubhouse Hotel Yass  \n\n•\tHarden Bowling Club  \n\n•\tFleet’s Concrete Polishing  \n\n•\tAthair  \n\n•\tThompsons Rural Supplies  \n\n•\tMichael “Wombat” Mathew \n\n•\tLisa “Tango” Pontin  \n\n•\tCandy Hamilton (Recovery Vehicle)  \n\n•\tBehler Family \n\n•\tSacred Syndicate Social Motorcycle Club \n\n“These sponsors went above and beyond with their gifts and hospitality throughout the event and we can’t wait to help support your businesses into the future.” \n\n“Finally thank you to Hume Chapter President “Wombat” and your Chapter for a well organised event, you should all be very proud of what you’ve achieved.” \n\n“Thank you again to the wonderful charities for allowing us to fundraise for them,” said Vince. \n",
-        "user_id": "78b04106-5681-4003-bd18-9a328a719b11",
-        "title": "Sacred Syndicate SMC 2026 Hume Chapter Blanket Run Raises Big Total ",
-        "type": "link"
-    }
-]
-
-
-
-
-             console.log('savedPostPublications ', savedPostPublications)
-
-
-
-             return
-
 
 
              const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
@@ -1396,10 +1345,10 @@ const type = postData._def.extendedProps.type
 
                 const channel = socialPages.find((social)=> social.id === publication.platform_id)
 
-                await onesignalSchedule(
-                  channel,
-                  publication
-                )
+                  await onesignalSchedule(
+                    channel,
+                    publication
+                  )
 
               }
 
@@ -1542,6 +1491,10 @@ const onesignalSchedule = async(
   publication,
 ) => {
 
+  console.log('publication', publication)
+
+
+        let data
 
         let dateString = moment(scheduleDate).format("YYYY-MM-DD HH:mm:ss")
         if (channel.metadata.gmt.startsWith("-")){
@@ -1550,18 +1503,8 @@ const onesignalSchedule = async(
           dateString = dateString+' GMT'+'+'+channel.metadata.gmt
         }
 
-        let method = "POST";
-        let cors = {
-          'mode': 'cors'
-        }
-
-        let headers = {
-          "Content-type": "application/json",
-          "Authorization": "Basic "+channel.access_token,
-        }
-
-        if (channel.metadata.platform === 'web'){
-          body = JSON.stringify({
+        if (channel.metadata.push_platform === 'web'){
+          data = {
             "app_id" : channel.external_account_id,
             "headings" :  {"en": title},
             "contents": {"en": title},
@@ -1569,25 +1512,35 @@ const onesignalSchedule = async(
             "url" : postLink,
             "chrome_web_image" : media[0].file_url,
             "send_after" : dateString
-          })
-        }else if (channel.metadata.platform === 'mobile'){
-            body = JSON.stringify({
+          }
+        }else if (channel.metadata.push_platform === 'mobile'){
+            data = {
               "app_id" : channel.external_account_id,
               "headings" :  {"en": title},
               "contents": {"en": title},
               "included_segments" : ["Subscribed Users"],
               "send_after" : dateString,
-              "big_picture" : imgUrlState,
+              "big_picture" : media[0].file_url,
               //"big_picture" : imgUrlState? imgUrlState: null,
-              "data" : slug? {
-                "slug" : slug
+              "data" : postData?._def.extendedProps.slug? {
+                "slug" : postData?._def.extendedProps.slug
               } : null,
               'ios_badgeType' : "SetTo",
               'ios_badgeCount' : 1
-            })
+            }
         }
 
-        const onesignalResponse = await fetch("https://onesignal.com/api/v1/notifications", {method, cors, headers, body})
+
+        const onesignalResponse = await fetch('/api/one-signal/schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              channelId : channel.id,
+              data:data
+            }),
+        });
 
         if (!onesignalResponse.ok) {
           setLoader(false)
@@ -1595,13 +1548,18 @@ const onesignalSchedule = async(
         }
 
         const onesignalResponseJson = await onesignalResponse.json();
-        const notificationId = onesignalResponseJson.id
+        const notificationId = onesignalResponseJson?.id
+
+        if (!notificationId){
+          notifyError('error Scheduling')
+          return
+        }
 
         const updateData = {
           status: "scheduled",
           meta_data:{
             notification_id:notificationId,
-            ...onesignalResponseJson
+            post_data:publication.meta_data.post_data
           }
         }
 
@@ -1676,6 +1634,7 @@ const onesignalSchedule = async(
         status: "scheduled",
         meta_data:{
           post_id:postId,
+          post_data:publication.meta_data.post_data,
           ...postResponseJson
         },
       }
@@ -1789,6 +1748,7 @@ const onesignalSchedule = async(
         status: "published",
         meta_data:{
           video_id:videoId,
+          post_data:publication.meta_data.post_data,
           ...videoData
         },
         published_at: new Date().toISOString()
@@ -2093,11 +2053,13 @@ const createCaption = () => {
               {postData?._def?.extendedProps?.database_info?.post_publications_id &&
                 <>
                 <button style={{marginLeft:'10px'}} className="btn danger" onClick={deletePostDatabase}>Delete Post</button>
-                <button
-                  style={{marginLeft:'10px'}}
-                  className="btn primary"
-                  onClick={() => updatePost()}>Update Post
-                </button>
+                {postData?._def?.extendedProps?.platform_account?.platform !== "One Signal" &&
+                  <button
+                    style={{marginLeft:'10px'}}
+                    className="btn primary"
+                    onClick={() => updatePost()}>Update Post
+                  </button>
+                }
               </>
               }
 
@@ -2149,7 +2111,7 @@ const createCaption = () => {
               }
 
               {postType === 'photos' &&  selectedChannelPreview === 'facebook' &&
-                  <FacebookPhotosPreview media={media}/>
+                <FacebookPhotosPreview media={media}/>
               }
 
             </div>

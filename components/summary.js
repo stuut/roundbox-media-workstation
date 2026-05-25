@@ -74,7 +74,7 @@ export const Summary = ({text, defaultPlatform}) => {
   }
 
 return(
-  <div className='properties-container'>
+  <div className='properties-container' style={{position:'relative'}}>
     <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
         <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
     </div>
