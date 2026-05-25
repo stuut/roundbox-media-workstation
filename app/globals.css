@@ -808,6 +808,11 @@ h2{
 
 }
 
+.form-input.error{
+  background-color:   var(--md-sys-color-error-container);
+  border: var(--input-border-width) solid var(--md-sys-color-error);
+}
+
 .form-input.workspace-name,
 .form-input.board-name{
      font-size: 1.3em;

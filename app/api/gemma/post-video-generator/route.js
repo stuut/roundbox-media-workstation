@@ -53,6 +53,10 @@ export async function POST(req) {
         model: "gemma3",
         messages: [
           {
+            role: "system",
+            content: "You are a helpful assistant. Always respond in British English, using UK spelling and grammar conventions.",
+          },
+          {
             role: "user",
             content: prompt,
           },

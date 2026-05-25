@@ -11,7 +11,7 @@ async function publishToFacebook(job) {
 
   const pageId = job.platform_account.external_account_id
   const accessToken = job.platform_account.access_token
-  const caption = job.post.caption
+  const caption = job.caption
 
   const res = await fetch(`https://graph.facebook.com/${pageId}/feed`, {
     method: "POST",
@@ -41,7 +41,7 @@ async function publishToInstagram(job) {
   const igId = job.platform_account.external_account_id;
   const accessToken = job.platform_account.access_token;
   const caption = job.post.caption;
-  const files = job?.post?.post_files??[]
+  const files = job?.post_files??[]
 
   if (!files?.length) throw new Error("No media");
 
@@ -58,6 +58,7 @@ async function publishToInstagram(job) {
   const file = files[0];
   const { file_id } = file;
   const fileUrl = file_id?.file_url;
+  const type = job.type
 
   const isVideo =
   file.file_id?.file_type?.startsWith("video") ||
@@ -66,9 +67,9 @@ async function publishToInstagram(job) {
 
   if (isVideo) {
     let mediaType = "REELS"
-    if (job.post.type === 'video') {
+    if (type === 'video') {
       mediaType = "VIDEO"
-    }else if (job.post.type === 'photo_stories') {
+    }else if (type === 'photo_stories') {
       media_type = "STORIES"
     }
     return publishSingleInstagramMedia({
@@ -329,16 +330,27 @@ export async function GET(request) {
         `
         id,
         scheduled_at,
+        published_at,
         status,
+        title,
+        caption,
+        type,
+        last_error,
+        meta_data,
         post:posts (
           id,
           title,
           caption,
           type,
+          meta_data,
           post_files: post_files(
             post_id,
             file_id:files(*)
           )
+        ),
+        post_files: post_files(
+          post_publication_id,
+          file_id:files(*)
         ),
         platform_account:platform_accounts (
           id,

@@ -23,6 +23,7 @@ import { createVideoFromImages } from  "@/lib/createVideoFromImages"
 import Cropper from 'cropperjs';
 import { Summary } from '@/components/summary'
 import Slider from '@mui/material/Slider';
+import { Caption } from '@/components/caption'
 
 
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
@@ -957,6 +958,8 @@ export const Danva = (({postData, user}, ref) => {
             setVideoConvertProgress
           )
 
+          setVideoConvertProgress(0);
+
         }else{
 
           const zipBlob = await zip.generateAsync({
@@ -991,12 +994,17 @@ export const Danva = (({postData, user}, ref) => {
                   100,
                   Math.round((progressEvent.loaded * 100) / totalSize)
                 );
+
+                console.log('percentCompleted', percentCompleted)
+
+
                setVideoConvertProgress(percentCompleted);
             },
             responseType: 'blob', // important to get a Blob instead of JSON
           });
 
 
+          setVideoConvertProgress(0);
           mp4Blob = res.data;
 
         }
@@ -11783,11 +11791,13 @@ const Share = ({
   const [scheduled, setScheduled] = useState(false)
   const [path, setPath]= useState('video_reels')
   const [postType, setPostType]= useState('video_reels')
+  const [customCaptions, setCustomCaptions] = useState(false)
 
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
+  const [isInstagram, setIsInstagram] = useState(false)
 
-  console.log('postInfo', postInfo)
+
 
   const handlePathChange = (event) => {
     setPath(event.target.value);
@@ -12054,23 +12064,34 @@ const Share = ({
                meta_data:postInfo
              })
 
-             const savedPostFile = await savePostFile({
-               post_id:savedPost.id,
-               file_id:uploadedVideo.id,
-               usage_type:postType
-             })
+
 
              const scheduledAtUTC = new Date(scheduleDate).toISOString()
 
              const publications = selectedSocialPages.map((acc) => ({
-               post_id: savedPost.id,
+               post_id:savedPost.id,
                platform_id: acc.id,
                scheduled_at: scheduledAtUTC,
                platform:acc.platform,
-               status: 'scheduled'
+               status: 'scheduled',
+               caption:caption,
+               title:postInfo.data.title,
+               type:postType,
+               user_id:userId,
+               meta_data:postInfo
              }))
 
              const savedPostPublications = await savePostPublications(publications)
+
+
+             for (const savedPostPublication of savedPostPublications) {
+               await savePostFile({
+                 file_id:uploadedVideo.id,
+                 usage_type: postType,
+                 post_id:savedPost.id,
+                 post_publication_id: savedPostPublication.id
+               })
+             }
 
              const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
 
@@ -12339,14 +12360,15 @@ const getPostsScheduledPosts = async() => {
                   </div>
                 </>
               }
-                <p className='font-label'>Post Caption</p>
-                <textarea
-                  style={{minHeight:200}}
-                  value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  className={'form-input'}
-                  cols={8}
-                />
+              <Caption
+                caption={caption}
+                setCaption={setCaption}
+                customCaptions={customCaptions}
+                setCustomCaptions={setCustomCaptions}
+                selectedSocialPages={selectedSocialPages}
+                setIsInstagram={setIsInstagram}
+                isInstagram={isInstagram}
+              />
                 <Summary text={caption} defaultPlatform={'facebook'}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>
                   <p className='font-label'>Schedule Date & Time</p>
@@ -12397,7 +12419,7 @@ const getPostsScheduledPosts = async() => {
                   <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText} Facebook only</button>
                 }*/}
                 {(videoSrc &&selectedSocialPages.length>0) &&
-                  <button style={{marginLeft:'10px'}} disabled={scheduled} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
+                  <button style={{marginLeft:'10px'}} disabled={scheduled || (isInstagram && caption.length>2200)} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
                 }
 
               {/*}  <button className="btn primary" onClick={getPostsScheduledPosts}>Get Posts</button>*/}

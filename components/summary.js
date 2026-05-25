@@ -75,6 +75,9 @@ export const Summary = ({text, defaultPlatform}) => {
 
 return(
   <div className='properties-container'>
+    <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+        <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+    </div>
     <strong>Summarise Caption</strong>
     <div style={{display:'flex', gap:'10px'}}>
         <div style={{flex:1}}>

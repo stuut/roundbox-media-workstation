@@ -33,7 +33,7 @@ export async function POST(req) {
         messages: [
           {
             role: "system",
-            content: "You are a precise social media copywriting assistant.",
+            content: "You are a precise social media copywriting assistant. Always respond in British English, using UK spelling and grammar conventions.",
           },
           {
             role: "user",

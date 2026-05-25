@@ -50,7 +50,10 @@ export async function POST(req) {
 
      const completion = await openai.chat.completions.create({
        model: "gpt-4o", // ✅ use latest model (faster, cheaper, higher quality)
-       messages: [{ role: "user", content: prompt }],
+       messages: [
+         {role: "system", content: "You are a helpful assistant. Always respond in British English, using UK spelling and grammar conventions."},
+         { role: "user", content: prompt }
+       ],
        temperature: 0.8, // ✅ makes posts sound more natural
        max_tokens: 300, // ✅ prevents overly long responses
        response_format: {

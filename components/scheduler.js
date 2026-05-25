@@ -24,6 +24,7 @@ const removeMd = require('remove-markdown');
 import { ChannelSelector } from '@/components/channel-selector';
 import { getAllPostsSocialFilter } from '@/lib/supabase';
 import { updatePostPublication } from '@/lib/supabase';
+import { updatePost } from '@/lib/supabase';
 import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
 import { Carousel } from 'react-responsive-carousel';
 import { ReactSortable } from "react-sortablejs";
@@ -31,6 +32,8 @@ import { useFilesContext } from "@/context/files-context"
 import { useEditItemContext } from "@/context/edit-item-context"
 import Switch from '@mui/material/Switch';
 import { Summary } from '@/components/summary'
+import { Caption } from '@/components/caption'
+
 import { storeFileInfo } from "@/lib/supabase";
 import { updatePostScheduleDate } from "@/lib/supabase";
 import { uploadFile } from '@/lib/upload-file'
@@ -139,7 +142,6 @@ async function getImageType(url) {
   try {
     const response = await fetch(url, { method: 'HEAD' });
     const contentType = response.headers.get('Content-Type');
-    console.log('File Type:', contentType); // e.g., "image/png"
     return contentType;
   } catch (error) {
     console.error('Error fetching image type:', error);
@@ -385,13 +387,13 @@ const updateCalendarEvents = (data) => {
 
 
 
-      const media = post?.post?.post_files.map((media)=>{
+      const media = post?.post_files.map((media)=>{
+        console.log('media ', media )
         return {
           source: 'internal',
           ...media.file_id
         }
       })
-
 
 
       let status = post?.status??''
@@ -404,27 +406,31 @@ const updateCalendarEvents = (data) => {
       }
 
 
-
       return {
         id: post.id,
         start: post.scheduled_at,
         end: post.scheduled_at,
         allDay: false,
-        title: post?.post?.title,
-        caption: post?.post?.caption,
+        title: post?.title,
+        caption: post?.caption,
         scheduleDate: post?.scheduled_at,
-        publishDate: post?.post?.meta_data?.data?.publishedDate??null,
-        link: post?.post?.meta_data?.data?.link??null,
-        slug: post?.post?.meta_data?.data?.slug??null,
-        base_url: post?.post?.meta_data?.data?.base_url??null,
+        publishDate: post?.meta_data?.data?.publishedDate??null,
+        link: post?.meta_data?.data?.link??null,
+        slug: post?.meta_data?.data?.slug??null,
+        base_url: post?.meta_data?.data?.base_url??null,
         status: status??null,
-        type:post?.post?.type??'',
+        type:post?.type??'',
         media: media??null,
         error: post?.last_error??'',
-        metaData: {...post?.post?.meta_data, ...post.meta_data, ...post.platform_account.meta_data},
+        database_info:{
+          post_id:post?.post?.id,
+          post_publications_id:post.id,
+        },
+        metaData: {
+          ...post.meta_data,
+          ...post.platform_account.meta_data
+        },
         platform_account:post?.platform_account,
-        post_publication_id:post.id,
-        database_id:post.id
 
       }
     })
@@ -575,15 +581,11 @@ const hasRun = useRef(false);
 
 
 
-
   const deletePostCallback = async(postData) =>{
 
-
-
-    await deletePost([postData._def.extendedProps.post_publication_id])
+    await deletePost([postData._def.extendedProps.database_info.post_publications_id])
 
     const postType = postData._def.extendedProps.type
-
 
     if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
       const accessToken = postData._def.extendedProps.platform_account.access_token
@@ -595,55 +597,49 @@ const hasRun = useRef(false);
         id = postData?._def.extendedProps?.metaData?.post_id
       }
 
-      if (!id) {
-        showError('No id')
-        return
+      if (id) {
+
+        const facebookDeleteResponse = await fetch(`https://graph.facebook.com/v24.0/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({access_token:accessToken}),
+          })
+
+          if (!facebookDeleteResponse.ok) {
+            //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
+            showError(`Error deleting post: ${facebookDeleteResponse.status}`)
+          }
+
       }
 
-
-    const facebookDeleteResponse = await fetch(`https://graph.facebook.com/v24.0/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({access_token:accessToken}),
-      })
-
-      if (!facebookDeleteResponse.ok) {
-        //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
-        showError(`Error deleting post: ${facebookDeleteResponse.status}`)
-      }
-
-
-      notify('Facebook post Deleted')
-
-
+      showSuccess('Facebook post Deleted')
     }
 
 
     if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
 
-      const id = postData?._def.extendedProps?.metaData?.notification_idq
+      const id = postData?._def.extendedProps?.metaData?.notification_id
       const appId = postData?._def.extendedProps?.platform_account?.external_account_id
 
-      if (!id || !appId) {
-        showError('No id')
-        return
+      if (id && appId) {
+
+        const onesignalDeleteResponse = await fetch(`https://onesignal.com/api/v1/notifications/${id}?app_id=${appId}`, {
+            headers: {
+              Authorization: "Basic "+serviceInfo.oneSignalRestApiKey,
+            },
+            method: "DELETE"
+          })
+
+          if (!onesignalDeleteResponse.ok) {
+            //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
+            showError(`Error deleting one signal post: ${onesignalDeleteResponse.status}`)
+          }
+
       }
 
-      const onesignalDeleteResponse = await fetch(`https://onesignal.com/api/v1/notifications/${id}?app_id=${appId}`, {
-          headers: {
-            Authorization: "Basic "+serviceInfo.oneSignalRestApiKey,
-          },
-          method: "DELETE"
-        })
-
-        if (!onesignalDeleteResponse.ok) {
-          //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
-          showError(`Error deleting one signal post: ${onesignalDeleteResponse.status}`)
-        }
-
-        notify('Notification Deleted')
+        showSuccess('Notification Deleted')
 
 
     }
@@ -653,6 +649,7 @@ const hasRun = useRef(false);
 
     showSuccess('Post Deleted')
   }
+
 
 
 
@@ -1035,7 +1032,6 @@ const Share = ({
 
   const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
   const [scheduleDate, setScheduleDate] = useState(postData.start)
-  const [selectedSocialPage, setSelectedSocialPage] = useState(null)
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(`https://${postData?._def.extendedProps.base_url}/${postData?._def.extendedProps.slug}`)
@@ -1048,7 +1044,6 @@ const Share = ({
   const [scheduled, setScheduled] = useState(false)
   const [postType, setPostType] = useState(postData?._def.extendedProps.type)
   const [status, setStatus] = useState(postData?._def.extendedProps?.status)
-
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
   //const [summary, setSummary]= useState(null)
@@ -1057,10 +1052,114 @@ const Share = ({
   const [instagramError, setInstagramError] = useState(false)
   const [unsavedChanges, setUnsavedChanges] = useState(false)
   const [customCaptions, setCustomCaptions] = useState(false)
+  const [isInstagram, setIsInstagram] = useState(false)
+  const updateImages = useRef(false)
+
 
   const [customCaptionsData, setCustomCaptionsData] = useState([])
 
 
+
+  const updatePost = async () => {
+
+
+    if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
+
+      const pageId = postData?._def?.extendedProps?.platform_account?.external_account_id
+
+      const accessToken = postData?._def?.extendedProps?.platform_account?.access_token
+
+      let endPoint
+
+      if (postType === 'video_reels'){
+        endPoint = postData?._def.extendedProps?.metaData?.video_id
+      }else if (postType === 'text' || postType === 'carousel' || postType === 'link') {
+        endPoint = postData?._def.extendedProps?.metaData?.post_id
+      }else if (postType === 'photos') {
+        endPoint = `${socialId}_${postData?._def.extendedProps?.metaData?.post_id}`
+      }
+
+      const scheduledPublishTime = (moment(scheduleDate).unix())
+      //const endPoint = getFacebookPostEndpoint(postType)
+      const data = getFacebookPostDataUpdate(postType)
+
+      if (status === 'scheduled'){
+        data.scheduled_publish_time = scheduledPublishTime
+        data.published = false
+      }else{
+        data.published = true
+      }
+
+      data.access_token = accessToken
+
+
+      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${endPoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        })
+
+        if (!facebookResponse.ok) {
+          setLoader(false)
+          showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+          return
+        }
+
+        showSuccess('Post Updated')
+    }
+
+    if (postData?._def?.extendedProps?.platform_account?.platform === "instagram"){
+
+    }
+
+    if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
+      id = postData?._def.extendedProps?.metaData?.notification_id
+    }
+
+    const scheduledAtUTC = new Date(scheduleDate).toISOString()
+
+  }
+
+
+  const updatePostOnDatabase = async() => {
+
+    const publicationId = postData?._def?.extendedProps?.database_info?.post_publications_id
+    const postId = postData?._def?.extendedProps?.database_info?.post_id
+
+    if (publicationId){
+      await updatePostPublication(
+        publicationId,
+        {
+        scheduled_at:scheduledAtUTC
+      })
+    }
+
+    if (postId){
+      await updatePost(
+        postId,
+        {
+          caption:caption,
+          title:postData.title,
+          type:postType,
+          meta_data:{
+          data: postData._def.extendedProps
+          }
+        }
+      )
+    }
+
+
+  }
+
+
+
+
+
+
+
+  // check for Id if scheduled
   const customCaptionsToggle = (e) => {
     setCustomCaptions(!customCaptions)
     console.log('customCaptionsToggle', e.target.value)
@@ -1125,6 +1224,7 @@ const type = postData._def.extendedProps.type
 
         try{
 
+
                const savedPost = await savePost({
                  user_id:userId,
                  caption:caption,
@@ -1136,6 +1236,32 @@ const type = postData._def.extendedProps.type
                  }
                })
 
+
+
+             const scheduledAtUTC = new Date(scheduleDate).toISOString()
+
+             const publications = selectedSocialPages.map((acc) => ({
+               post_id:savedPost.id,
+               platform_id: acc.id,
+               scheduled_at: scheduledAtUTC,
+               platform:acc.platform,
+               status: status,
+               caption:caption,
+               title:postData.title,
+               type:postType,
+               user_id:userId,
+               meta_data:{
+                 event_id:postData.id,
+                 data:postData._def.extendedProps
+               }
+             }))
+
+             const savedPostPublications = await savePostPublications(publications)
+
+             /*
+
+             for (const savedPostPublication of savedPostPublications) {
+
                for (const file of media) {
                  if (file.source === 'external'){
                      const fileInfo = await storeFileInfo({
@@ -1146,30 +1272,99 @@ const type = postData._def.extendedProps.type
                        file_description:file.file_description??null
                      })
                   await savePostFile({
-                       post_id:savedPost.id,
                        file_id:fileInfo.id,
-                       usage_type:postType
+                       usage_type:postType,
+                       post_publication_id:savedPostPublication.id
                      })
                  }else{
                    await savePostFile({
-                     post_id:savedPost.id,
                      file_id:file.id,
-                     usage_type:postType
+                     usage_type:postType,
+                     post_publication_id:savedPostPublication.id
                    })
                  }
                 }
+             }*/
 
-             const scheduledAtUTC = new Date(scheduleDate).toISOString()
+             for (const savedPostPublication of savedPostPublications) {
+                for (const file of media) {
 
-             const publications = selectedSocialPages.map((acc) => ({
-               post_id: savedPost.id,
-               platform_id: acc.id,
-               scheduled_at: scheduledAtUTC,
-               platform:acc.platform,
-               status: status
-             }))
+                  const fileId = file.source === 'external'
+                    ? (
+                        await storeFileInfo({
+                          user_id: userId,
+                          file_url: file.file_url,
+                          file_type: file.file_type,
+                          file_name: file.file_name,
+                          file_description: file.file_description ?? null
+                        })
+                      ).id
+                    : file.id
 
-             const savedPostPublications = await savePostPublications(publications)
+                  await savePostFile({
+                    file_id: fileId,
+                    usage_type: postType,
+                    post_id:savedPost.id,
+                    post_publication_id: savedPostPublication.id
+                  })
+                }
+              }
+
+             const save_sample = [
+    {
+        "id": "bbcd3911-a916-4168-80eb-2ed3030af527",
+        "created_at": "2026-05-22T06:02:22.023163+00:00",
+        "post_id": "d9cd5a50-30be-4e46-a38e-db5b839e641b",
+        "platform": "facebook",
+        "scheduled_at": "2026-05-22T23:00:00+00:00",
+        "status": "scheduled",
+        "published_at": "2026-05-22T06:02:22.023163+00:00",
+        "platform_id": "35e17e1c-b4b9-4795-99d9-262721674df4",
+        "meta_data": {
+            "event_id": "4iqSuGUJGtlGp1bAkXtUJa",
+            "data": {
+                "scheduleDate": "2026-05-22T23:00:00.000Z",
+                "link": "www.hilltopsphoenix.com.au/sacred-syndicate-smc-2026-hume-chapter-blanket-run-raises-big-total",
+                "media": [
+                    {
+                        "id": "8VDoe5cbR8uWqi4TrVq6P",
+                        "file_url": "https://images.ctfassets.net/ticbtmcn8ib7/8VDoe5cbR8uWqi4TrVq6P/3729f08f16ffe65e740c362c5e6b74da/page_0_image_0_1779252051.jpg",
+                        "file_description": "IMAGE: (L-R) Glenn Stewart  - Zac’s Place Inc, Michael “Wombat” Mathew - SSSMC Hume Chapter President, Carol  Barker - CanAssist Harden Murrumburrah and Codie “Code” Behler - SSSMC National Secretary.",
+                        "file_name": "page_0_image_0_1779252051",
+                        "file_type": "image/jpeg",
+                        "source": "external"
+                    }
+                ],
+                "slug": "sacred-syndicate-smc-2026-hume-chapter-blanket-run-raises-big-total",
+                "base_url": "www.hilltopsphoenix.com.au",
+                "status": "unpublished",
+                "caption": "Last Saturday, the Sacred Syndicate Social Motorcycle Club (SSSMC) Hume Chapter held their annual Blanket Run for 2026.  \n\nThe Blanket Run collects items such as blankets, quilts, doonas, sheets and pillows which are donated to Zac’s Place Inc.  \n\nThe Run also raises money for Zac’s Place Inc and Can Assist Harden Murrumburrah.  \n\nNow in its third year, there were a total of thirty four registrations on Saturday. \n\nThere were three stops across the region, with the Run heading out of Harden in the morning.  \n\nThe first stop on the Blanket Run was the Court House Hotel in Boorowa. \n\nThe Run then moved to the lunch stop which was held at the Club House Hotel in Yass.  \n\nThe final stop for this year’s Run was at the Harden Bowling Club.  \n\nBetween the registrations and the raffles at each stop, the Blanket Run raised the huge total of $2344 for the two local charities. \n\n$1172 has been donated to Zac’s Place Inc and another $1172 has been donated to Can Assist Harden Murrumburrah.  \n\nSacred Syndicate Social Motorcycle Club Incorporated National President Vince Behler said, “Congratulations to all the winners of the prizes on offer, and thank you to all the riders for digging deep and their behaviour on the ride.”  \n\n“Without riders like yourselves and our sponsors days like these are much harder to host.” \n\nSpecial thanks to the sponsors of the day in no particular order: \n\n•\tPrendergast Livestock \n\n•\tHarden Bearings & Hardware  \n\n•\tTwin Town Pizza  \n\n•\tZiems Quality Meats  \n\n•\tThe Ohana Collection  \n\n•\tDermal Therapies Harden \n\n•\tDJ’s on Neill \n\n•\tBarnes Store Emporium Cafe  \n\n•\tYass Valley Outdoors Pty Ltd  \n\n•\tCafe Dolcetto  \n\n•\tTrader & Co.  \n\n•\tD & L Country  \n\n•\tHard Rock Gym Harden  \n\n•\tPanthers Hair and Beauty Salon  \n\n•\tThe Court House Hotel Boorowa  \n\n•\tClubhouse Hotel Yass  \n\n•\tHarden Bowling Club  \n\n•\tFleet’s Concrete Polishing  \n\n•\tAthair  \n\n•\tThompsons Rural Supplies  \n\n•\tMichael “Wombat” Mathew \n\n•\tLisa “Tango” Pontin  \n\n•\tCandy Hamilton (Recovery Vehicle)  \n\n•\tBehler Family \n\n•\tSacred Syndicate Social Motorcycle Club \n\n“These sponsors went above and beyond with their gifts and hospitality throughout the event and we can’t wait to help support your businesses into the future.” \n\n“Finally thank you to Hume Chapter President “Wombat” and your Chapter for a well organised event, you should all be very proud of what you’ve achieved.” \n\n“Thank you again to the wonderful charities for allowing us to fundraise for them,” said Vince. \n",
+                "publishedDate": "2026-05-21",
+                "type": "link",
+                "platform_account": {
+                    "external_account_id": "1509386042722586"
+                },
+                "usePreview": false
+            }
+        },
+        "last_error": null,
+        "caption": "Last Saturday, the Sacred Syndicate Social Motorcycle Club (SSSMC) Hume Chapter held their annual Blanket Run for 2026.  \n\nThe Blanket Run collects items such as blankets, quilts, doonas, sheets and pillows which are donated to Zac’s Place Inc.  \n\nThe Run also raises money for Zac’s Place Inc and Can Assist Harden Murrumburrah.  \n\nNow in its third year, there were a total of thirty four registrations on Saturday. \n\nThere were three stops across the region, with the Run heading out of Harden in the morning.  \n\nThe first stop on the Blanket Run was the Court House Hotel in Boorowa. \n\nThe Run then moved to the lunch stop which was held at the Club House Hotel in Yass.  \n\nThe final stop for this year’s Run was at the Harden Bowling Club.  \n\nBetween the registrations and the raffles at each stop, the Blanket Run raised the huge total of $2344 for the two local charities. \n\n$1172 has been donated to Zac’s Place Inc and another $1172 has been donated to Can Assist Harden Murrumburrah.  \n\nSacred Syndicate Social Motorcycle Club Incorporated National President Vince Behler said, “Congratulations to all the winners of the prizes on offer, and thank you to all the riders for digging deep and their behaviour on the ride.”  \n\n“Without riders like yourselves and our sponsors days like these are much harder to host.” \n\nSpecial thanks to the sponsors of the day in no particular order: \n\n•\tPrendergast Livestock \n\n•\tHarden Bearings & Hardware  \n\n•\tTwin Town Pizza  \n\n•\tZiems Quality Meats  \n\n•\tThe Ohana Collection  \n\n•\tDermal Therapies Harden \n\n•\tDJ’s on Neill \n\n•\tBarnes Store Emporium Cafe  \n\n•\tYass Valley Outdoors Pty Ltd  \n\n•\tCafe Dolcetto  \n\n•\tTrader & Co.  \n\n•\tD & L Country  \n\n•\tHard Rock Gym Harden  \n\n•\tPanthers Hair and Beauty Salon  \n\n•\tThe Court House Hotel Boorowa  \n\n•\tClubhouse Hotel Yass  \n\n•\tHarden Bowling Club  \n\n•\tFleet’s Concrete Polishing  \n\n•\tAthair  \n\n•\tThompsons Rural Supplies  \n\n•\tMichael “Wombat” Mathew \n\n•\tLisa “Tango” Pontin  \n\n•\tCandy Hamilton (Recovery Vehicle)  \n\n•\tBehler Family \n\n•\tSacred Syndicate Social Motorcycle Club \n\n“These sponsors went above and beyond with their gifts and hospitality throughout the event and we can’t wait to help support your businesses into the future.” \n\n“Finally thank you to Hume Chapter President “Wombat” and your Chapter for a well organised event, you should all be very proud of what you’ve achieved.” \n\n“Thank you again to the wonderful charities for allowing us to fundraise for them,” said Vince. \n",
+        "user_id": "78b04106-5681-4003-bd18-9a328a719b11",
+        "title": "Sacred Syndicate SMC 2026 Hume Chapter Blanket Run Raises Big Total ",
+        "type": "link"
+    }
+]
+
+
+
+
+             console.log('savedPostPublications ', savedPostPublications)
+
+
+
+             return
+
+
 
              const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
 
@@ -1248,7 +1443,9 @@ const type = postData._def.extendedProps.type
 
 }
 
-const getFacebookPostData = (postType) => {
+
+
+const getFacebookPostDataSchedule = (postType) => {
   switch (postType) {
     case 'text':
       return {
@@ -1265,21 +1462,18 @@ const getFacebookPostData = (postType) => {
     case 'photos':
       return {
         message: caption,
-        published: publish,
         url: media[0].file_url,
       }
 
     case 'video':
       return {
         description: caption,
-        published: publish,
         file_url: videoUrlState,
       }
 
     case 'photo_stories':
       return {
-        link: postLinkState,
-        published: published,
+        link: postLink,
         photo_id: media[0].file_url,
       }
 
@@ -1293,6 +1487,49 @@ const getFacebookPostData = (postType) => {
           '\n\n' +
           `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
         title: postInfo.data.title
+      }
+
+    default:
+      return null
+  }
+}
+
+const getFacebookPostDataUpdate = (postType) => {
+  switch (postType) {
+    case 'text':
+      return {
+        message: caption,
+      }
+
+    case 'link':
+    case 'carousel':
+      return {
+        message: caption,
+        link: postLink,
+      }
+
+    case 'photos':
+      return {
+        message: caption,
+        url: media[0].file_url,
+      }
+
+    case 'video':
+      return {
+        description: caption,
+        file_url: videoUrlState,
+      }
+
+    case 'photo_stories':
+      return {
+        link: postLink,
+        photo_id: media[0].file_url,
+      }
+
+    case 'video_reels':
+      return {
+        description:caption,
+        title: postData.title
       }
 
     default:
@@ -1390,7 +1627,7 @@ const onesignalSchedule = async(
 
     const scheduledPublishTime = (moment(scheduleDate).unix())
     const endPoint = getFacebookPostEndpoint(postType)
-    const data = getFacebookPostData(postType)
+    const data = getFacebookPostDataSchedule(postType)
 
 
     if (!endPoint || !data){
@@ -1409,7 +1646,6 @@ const onesignalSchedule = async(
     data.access_token = accessToken
 
     try{
-
       const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${endPoint}`, {
           method: 'POST',
           headers: {
@@ -1418,10 +1654,10 @@ const onesignalSchedule = async(
           body: JSON.stringify(data),
         })
 
-    if (!facebookResponse.ok) {
-      setLoader(false)
-      showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
-    }
+        if (!facebookResponse.ok) {
+          setLoader(false)
+          showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+        }
 
     showSuccess('Post Scheduled')
 
@@ -1608,8 +1844,9 @@ const onesignalSchedule = async(
   }
 
   const deletePostDatabase = async() =>{
-
+      setLoader(true)
       await deletePostCallBack(postData)
+      setLoader(false)
       close(null)
   }
 
@@ -1682,7 +1919,8 @@ const createCaption = () => {
                   background: 'var(--md-sys-color-error)',
                   color:'#ffffff',
                   padding:'10px',
-                  borderRadius: '10px'
+                  borderRadius: '10px',
+                  marginTop:'15px'
                 }}>
                   {postData._def.extendedProps.error}
                 </div>
@@ -1699,7 +1937,7 @@ const createCaption = () => {
                 postInfo={postData}
                 setSocialPagesParent={setSocialPages}
                 callback={channelSelectorCallback}
-                disabled={postData?._def.extendedProps?.post_publication_id}
+                disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
               />
 
               <h4>{postData.title}</h4>
@@ -1776,27 +2014,16 @@ const createCaption = () => {
                 </div>
               </div>
             }
-            <Switch
+            <Caption
+              caption={caption}
+              setCaption={setCaption}
+              customCaptions={customCaptions}
+              setCustomCaptions={setCustomCaptions}
+              selectedSocialPages={selectedSocialPages}
+              setIsInstagram={setIsInstagram}
+              isInstagram={isInstagram}
+            />
 
-              onChange={customCaptionsToggle}
-              sx={{
-                '& .MuiSwitch-switchBase.Mui-checked': {
-                  color: 'var(--md-sys-color-primary)', // Color of the thumb when checked
-                },
-                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                  backgroundColor: 'var(--md-sys-color-surface-tint)', // Color of the track when checked
-                },
-              }}
-            checked={customCaptions}
-          />
-              <p className='label'>Post Caption</p>
-              <textarea
-                style={{minHeight:200}}
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                className={'form-input'}
-                cols={8}
-              />
               <button
                 style={{marginRight: '10px', marginTop:'0px'}}
                 className="btn primary btn-sm"
@@ -1854,12 +2081,26 @@ const createCaption = () => {
                 }
               </div>
               {(selectedSocialPages.length>0 && !instagramError) &&
-                <button style={{marginLeft:'10px'}} disabled={status === 'published' || status === 'scheduled'} className="btn primary" onClick={() => scheduleMultiple('scheduled')}>{buttonText}</button>
+                <button
+                  style={{marginLeft:'10px'}}
+                  disabled={(status === 'published' || status === 'scheduled') || (isInstagram && caption.length>2200)}
+                  className="btn primary"
+                  onClick={() => scheduleMultiple('scheduled')}>{buttonText}
+
+                </button>
               }
 
-              {postData._def.extendedProps.post_publication_id &&
+              {postData?._def?.extendedProps?.database_info?.post_publications_id &&
+                <>
                 <button style={{marginLeft:'10px'}} className="btn danger" onClick={deletePostDatabase}>Delete Post</button>
-            }
+                <button
+                  style={{marginLeft:'10px'}}
+                  className="btn primary"
+                  onClick={() => updatePost()}>Update Post
+                </button>
+              </>
+              }
+
             {/*}<button onClick={lookUpPost}>Look Up Post</button>*/}
 
             </div>
@@ -2469,6 +2710,5 @@ const InstagramPhotosPreview = ({media}) => {
      })
   }
   </Carousel>
-
   )
 }

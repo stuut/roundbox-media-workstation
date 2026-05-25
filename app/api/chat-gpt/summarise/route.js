@@ -37,17 +37,26 @@ export async function POST(req){
         temperature: 0.8, // ✅ makes posts sound more natural
         messages: [
           {
+            role: "system",
+            content: "You are a precise social media copywriting assistant. Always respond in British English, using UK spelling and grammar conventions.",
+          },
+          {
             role: "user",
-            content: `You are a social media copywriter. Summarize the following caption as a ${p.label} post.
+            content: `
+              Rewrite the following caption as a ${p.label} post.
 
-            Platform norms: ${p.norms}
-            Character limit: ${p.limit} characters
-            Tone: ${tones[tone]}
+              Platform norms: ${p.norms}
+              Character limit: ${p.limit} characters
+              Tone: ${selectedTone}
 
-            Return ONLY the post text. No preamble, no explanation.
+              Rules:
+              - Return ONLY the rewritten post
+              - Do not explain anything
+              - Do not include labels like "Here is your post"
 
-            Caption:
-            ${caption}`,
+              Caption:
+              ${caption}
+            `.trim(),
           },
         ],
         });
