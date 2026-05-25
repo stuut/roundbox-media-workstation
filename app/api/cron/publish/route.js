@@ -37,11 +37,11 @@ async function publishToFacebook(job) {
 
 async function publishToInstagram(job) {
 
-
   const igId = job.platform_account.external_account_id;
   const accessToken = job.platform_account.access_token;
   const caption = job.caption;
   const files = job?.post_files??[]
+
 
   if (!files?.length) throw new Error("No media");
 
@@ -351,7 +351,7 @@ export async function GET(request) {
       `
       )
       .eq("status", "scheduled")
-      .lte("scheduled_at", new Date().toISOString())
+       .lte("scheduled_at", new Date().toISOString())
       .limit(10) // batch size
 
 
