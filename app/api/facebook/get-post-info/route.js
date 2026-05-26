@@ -52,10 +52,9 @@ export async function POST(req) {
   }
 
   const postResponseJson = await facebookResponse.json();
-  const postId = postResponseJson.id
 
 
-  return Response.json({ id:postResponseJson.id, data:postResponseJson },{ status: 200 })
+  return Response.json({ results:postResponseJson},{ status: 200 })
 
 
   }catch (err){
