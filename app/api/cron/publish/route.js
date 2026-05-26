@@ -289,17 +289,14 @@ async function waitForInstagramContainer(id, accessToken) {
   const maxDelay = 15000;
 
 
-
   const user_token = "EAAoUeGVf64cBRhfMfUvnfmloOPJ5ZC4vaK10SYSMYZBmiH7wAyoB4uHeTpYNJDX1ouK4OuArHNooqmvVsOlGFsb7tZA5A66C5c6Tet3kzbvE7QeNZBUBHcGrQPjHo5bt1KxZAkL68FjLtXljkZBFg6uTScyqTMQG1ZBgPgIxJe9jFASNVMAY001KcAPZAIhpC379RdfTyOuaBwZDZD"
 
   for (let i = 1; i <= maxAttempts; i++) {
     const res = await fetch(
-      `https://graph.facebook.com/v19.0/${id}?fields=status_code&access_token=${user_token}`
+      `https://graph.facebook.com/v25.0/${id}?fields=status_code&access_token=${user_token}`
     );
 
     const data = await res.json();
-
-    console.log('data', data)
 
     if (!res.ok) {
       throw new Error(data.error?.message || "Status check failed");
@@ -323,6 +320,37 @@ async function waitForInstagramContainer(id, accessToken) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function updatefacebookPublished(job.id){
+
+  await supabase
+    .from("post_publications")
+    .update({
+      status: "published",
+      published_at: new Date().toISOString()
+    })
+    .eq("id", job.id)
+
+}
+
+
+async function updateInstagramPublished(result, job.id){
+
+  const postId = result.id
+
+  await supabase
+    .from("post_publications")
+    .update({
+      status: "published",
+      meta_data: {
+        post_id:postId,
+        post_data:job.meta_data.post_data,
+        ...result
+      },
+      published_at: new Date().toISOString()
+    })
+    .eq("id", job.id)
 }
 
 
@@ -388,26 +416,19 @@ export async function GET(request) {
 
         switch (platform) {
           case "facebook":
-            result = await publishToFacebook(job)
+            await updatefacebookPublished(job)
             break
 
           case "instagram":
             result = await publishToInstagram(job)
+            await updateInstagramPublished(result, job)
             break
 
           default:
             throw new Error(`Unsupported platform: ${platform}`)
         }
 
-        // success update
-        await supabase
-          .from("post_publications")
-          .update({
-            status: "published",
-            meta_data: result,
-            published_at: new Date().toISOString()
-          })
-          .eq("id", job.id)
+
       } catch (err) {
         console.error("Publish error:", err.message)
 

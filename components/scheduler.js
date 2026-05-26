@@ -339,24 +339,7 @@ export const Scheduler = ({user})=>{
 
 
 
-  const checkcontainer = async() => {
 
-    const user_token = "EAAoUeGVf64cBRhfMfUvnfmloOPJ5ZC4vaK10SYSMYZBmiH7wAyoB4uHeTpYNJDX1ouK4OuArHNooqmvVsOlGFsb7tZA5A66C5c6Tet3kzbvE7QeNZBUBHcGrQPjHo5bt1KxZAkL68FjLtXljkZBFg6uTScyqTMQG1ZBgPgIxJe9jFASNVMAY001KcAPZAIhpC379RdfTyOuaBwZDZD"
-
-    const accessToken = 'EAAoUeGVf64cBRsWJLTKH6ndZAtjMtSVAqKrukxguHsuZB8MKUNqchQKRfXDqIzgjHZCrqjYw8r7ZCzA5Lp0UlJj0M8frnIB2BpBBM0XT1IhuGovdcLmSOSZBPrvfmx9oKBhHbO8ZCmR1ohzV1WIEVlBmUueKL3koFfhJFRHcrCIltGyXyOBLar3e1S9ibFhCoRGnIyBqaTErleRWue9bJgPQZDZD'
-    const id = '18156915760412489'
-
-
-
-    //const res = await fetch('https://graph.facebook.com/v23.0/18156908977412489?fields=status_code&access_token=EAAoUeGVf64cBRv1qrQx0HQpJ1ZBfiwyUathAFBdXDcEXDBXMG4cRqt7AOkE8CZBkebl2HydCHPYPTO3NZBndfs14owVTp8f3f90ZAO63wZBsTbQfuoDHwoZBZAVYyADrX9Rf1MhpbX1C9ZCg8fsTHO0VMUHYXvSKh2SGmFOdEmBaKMnWU3ObEGwtZCvJ4C3IZAtKBXgZCoBiMEwWN5avosGyvfmDDndm7wahIxmHsWPVDTXN9q3cAZDZD');
-
-
-    const res = await fetch(`https://graph.facebook.com/v23.0/${id}?fields=status_code&access_token=${user_token}`)
-
-    const data = await res.json();
-
-    console.log('waitForInstagramContainer', data )
-  }
 
 
   const reloadEvents = async() => {
@@ -587,71 +570,40 @@ const hasRun = useRef(false);
     )
   }
 
-const deleteOneSignal = async () => {
-
-  const id  = '28dd8dbe-be67-43bf-8272-aac52c81a953'
-  const access_token = "ODlmNjJhNWMtMGI2OC00MzRmLTg1OTMtNmIxOTI2Mjc5YTZm'"
-  const app_id = "d140ee1c-d1b9-4d2b-925b-92bf419ca774"
-
-
-  const onesignalDeleteResponse = await fetch(  `https://onesignal.com/api/v1/notifications/${id}?app_id=${app_id}`, {
-      headers: {
-        Authorization: "Basic "+access_token,
-      },
-      method: "DELETE"
-    })
-}
-
-
-
-  const checkOnesignal = () => {
-
-    const options = {
-      method: 'GET',
-      mode: 'cors',
-      headers: {Authorization: 'Key ODlmNjJhNWMtMGI2OC00MzRmLTg1OTMtNmIxOTI2Mjc5YTZm'}};
-
-
-    fetch('https://api.onesignal.com/notifications?app_id=d140ee1c-d1b9-4d2b-925b-92bf419ca774&limit=100&kind=1&time_offset=2026-05-25T00:00:00.000Z', options)
-      .then(res => res.json())
-      .then(res => console.log(res))
-      .catch(err => console.error(err));
-  }
 
 
 
   const deletePostCallback = async(postData) =>{
 
 
-    console.log('postData', postData)
-
-
     const postType = postData._def.extendedProps.type
 
     if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
-      const accessToken = postData._def.extendedProps.platform_account.access_token
+      const channelId = postData._def.extendedProps.platform_account.id
 
       let id
       if (postType === 'video_reels'){
-        id = postData?._def.extendedProps?.metaData?.video_id
+        id = postData?._def.extendedProps?.metaData?.post_id
       }else if (postType === 'text' || postType === 'link' || postType === 'photos') {
         id = postData?._def.extendedProps?.metaData?.post_id
       }
 
       if (id) {
 
-        const facebookDeleteResponse = await fetch(`https://graph.facebook.com/v24.0/${id}`, {
-            method: 'DELETE',
+        const facebookDeleteResponse = await fetch(`/api/facebook/delete`, {
+            method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({access_token:accessToken}),
+            body: JSON.stringify({
+              channelId:channelId,
+              postId:id
+            }),
           })
 
           if (!facebookDeleteResponse.ok) {
             //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
-            showError(`Error deleting post: ${facebookDeleteResponse.status}`)
-            return
+            showError(`Error deleting post on facebook: ${facebookDeleteResponse.status}`)
           }
 
       }
@@ -681,7 +633,6 @@ const deleteOneSignal = async () => {
           if (!onesignalDeleteResponse.ok) {
             //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
             showError(`Error deleting one signal post: ${onesignalDeleteResponse.status}`)
-            return
           }
 
           const onesignalDeleteResponseJson = await onesignalDeleteResponse.json();
@@ -690,7 +641,6 @@ const deleteOneSignal = async () => {
             showSuccess('Notification Deleted')
           }else{
             showError('Error deleting one signal post')
-            return
           }
 
       }
@@ -724,7 +674,6 @@ const deleteOneSignal = async () => {
         {/*}<button onClick={checkOnesignal}>Check One Signal</button>*/}
         {/*}  <button onClick={deleteOneSignal}>Delete One Signal</button>*/}
 
-        <button onClick={checkcontainer}>check instagram</button>
         <div style={{position:'relative', zIndex:2, marginBottom:'10px'}}>
           <p className='label'>Channel Filter</p>
           <ChannelSelector
@@ -1088,6 +1037,8 @@ const Share = ({
 
   const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
   const [scheduleDate, setScheduleDate] = useState(postData.start)
+  const [publishDate, setPublishDate] = useState(postData?._def.extendedProps.publishDate??'')
+
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(`https://${postData?._def.extendedProps.base_url}/${postData?._def.extendedProps.slug}`)
@@ -1116,21 +1067,17 @@ const Share = ({
 
   const [customCaptionsData, setCustomCaptionsData] = useState([])
 
-    console.log('postData', postData)
 
   const updatePost = async () => {
 
-
     if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
-      const pageId = postData?._def?.extendedProps?.platform_account?.external_account_id
-
-      const accessToken = postData?._def?.extendedProps?.platform_account?.access_token
+      const channelId = postData?._def?.extendedProps?.platform_account?.id
 
       let endPoint
 
       if (postType === 'video_reels'){
-        endPoint = postData?._def.extendedProps?.metaData?.video_id
+        endPoint = postData?._def.extendedProps?.metaData?.post_id
       }else if (postType === 'text' || postType === 'carousel' || postType === 'link') {
         endPoint = postData?._def.extendedProps?.metaData?.post_id
       }else if (postType === 'photos') {
@@ -1148,15 +1095,16 @@ const Share = ({
         data.published = true
       }
 
-      data.access_token = accessToken
-
-
-      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${endPoint}`, {
+      const facebookResponse = await fetch(`/api/facebook/update`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify({
+            channelId:channelId,
+            postData:data,
+            endPoint:endPoint
+          }),
         })
 
         if (!facebookResponse.ok) {
@@ -1169,42 +1117,65 @@ const Share = ({
     }
 
     if (postData?._def?.extendedProps?.platform_account?.platform === "instagram"){
-
+          //
     }
 
     if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
-      id = postData?._def.extendedProps?.metaData?.notification_id
+      return
     }
 
-    const scheduledAtUTC = new Date(scheduleDate).toISOString()
+
+    updatePostOnDatabase()
+
 
   }
 
 
   const updatePostOnDatabase = async() => {
 
+
     const publicationId = postData?._def?.extendedProps?.database_info?.post_publications_id
-    const postId = postData?._def?.extendedProps?.database_info?.post_id
+
+    const scheduledAtUTC = new Date(scheduleDate).toISOString()
+    const publishedAtUTC = new Date(publishDate).toISOString()
+
+
+    const calendarApi = cal.current.getApi()
+
+    let currentEvent = calendarApi.getEventById(postData._def.publicId);
+
+    const newMetadata = {
+      "post_id": currentEvent?._def?.extendedProps?.metaData.post_id,
+      "id":currentEvent?._def?.extendedProps?.metaData.post_id,
+      "post_data": {
+        "event_id": currentEvent.id,
+        "scheduleDate": scheduledAtUTC,
+        "link": currentEvent?._def?.extendedProps?.link,
+        "media": media,
+        "slug": currentEvent?._def?.extendedProps?.slug,
+        "base_url": currentEvent?._def?.extendedProps?.base_url,
+        "status": status,
+        "caption": caption,
+        "publishedDate": currentEvent?._def?.extendedProps?.publishedDate,
+        "type": postType,
+        "platform_account": currentEvent?._def?.extendedProps?.platform_account,
+        "usePreview": currentEvent?._def?.extendedProps?.usePreview
+      },
+    }
 
     if (publicationId){
       await updatePostPublication(
         publicationId,
         {
-        scheduled_at:scheduledAtUTC
+        scheduled_at:scheduledAtUTC,
+        published_at:publishedAtUTC??'',
+        caption:caption,
+        title:title,
+        type:postType,
+        status:status,
+        meta_data:newMetadata
       })
     }
-
-    if (postId){
-      await updatePost(
-        postId,
-        {
-          caption:caption,
-          title:postData.title,
-          type:postType,
-        }
-      )
-    }
-
 
   }
 
@@ -1348,18 +1319,24 @@ const type = postData._def.extendedProps.type
 
                if (postType === 'video_reels'){
                  await scheduleFacebookReel(
-                   channel.external_account_id,
-                   channel.access_token,
+                   channel,
                    uploadedVideo.file_url,
                    publication
                  )
                }else{
 
+                 /*
+                  await facebookSchedule(
+                 channel.external_account_id,
+                 channel.access_token,
+                 publication,
+                 status = 'scheduled'
+               )*/
+
                  await facebookSchedule(
-                   channel.external_account_id,
-                   channel.access_token,
+                   channel,
                    publication,
-                   status = 'scheduled'
+                   true
                  )
                }
              }
@@ -1514,8 +1491,6 @@ const onesignalSchedule = async(
   publication,
 ) => {
 
-  console.log('publication', publication)
-
 
         let data
 
@@ -1594,17 +1569,24 @@ const onesignalSchedule = async(
 }
 
   const facebookSchedule = async (
-    pageId,
-    accessToken,
+    channel,
     publication,
     schedule = true
   ) => {
+
+    /*pageId,
+accessToken,
+publication,
+schedule = true
+*/
 
     if (timeTravel(scheduleDate)){
       showError('No Time Travel')
       setLoader(false)
       return
     }
+
+      console.log('schedule facebook')
 
     const scheduledPublishTime = (moment(scheduleDate).unix())
     const endPoint = getFacebookPostEndpoint(postType)
@@ -1624,52 +1606,61 @@ const onesignalSchedule = async(
       data.published = true
     }
 
-    data.access_token = accessToken
-
     try{
-      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${endPoint}`, {
+
+      const facebookResponse = await fetch(`/api/facebook/schedule`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(data),
+          body: JSON.stringify({
+            channelId: channel.id,
+            postData:data,
+            endPoint:endPoint
+          }),
         })
 
         if (!facebookResponse.ok) {
           setLoader(false)
           showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+          return
         }
+      showSuccess('Post Scheduled')
+      const postResponseJson = await facebookResponse.json();
+      const postId = postResponseJson.id
+      const postResponseData = postResponseJson.data
 
-    showSuccess('Post Scheduled')
+      const facebookCommentResponse = await fetch(`/api/facebook/add-comment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            postId: postId,
+            postLink:postLink,
+            channelId: channel.id,
+          }),
+        })
 
-    const postResponseJson = await facebookResponse.json();
-    const postId = postResponseJson.id
+      if (!facebookCommentResponse.ok) {
+        setLoader(false)
+        showError(`Upload to add facebook comment: ${facebookResponse.status}`)
+        return
+      }
 
-    await addFacebookComment(
-      postId,
-      postLink,
-      accessToken
-    );
 
       showSuccess('Comment Added')
-
       const updateData = {
         status: "scheduled",
         meta_data:{
           post_id:postId,
           post_data:publication.meta_data.post_data,
-          ...postResponseJson
+          ...postResponseData
         },
       }
-
       await updatePostPublication(publication.id, updateData)
-      //updateScheduledEvent(updateData)
-      //setStatus('scheduled')
-    //  setScheduled(true)
-
-
-
     }catch(error){
+      console.log(error)
       showError(`Facebook error: ${error}`)
       setLoader(false)
     }
@@ -1690,8 +1681,7 @@ const onesignalSchedule = async(
   }
 
   const scheduleFacebookReel = async (
-    pageId,
-    accessToken,
+    channel,
     video_url,
     publication
   ) => {
@@ -1705,12 +1695,11 @@ const onesignalSchedule = async(
     const video = videoBlobRef.current
 
     const formData = new FormData();
-    //formData.append('fileUrl', video_url);
-    formData.append('videoBlob', video);
-    formData.append('accessToken', accessToken);
-    formData.append('socialId', pageId);
+    formData.append('fileUrl', video_url);
+    //formData.append('videoBlob', video);
+    formData.append('channelId', channel.id);
 
-      const response = await fetch('/api/uploadFacebookReel', {
+      const response = await fetch('/api/facebook/upload-facebook-reel', {
         method: 'POST',
         body: formData,
       });
@@ -1728,21 +1717,28 @@ const onesignalSchedule = async(
     // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
     const scheduledPublishTime = (moment(scheduleDate).unix())
 
+    const data = {
+      video_id: videoId,
+      upload_phase : 'finish',
+      video_state : postState,
+      description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
+      title :postInfo.data.title,
+      scheduled_publish_time: scheduledPublishTime,
+      //access_token: accessToken
+    }
+
+
     try{
 
-      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${path}`, {
+      const facebookResponse = await fetch(`/api/facebook/schedule`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            video_id: videoId,
-            upload_phase : 'finish',
-            video_state : postState,
-            description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
-            title :postInfo.data.title,
-            scheduled_publish_time: scheduledPublishTime,
-            access_token: accessToken
+            channelId: channel.id,
+            postData:data,
+            endPoint:path
           }),
         })
 
@@ -1752,78 +1748,54 @@ const onesignalSchedule = async(
       showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
     }
 
-    showSuccess('Post Scheduled')
+    showSuccess('Video Scheduled')
 
     const videoData = await facebookResponse.json();
-    const postId = postResponseJson.post_id
+    const postId = videoData.post_id
 
-    await addFacebookComment(
-      videoId,
-      postLink,
-      selectedSocialPage.access_token
-    );
+
+
+    const facebookCommentResponse = await fetch(`/api/facebook/add-comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          postId: postId,
+          postLink:postLink,
+          channelId: channel.id,
+        }),
+      })
+
+    if (!facebookCommentResponse.ok) {
+      setLoader(false)
+      showError(`Upload to add facebook comment: ${facebookResponse.status}`)
+      return
+    }
 
       showSuccess('Comment Added')
+      setScheduled(true)
+
       postScheduled(postInfo)
 
       // update database
       const updateData = {
-        status: "published",
+        status: "scheduled",
         meta_data:{
-          video_id:videoId,
+          post_id:postId,
           post_data:publication.meta_data.post_data,
           ...videoData
         },
-        published_at: new Date().toISOString()
+        //published_at: new Date().toISOString()
       }
 
       await updatePostPublication(publication.id, updateData)
-    //  updateScheduledEvent(updateData)
-      //setStatus('scheduled')
-    //  setScheduled(true)
-      //close(null)
 
     }catch(error){
       showError(`Facebook error: ${error}`)
        setLoader(false)
     }
 
-  }
-
-
-  async function addFacebookComment(postId, postLink, accessToken, retries = 3) {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const commentResponse = await fetch(
-          `https://graph.facebook.com/${postId}/comments`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: 'Check out the full details here: ' + postLink,
-              access_token: accessToken,
-            }),
-          }
-        );
-
-        if (!commentResponse.ok) {
-          throw new Error(
-            `Adding comments failed with status: ${commentResponse.status}`
-          );
-        }
-
-        return await commentResponse.json();
-      } catch (error) {
-        if (attempt === retries) {
-          throw error;
-        }
-
-        // wait 1 second before retrying
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
   }
 
   const deletePostDatabase = async() =>{
@@ -1835,17 +1807,17 @@ const onesignalSchedule = async(
 
   const lookUpPost = async() => {
 
-    const accessToken = postData._def.extendedProps.platform_account.access_token
+    const channelId = postData._def.extendedProps.platform_account.id
     const id = postData?._def.extendedProps?.metaData?.post_id
 
-    const facebookesponse = await fetch(`https://graph.facebook.com/v24.0/${id}`, {
-        method: 'GET',
+    const facebookesponse = await fetch(`/api/facebook/look-up-post`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          fields:'message,created_time,shares',
-          access_token:accessToken
+          channelId:channelId,
+          postId:id
         }),
       })
   }

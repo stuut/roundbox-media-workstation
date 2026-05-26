@@ -11928,9 +11928,8 @@ const Share = ({
 
 
 
-  const scheduleFacebookLoop = async (
-    pageId,
-    accessToken,
+  const scheduleFacebookReel = async (
+    channel,
     video_url,
     publication
   ) => {
@@ -11946,10 +11945,9 @@ const Share = ({
     const formData = new FormData();
     formData.append('fileUrl', video_url);
     //formData.append('videoBlob', video);
-    formData.append('accessToken', accessToken);
-    formData.append('socialId', pageId);
+    formData.append('channelId', channel.id);
 
-      const response = await fetch('/api/uploadFacebookReel', {
+      const response = await fetch('/api/facebook/upload-facebook-reel', {
         method: 'POST',
         body: formData,
       });
@@ -11967,21 +11965,28 @@ const Share = ({
     // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
     const scheduledPublishTime = (moment(scheduleDate).unix())
 
+    const data = {
+      video_id: videoId,
+      upload_phase : 'finish',
+      video_state : postState,
+      description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
+      title :postInfo.data.title,
+      scheduled_publish_time: scheduledPublishTime,
+      //access_token: accessToken
+    }
+
+
     try{
 
-      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${path}`, {
+      const facebookResponse = await fetch(`/api/facebook/schedule`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            video_id: videoId,
-            upload_phase : 'finish',
-            video_state : postState,
-            description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
-            title :postInfo.data.title,
-            scheduled_publish_time: scheduledPublishTime,
-            access_token: accessToken
+            channelId: channel.id,
+            postData:data,
+            endPoint:path
           }),
         })
 
@@ -11997,16 +12002,27 @@ const Share = ({
     const postId = videoData.post_id
 
 
-      await addFacebookComment(
-        videoId,
-        postLink,
-        selectedSocialPage.access_token
-      );
 
+    const facebookCommentResponse = await fetch(`/api/facebook/add-comment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          postId: postId,
+          postLink:postLink,
+          channelId: channel.id,
+        }),
+      })
+
+    if (!facebookCommentResponse.ok) {
+      setLoader(false)
+      showError(`Upload to add facebook comment: ${facebookResponse.status}`)
+      return
+    }
 
       showSuccess('Comment Added')
       setScheduled(true)
-
 
       postScheduled(postInfo)
 
@@ -12014,7 +12030,7 @@ const Share = ({
       const updateData = {
         status: "scheduled",
         meta_data:{
-          video_id:videoId,
+          post_id:postId,
           post_data:publication.meta_data.post_data,
           ...videoData
         },
@@ -12030,40 +12046,7 @@ const Share = ({
 
   }
 
-  async function addFacebookComment(postId, postLink, accessToken, retries = 3) {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const commentResponse = await fetch(
-          `https://graph.facebook.com/${postId}/comments`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: 'Check out the full details here: ' + postLink,
-              access_token: accessToken,
-            }),
-          }
-        );
 
-        if (!commentResponse.ok) {
-          throw new Error(
-            `Adding comments failed with status: ${commentResponse.status}`
-          );
-        }
-
-        return await commentResponse.json();
-      } catch (error) {
-        if (attempt === retries) {
-          throw error;
-        }
-
-        // wait 1 second before retrying
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-  }
 
 
   const scheduleMultiple = async() => {
@@ -12106,7 +12089,9 @@ const Share = ({
                title:postInfo.data.title,
                type:postType,
                user_id:userId,
-               meta_data:postInfo
+               meta_data:{
+                 post_data:postInfo
+               }
              }))
 
              const savedPostPublications = await savePostPublications(publications)
@@ -12125,9 +12110,8 @@ const Share = ({
 
              for (const publication of savedPostPublicationsFacebook) {
                const channel = socialPages.find((social)=> social.id === publication.platform_id)
-               await scheduleFacebookLoop(
-                 channel.external_account_id,
-                 channel.access_token,
+               await scheduleFacebookReel(
+                 channel,
                  uploadedVideo.file_url,
                  publication
                )
@@ -12138,12 +12122,13 @@ const Share = ({
         }
 
 
+    setScheduled(true)
 
      setLoader(false)
   }
 
 
-
+/*
   const schedule = async () => {
 
      setLoader(true)
@@ -12241,7 +12226,7 @@ const Share = ({
     }
 
   }
-
+*/
 
   const onSocialChange = (value) => {
 
