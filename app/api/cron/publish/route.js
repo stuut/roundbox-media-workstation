@@ -322,7 +322,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function updatefacebookPublished(job.id){
+async function updatefacebookPublished(job){
 
   await supabase
     .from("post_publications")
@@ -335,7 +335,7 @@ async function updatefacebookPublished(job.id){
 }
 
 
-async function updateInstagramPublished(result, job.id){
+async function updateInstagramPublished(result, job){
 
   const postId = result.id
 
