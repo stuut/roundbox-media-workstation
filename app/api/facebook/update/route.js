@@ -59,7 +59,7 @@ export async function POST(req) {
   const postId = postResponseJson.id
 
 
-  return Response.json({ id:postResponseJson.id, data:postResponseJson },{ status: 200 })
+  return Response.json({ success:true, id:postResponseJson.id, data:postResponseJson },{ status: 200 })
 
 
   }catch (err){

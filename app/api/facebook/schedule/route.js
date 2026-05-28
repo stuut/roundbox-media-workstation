@@ -55,7 +55,7 @@ export async function POST(req) {
       })
 
   if (!facebookResponse.ok) {
-    return Response.json({ message: "Upload to facebook failed with status: ${facebookResponse.status}" },{ status: 500 })
+    return Response.json({ message: `Upload to facebook failed with status: ${facebookResponse.status}` },{ status: 500 })
   }
 
   const postResponseJson = await facebookResponse.json();

@@ -72,6 +72,7 @@
     "remove-markdown": "^0.6.3",
     "scriptjs": "^2.5.9",
     "unzipper": "^0.12.3",
+    "uuid": "^14.0.0",
     "video.js": "^8.23.3",
     "wavesurfer.js": "^7.12.1",
     "wpapi": "^1.2.2"

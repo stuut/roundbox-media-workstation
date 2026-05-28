@@ -10,6 +10,7 @@ export const runtime = 'nodejs'
 
 export async function POST(req) {
 
+
   try {
 
     const { channelId, postId} = await req.json();
@@ -36,25 +37,18 @@ export async function POST(req) {
     }
 
 
-    const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${postId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fields:'message,created_time,shares',
-          access_token:accessToken
-        }),
-      })
+    const facebookResponse = await fetch(`https://graph.facebook.com/v23.0/${postId}?fields=is_published,scheduled_publish_time,created_time,status_type&access_token=${accessToken}`);
 
-  if (!facebookResponse.ok) {
-    return Response.json({ message: "Upload to facebook failed with status: ${facebookResponse.status}" },{ status: 500 })
-  }
+
+    if (!facebookResponse.ok) {
+      console.log('facebookResponse', facebookResponse)
+      return Response.json({ message: `Getting Post info failed with status: ${facebookResponse.status}` },{ status: 500 })
+    }
 
   const postResponseJson = await facebookResponse.json();
 
 
-  return Response.json({ results:postResponseJson},{ status: 200 })
+  return Response.json({ success:true, data:postResponseJson},{ status: 200 })
 
 
   }catch (err){

@@ -11183,6 +11183,7 @@ const FeedsPanel = ({
 
     const getFeed = async (selectedFeed, dateFilter) => {
         setNoPosts(false)
+        setPosts([])
 
       if (selectedFeed.CMSType === 'contentful'){
         const client = contentful.createClient({
@@ -11818,11 +11819,12 @@ const Share = ({
   const [scheduled, setScheduled] = useState(false)
   const [path, setPath]= useState('video_reels')
   const [postType, setPostType]= useState('video_reels')
-  const [customCaptions, setCustomCaptions] = useState(false)
-
+  const [customCaptions, setCustomCaptions] = useState([])
+  const [customCaptionsToggle, setCustomCaptionsToggle] = useState(false)
   const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
   const [isInstagram, setIsInstagram] = useState(false)
+  const [instagramCaptionError, setInstagramCaptionError] = useState(false)
 
 
 
@@ -11969,7 +11971,7 @@ const Share = ({
       video_id: videoId,
       upload_phase : 'finish',
       video_state : postState,
-      description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
+      description: publication.caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
       title :postInfo.data.title,
       scheduled_publish_time: scheduledPublishTime,
       //access_token: accessToken
@@ -12030,7 +12032,7 @@ const Share = ({
       const updateData = {
         status: "scheduled",
         meta_data:{
-          post_id:postId,
+          post_id:videoId,
           post_data:publication.meta_data.post_data,
           ...videoData
         },
@@ -12075,24 +12077,34 @@ const Share = ({
                meta_data:postInfo
              })
 
-
-
              const scheduledAtUTC = new Date(scheduleDate).toISOString()
 
-             const publications = selectedSocialPages.map((acc) => ({
+             const publications = selectedSocialPages.map((acc) => {
+
+               let captionData = caption
+
+               if (customCaptionsToggle){
+                 const findCaption = customCaptions.find((cap)=>cap.id === acc.id)
+                 if (findCaption){
+                   captionData = findCaption.caption
+                 }
+               }
+
+              return {
                post_id:savedPost.id,
                platform_id: acc.id,
                scheduled_at: scheduledAtUTC,
                platform:acc.platform,
                status: 'scheduled',
-               caption:caption,
+               caption:captionData,
                title:postInfo.data.title,
                type:postType,
                user_id:userId,
                meta_data:{
                  post_data:postInfo
                }
-             }))
+             }
+           })
 
              const savedPostPublications = await savePostPublications(publications)
 
@@ -12313,9 +12325,7 @@ const getPostsScheduledPosts = async() => {
           <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
       </div>
       <div className='col-2 column-gap-2' style={{height:'100%'}}>
-        <div style={{position:'relative', overflowY: 'scroll', paddingRight: '10px'}}>
-
-
+<div className='col' style={{position:'relative', overflowY: 'scroll', padding: '15px', flex:3}}>
             <h2>Share To Social Media</h2>
             <hr/>
             <div style={{marginTop:'25px'}}>
@@ -12378,9 +12388,13 @@ const getPostsScheduledPosts = async() => {
                 setCaption={setCaption}
                 customCaptions={customCaptions}
                 setCustomCaptions={setCustomCaptions}
+                customCaptionsToggle={customCaptionsToggle}
+                setCustomCaptionsToggle={setCustomCaptionsToggle}
                 selectedSocialPages={selectedSocialPages}
                 setIsInstagram={setIsInstagram}
                 isInstagram={isInstagram}
+                instagramCaptionError={instagramCaptionError}
+                setInstagramCaptionError={setInstagramCaptionError}
               />
                 <Summary text={caption} defaultPlatform={'facebook'}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>
@@ -12431,15 +12445,24 @@ const getPostsScheduledPosts = async() => {
                 {(videoSrc && selectedSocialPage) &&
                   <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText} Facebook only</button>
                 }*/}
+                {console.log('isInstagram && !instagramCaptionError', isInstagram && !instagramCaptionError)}
+                {console.log('isInstagram && !instagramCaptionError', isInstagram && instagramCaptionError)}
+                {console.log('instagramCaptionError', instagramCaptionError)}
                 {(videoSrc &&selectedSocialPages.length>0) &&
-                  <button style={{marginLeft:'10px'}} disabled={scheduled || (isInstagram && caption.length>2200)} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
+                  <button style={{marginLeft:'10px'}} disabled={scheduled || (isInstagram && instagramCaptionError)} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
                 }
 
               {/*}  <button className="btn primary" onClick={getPostsScheduledPosts}>Get Posts</button>*/}
 
             </div>
         </div>
-        <div style={{position:'relative'}}>
+        <div className='col' style={{
+          flex:2,
+          position: 'relative',
+          overflowY: 'scroll',
+          padding: '30px 15px 10px 15px',
+          backgroundColor: 'var(--md-sys-color-surface-container)'
+        }}>
           <div style={videoLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
               <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
               {videoFrameProgress > 0 &&

@@ -322,7 +322,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function updatefacebookPublished(job){
+async function updateFacebookPublished(job){
 
   await supabase
     .from("post_publications")
@@ -332,6 +332,16 @@ async function updatefacebookPublished(job){
     })
     .eq("id", job.id)
 
+}
+
+async function updateOneSignalPublished(job){
+  await supabase
+    .from("post_publications")
+    .update({
+      status: "published",
+      published_at: new Date().toISOString()
+    })
+    .eq("id", job.id)
 }
 
 
@@ -416,9 +426,12 @@ export async function GET(request) {
 
         switch (platform) {
           case "facebook":
-            await updatefacebookPublished(job)
+            await updateFacebookPublished(job)
             break
 
+          case "One Signal":
+            await updateOneSignalPublished(job)
+            break
           case "instagram":
             result = await publishToInstagram(job)
             await updateInstagramPublished(result, job)

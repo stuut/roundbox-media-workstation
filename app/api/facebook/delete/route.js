@@ -50,7 +50,10 @@ export async function POST(req) {
       return Response.json({ message: `Deleteing facebook post failed with status: ${facebookResponse.status}` },{ status: 500 })
     }
 
-    return Response.json({ success:true },{ status: 200 })
+    const postResponseJson = await facebookResponse.json();
+
+
+    return Response.json({ success:true, data:postResponseJson },{ status: 200 })
 
   }catch (err){
     console.error(err);
