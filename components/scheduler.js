@@ -51,6 +51,7 @@ import {
   Crop,
   EllipsisVertical
 } from 'lucide-react';
+
 const FEEDS = [
   {
     label: 'Hilltops Phoenix',
@@ -67,7 +68,8 @@ const FEEDS = [
     facebook_page_id:'1509386042722586',
     content_type: 'post',
     CTA_image : 'hilltops-logo-stacked.png',
-    postType: 'link'
+    postType: 'link',
+    useDateFilter:true
 
   },
   {
@@ -83,7 +85,8 @@ const FEEDS = [
     facebook_page_id:'1509386042722586',
     CTA_image : 'hilltops-logo-stacked.png',
     customFilterField: 'targeting',
-    postType: 'photos'
+    postType: 'photos',
+    useDateFilter:false
 
   },
   {
@@ -100,7 +103,8 @@ const FEEDS = [
     text:'copy',
     facebook_page_id:'100367901935086',
     CTA_image : 'cowra-logo-stacked.png',
-    postType: 'link'
+    postType: 'link',
+    useDateFilter:true
   },
   {
     label: 'Canowindra Phoenix',
@@ -111,7 +115,8 @@ const FEEDS = [
     facebook_page_id:'106626202692898',
     scheduleDate: 'acf.schedule_date',
     CTA_image : 'canowindra-logo-stacked.png',
-    postType: 'link'
+    postType: 'link',
+    useDateFilter:true
   },
   {
     label: 'Parkes Phoenix',
@@ -122,7 +127,8 @@ const FEEDS = [
     facebook_page_id:'973264922791233',
     scheduleDate: 'acf.schedule_date',
     CTA_image : 'parkes-logo-stacked.png',
-    postType: 'link'
+    postType: 'link',
+    useDateFilter:true
   },
   {
     label: 'Forbes Phoenix',
@@ -133,7 +139,8 @@ const FEEDS = [
     facebook_page_id:'883736781692596',
     scheduleDate: 'acf.schedule_date',
     CTA_image : 'forbes-logo-stacked.png',
-    postType: 'link'
+    postType: 'link',
+    useDateFilter:true
   },
 ]
 
@@ -1092,7 +1099,7 @@ const FeedsPanel = ({
         var filterPosts = response.items
 
 
-        if (selectedFeed.publishedDate){
+        if (selectedFeed.useDateFilter){
           filterPosts = response.items.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
         }
 
@@ -1161,15 +1168,30 @@ const FeedsPanel = ({
             password: selectedFeed.password,
         });
 
+        let response
 
-        const response = await wp.posts()
-          .embed()
-          .perPage(100)
-          .after(start)
-          .before(end)
-          .orderby('date')
-          .order('desc')
-          .get()
+        if (selectedFeed.useDateFilter){
+          const start = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
+          const end = moment(dateFilter).format('YYYY-MM-DD')+'T23:59:59';
+
+          response = await wp.posts()
+            .embed()
+            .perPage(100)
+            .after(start)
+            .before(end)
+            .orderby('date')
+            .order('desc')
+            .get()
+
+        }else{
+          response = await wp.posts()
+            .embed()
+            .perPage(100)
+            .orderby('date')
+            .order('desc')
+            .get()
+
+        }
 
           if (response.length === 0){
             setNoPosts(true)
@@ -1235,15 +1257,17 @@ const FeedsPanel = ({
         }
       </select>
 
-        <div>
-          <label className='label'>Publication Date Filter</label>
-            <DatePicker
-              selected={dateFilter}
-              onChange={(date) => setDateFilterFunction(date)}
-              className={'form-input'}
-              dateFormat="dd/MM/yyyy"
-            />
-        </div>
+        {selectedFeed.useDateFilter&&
+          <div>
+            <label className='label'>Publication Date Filter</label>
+              <DatePicker
+                selected={dateFilter}
+                onChange={(date) => setDateFilterFunction(date)}
+                className={'form-input'}
+                dateFormat="dd/MM/yyyy"
+              />
+          </div>
+        }
 
       {posts.length>0&&
       <button className="btn btn-sm secondary" onClick={importEvents}>Import Events</button>
@@ -1348,6 +1372,7 @@ const Share = ({
   const [selectedChannelPreview, setSelectedChannelPreview]= useState('')
   const [instagramMediaError, setInstagramMediaError] = useState(false)
   const [instagramCaptionError, setInstagramCaptionError] = useState(false)
+  const [postTypeError, setPostTypeError] = useState(false)
 
   const [unsavedChanges, setUnsavedChanges] = useState(false)
   const [customCaptions, setCustomCaptions] = useState([])
@@ -2441,6 +2466,7 @@ const createCaption = () => {
                     setMedia={setMedia}
                     channelPreviews={channelPreviews}
                     setInstagramError={setInstagramMediaError}
+                    setPostTypeError={setPostTypeError}
                   />
 
                 </div>
@@ -2538,7 +2564,13 @@ const createCaption = () => {
               {(selectedSocialPages.length>0) &&
                 <button
                   style={{marginLeft:'10px'}}
-                  disabled={(status === 'published' || status === 'scheduled') || (isInstagram && instagramCaptionError) || (isInstagram && instagramMediaError) || (!postType)}
+                  disabled={
+                    (status === 'published' || status === 'scheduled') ||
+                    (isInstagram && instagramCaptionError) ||
+                    (isInstagram && instagramMediaError) ||
+                    (!postType) ||
+                    (postTypeError)
+                }
                   className="btn primary"
                   onClick={() => scheduleMultiple('scheduled')}>{buttonText}
 
@@ -2914,15 +2946,16 @@ const MediaList = ({
   media,
   setMedia,
   channelPreviews,
-  setInstagramError
+  setInstagramError,
+  setPostTypeError
 }) => {
   const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
 
-    //const [files, setFiles] = useState(media)
+    const [files, setFiles] = useState(media)
     const editingIndex = useRef(null)
     const editImageRef = useRef(null)
     const editImageData = useRef(null)
-     const evtSourceRef = useRef(null);
+    const evtSourceRef = useRef(null);
 
 
     const editMedia = (media, index, tool) => {
@@ -2962,11 +2995,71 @@ const MediaList = ({
       setMedia(newState)
     }
 
+
+
+    const checkPostType = (images) => {
+
+      if (!postType) return
+
+
+      let errorArray = []
+
+      /*
+      for (const file of images) {
+
+
+          const isImage = file.file_type === "image/png" || file.file_type === 'image/jpeg' || file.file_url.match(/\.(jpg|jpeg|png)$/i);
+          const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
+
+          if ((!isVideo && postType === 'video_reels') || (!isImage && postType === 'photos'){
+            errorArray.push(true)
+          }
+
+
+      }*/
+
+
+      const checkedImages = images.map((file)=>{
+
+        const isImage = file.file_type === "image/png" || file.file_type === 'image/jpeg' || file.file_url.match(/\.(jpg|jpeg|png)$/i);
+        const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
+
+        const temp = {...file}
+
+        if ((!isVideo && postType === 'video_reels') || (!isImage && postType === 'photos')){
+          temp.post_type_error = true
+          errorArray.push(true)
+        }
+
+        return temp
+
+      })
+
+      console.log('checkedImages', checkedImages)
+
+      setFiles(checkedImages)
+
+      if (errorArray.length > 0){
+        setPostTypeError(true)
+        showError('Post Type error')
+      }else{
+        setPostTypeError(false)
+      }
+    }
+
     const checkInstagramImages = async (images) => {
+
+        const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
+
+        if (!hasInstagram && InstagramError){
+          setInstagramError(false)
+        }
+
 
         let errorArray = []
 
          const checkedImages = await Promise.all(images.map(async(image) => {
+
            let carouselImageError = await checkImageSize(image.file_url)
            if (carouselImageError){
              showError('Instagram Image Size Error')
@@ -2979,11 +3072,7 @@ const MediaList = ({
            return temp;
          }))
 
-         if (media.length>1){
-           console.log('media checkInstagramImages', media)
-         }
-
-         setMedia(checkedImages)
+         setFiles(checkedImages)
 
 
          if (errorArray.length > 0){
@@ -2993,59 +3082,40 @@ const MediaList = ({
          }
     }
 
+    useEffect(()=>{
+
+      setFiles(media)
+
+    },[media])
+
 
     useEffect(()=>{
-      const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
 
-      if (hasInstagram){
+      if (media.length > 0 && channelPreviews.length > 0){
         checkInstagramImages(media)
-      }else{
-        setInstagramError(false)
       }
-
-      //setFiles(media)
 
     },[media, channelPreviews])
 
 
+    useEffect(()=>{
+
+      if (media.length > 0 && postType){
+        checkPostType(media)
+      }
+
+    },[postType, media])
+
+
     const removeImage = async (index) => {
 
-      if (media.length>1){
-        console.log('removeImage', media)
-      }
+      console.log('index', index)
       setMedia(prev => prev.filter((_, i) => i !== index));
       //setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
 
-    const checkIfImage = async (item, index) => {
 
-      let fileType
-
-      item
-
-      if (item?.file_type){
-        fileType = item?.file_type
-      }else{
-        fileType = await getImageType(item.file_url)
-
-
-
-        if (media.length>1){
-            console.log('checkIfImage setMedia', media)
-        }
-
-
-        setMedia(prev => prev.map((prev, i)=>{
-            if (i === index){
-              prev.file_type = fileType
-            }
-            return prev
-        }))
-
-      }
-      return fileType === 'image/png' || fileType  === 'image/jpeg'
-    }
 
     const startSSE = () => {
       if (evtSourceRef.current) return; // already running
@@ -3144,9 +3214,8 @@ const MediaList = ({
       onDragStart={()=>onSortItems()}
       onDragEnd={()=>onSortItems()}
       >
-  {media.map((item, index) => {
+  {files.map((item, index) => {
     const isVideo = item.file_type === "video/mp4" || item.file_url.match(/\.(mp4|mov|m4v)$/i);
-
 
         return(
             <div key={item.id}
@@ -3166,7 +3235,7 @@ const MediaList = ({
                       height:50,
                       objectFit:'cover',
                       borderRadius:'5px',
-                      border: `${!item?.instagram_image_error?'5px solid var(--md-sys-color-surface-container)':'5px solid var(--md-sys-color-error)'}`
+                      border: `${(item?.instagram_image_error || item?.post_type_error)?'5px solid var(--md-sys-color-error)':'5px solid var(--md-sys-color-surface-container)'}`
                     }}
                     src={item.file_url}/>
                   }

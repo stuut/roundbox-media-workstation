@@ -11211,7 +11211,11 @@ const FeedsPanel = ({
           'include': '10',
         })
 
+        console.log('response.items', response.items)
+
         let date = moment(dateFilter).format('YYYY-MM-DD');
+
+
 
         const filterPosts = response.items.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
 
@@ -11994,7 +11998,7 @@ const Share = ({
     }
 
     if (postState === 'SCHEDULE'){
-      data.scheduled_publish_time = scheduledPublishTime,
+      data.scheduled_publish_time = scheduledPublishTime
     }
 
 

@@ -355,7 +355,7 @@ async function downloadAndZip() {
 
                     <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
                       {files.map((file, index)=>{
-                        const isVideo = file.file_type === "video/mp4" || file.file_url.match(/\.(mp4|mov|m4v)$/i);
+                        const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
 
 
                         return (
