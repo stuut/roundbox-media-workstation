@@ -228,7 +228,8 @@ return(
           paddingTop:0,
           paddingBottom:0,
           width: '100%',
-          minWidth: '315px'
+          minWidth: '315px',
+          zIndex: '10'
         }} className='canvas-zoom-dropdown dropshadow'>
           <input
             id="pageFilter"

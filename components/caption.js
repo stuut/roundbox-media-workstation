@@ -60,7 +60,8 @@ export const Caption = ({
 
      for (const cap of captions) {
 
-       if (cap .length > 2200){
+
+       if (cap.length > 2200){
          captionLengthError = true
        }
      }
@@ -68,12 +69,6 @@ export const Caption = ({
 
     const isInvalid = isInstagram && captionLengthError;
 
-    console.log('isInvalid', isInvalid )
-
-    console.log('prevInvalidRef.current', prevInvalidRef.current )
-
-
-    console.log('isInvalid && !prevInvalidRef.current', isInvalid && !prevInvalidRef.current )
 
     if (isInvalid) {
 
@@ -96,7 +91,6 @@ export const Caption = ({
   const customCaptionsToggleFunction = (e) => {
     setCustomCaptionsToggle(!customCaptionsToggle)
   }
-
 
 
 const createCustomCaptions = () => {

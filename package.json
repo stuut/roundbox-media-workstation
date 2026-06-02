@@ -65,6 +65,7 @@
     "react-dropzone": "^14.3.8",
     "react-easy-crop": "^5.5.7",
     "react-google-drive-picker": "^1.2.2",
+    "react-pick-color": "^2.1.0",
     "react-responsive-carousel": "^3.2.23",
     "react-sortablejs": "^6.1.4",
     "react-tag-input": "^6.10.6",

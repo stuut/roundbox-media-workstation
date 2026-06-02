@@ -15,12 +15,11 @@ import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 import { updateFileDescriptionValue } from "@/lib/supabase";
+import ColorPicker from 'react-pick-color';
 
 export default function EditFile() {
   const { user } = useUserContext();
   const { displayEditItem, setDisplayEditItem, item, setItem, activeTool, setActiveTool} = useEditItemContext();
-
-  console.log('activeTool', activeTool)
 
 return(
   <>
@@ -74,52 +73,49 @@ const CropComponent = ({
   const canvasRef = useRef(null);
   const [loader, setLoader] = useState(false)
 
+  const loadImage = (src) =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
 
+      img.crossOrigin = 'anonymous';
 
+      // cache-bust to prevent reused non-CORS response
+      img.src = src + (src.includes('?') ? '&' : '?') + 'cors=' + Date.now();
 
-
-const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
-    const canvas = canvasRef; // Use the provided canvas ref
-    const ctx = canvas.getContext('2d');
-    const image = new Image();
-
-    return new Promise((resolve, reject) => {
-      image.crossOrigin = 'anonymous'; // This is critical to avoid CORS issues
-
-      image.src = imageSrc;
-      image.onload = () => {
-        // Set canvas size based on cropped area
-        canvas.width = croppedAreaPixels.width;
-        canvas.height = croppedAreaPixels.height;
-
-        // Draw the background (you can customize this to fit your needs)
-        ctx.fillStyle = color; // Same as the background div
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw the cropped image on the canvas
-        ctx.drawImage(
-          image,
-          croppedAreaPixels.x,
-          croppedAreaPixels.y,
-          croppedAreaPixels.width,
-          croppedAreaPixels.height,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
-
-        // Convert canvas to data URL (you can also return a Blob here)
-
-        canvas.toBlob((blob) => {
-          // Use your blob here (e.g., upload or download)
-          resolve(blob);
-        }, 'image/jpeg', 0.95); // 'type', 'quality'
-
-      };
-      image.onerror = reject;
+      img.onload = () => resolve(img);
+      img.onerror = reject;
     });
-};
+
+
+
+    const getCroppedImg = async (imageSrc, croppedAreaPixels, canvas) => {
+      const ctx = canvas.getContext('2d');
+
+      const image = await loadImage(imageSrc);
+
+      canvas.width = croppedAreaPixels.width;
+      canvas.height = croppedAreaPixels.height;
+
+      // Draw the background (you can customize this to fit your needs)
+      ctx.fillStyle = color; // Same as the background div
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.drawImage(
+        image,
+        croppedAreaPixels.x,
+        croppedAreaPixels.y,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      return new Promise((resolve) => {
+        canvas.toBlob(resolve, 'image/jpeg', 0.95);
+      });
+    };
 
    const createCroppedImage = async () => {
 
@@ -129,7 +125,6 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
          croppedAreaPixels,
          canvasRef.current
        );
-       console.log('Cropped image:', croppedImage);
        setCroppedImage(croppedImage)// This is the fina
        return croppedImage
      } catch (e) {
@@ -210,6 +205,7 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
      }
    }
 
+
    const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
      setCroppedAreaPixels(croppedAreaPixels)
 
@@ -271,6 +267,12 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
         </div>
         <div className="controls">
           <div style={{alignItems: 'center', display:'flex', marginLeft:'10px', gap:'10px'}}>
+            {showColourPicker&&
+               <div style={{position:'relative', position: 'absolute', bottom: '20px', background:'#ffffff'}}>
+                 <ColorPicker color={color} onChange={color => setColor(color.hex)} />
+                 <EyeDropperButton setColor={setColor}/>
+               </div>
+             }
             <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'5px'}}>
               <p className='label'> Scale</p>
               <Slider
@@ -316,6 +318,25 @@ const getCroppedImg = (imageSrc, croppedAreaPixels, canvasRef) => {
   )
 
 }
+
+const EyeDropperButton = ({setColor}) => {
+  const handlePickColor = async () => {
+    if (!window.EyeDropper) {
+      alert("Your browser doesn't support the EyeDropper API.");
+      return;
+    }
+
+    const eyeDropper = new window.EyeDropper();
+    try {
+      const result = await eyeDropper.open();
+
+      setColor(result.sRGBHex)
+    } catch (e) {
+    }
+  };
+
+  return <button className='btn-primary btn' onClick={handlePickColor}>Pick Color</button>;
+};
 
 const CaptionComponent = ({
   user,

@@ -31,11 +31,14 @@ import { ReactSortable } from "react-sortablejs";
 import { useFilesContext } from "@/context/files-context"
 import { useEditItemContext } from "@/context/edit-item-context"
 import Switch from '@mui/material/Switch';
+import Radio from '@mui/material/Radio';
+
 import { Summary } from '@/components/summary'
 import { Caption } from '@/components/caption'
 import { v4 as uuidv4 } from 'uuid'
 import { storeFileInfo } from "@/lib/supabase";
 import { updatePostScheduleDate } from "@/lib/supabase";
+import { getPostsWithIds } from "@/lib/supabase";
 import { uploadFile } from '@/lib/upload-file'
 
 import {
@@ -45,7 +48,8 @@ import {
   GripVertical,
   SquarePen,
   Trash2,
-  Crop
+  Crop,
+  EllipsisVertical
 } from 'lucide-react';
 const FEEDS = [
   {
@@ -389,11 +393,6 @@ export const Scheduler = ({user})=>{
 
 
 
-  useEffect(()=>{
-    console.log('calendarEvents', calendarEvents)
-  },[calendarEvents])
-
-
   const checkCalendarEventsDuplicate = (events) => {
     const calendarApi = cal.current.getApi()
     const calendarEventsCheck = calendarApi.getEvents()
@@ -402,7 +401,7 @@ export const Scheduler = ({user})=>{
 
     const newEvents = events.map((event) => {
       const duplicate = calendarEventsCheck.find(
-        (calendarEvent) => calendarEvent._def.publicId === event.id
+        (calendarEvent) => calendarEvent.id === event.id
       )
 
       if (duplicate) {
@@ -423,15 +422,72 @@ export const Scheduler = ({user})=>{
   }
 
 
-  const updateEventStatus = (postData, status) => {
-    const calendarApi = cal.current.getApi()
-    let event = calendarApi.getEventById(postData._def.publicId);
+  const schedulePostCallBack = async (postData, status, savedPostPublications) => {
 
+    const ids = savedPostPublications.map(post=>post.id)
+
+    const posts = await getPostsWithIds(ids)
+
+    const newPosts = posts.map((post)=>{
+
+      const media = post?.post_files.map((media)=>{
+        return {
+          source: 'internal',
+          ...media.file_id
+        }
+      })
+
+      let status = post?.status??''
+
+      return {
+        id: post.id,
+        start: post.scheduled_at,
+        end: post.scheduled_at,
+        allDay: false,
+        title: post?.title,
+        caption: post?.caption,
+        scheduleDate: post?.scheduled_at,
+        publishDate: post?.meta_data?.data?.publishedDate??null,
+        link: post?.meta_data?.post_data?.link??null,
+        slug: post?.meta_data?.post_data?.slug??null,
+        base_url: post?.meta_data?.post_data?.base_url??null,
+        status: status??null,
+        type:post?.type??'',
+        media: media??null,
+        error: post?.last_error??'',
+        database_info:{
+          post_id:post?.post?.id,
+          post_publications_id:post.id,
+        },
+        metaData: {
+          ...post?.meta_data,
+          ...post?.platform_account?.metadata
+        },
+        platform_account:post?.platform_account,
+
+      }
+    })
+
+
+    setCalendarEvents(prev => [...prev, ...newPosts]);
+
+    /*
+    const calendarApi = cal.current.getApi()
+    let event = calendarApi.getEventById(postData.id);
+    if (event) {
+      event.remove();
+    }*/
+    setCalendarEvents(prev => prev.filter((post)=> post.id !== postData.id))
+
+
+
+
+    /*
     event.mutate({
       extendedProps: {
         status: status
       },
-    })
+    })*/
 
   }
 
@@ -649,7 +705,7 @@ const hasRun = useRef(false);
     })
     let currentEvent = calendarApi.getEventById(id);
 
-    console.log('currentEvent', currentEvent)
+
     setPostData(currentEvent)
   }
 
@@ -664,9 +720,19 @@ const hasRun = useRef(false);
   function renderEventContent(eventInfo) {
 
 
+    const isOneSignal = eventInfo?.event?._def?.extendedProps?.platform_account?.platform === 'One Signal'
+    const isFacebook = eventInfo?.event?._def?.extendedProps?.platform_account?.platform === 'facebook'
+    const postId = eventInfo?.event?._def.extendedProps?.metaData?.post_id
+
+    let className = eventInfo.event._def.extendedProps.status
+
+    if ((isFacebook || isOneSignal) && !postId){
+      className = 'error'
+    }
+
     return (
       <div
-        className={eventInfo.event._def.extendedProps.status}
+        className={className}
         style={{
         width: '100%',
         whiteSpace: 'nowrap',
@@ -678,7 +744,7 @@ const hasRun = useRef(false);
       }}
         >
         <i>{eventInfo.timeText}</i><br/>
-        <b>{eventInfo.event.title}</b>
+        <b>{eventInfo.event.title !== 'null'?eventInfo.event.title:eventInfo.event._def.extendedProps.caption}</b>
       </div>
     )
   }
@@ -688,10 +754,11 @@ const hasRun = useRef(false);
 
   const deletePostCallback = async(postData) =>{
 
-
     const postType = postData._def.extendedProps.type
 
-    if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
+    if (postData?._def?.extendedProps?.platform_account?.platform === "facebook" ||
+      postData?._def?.extendedProps?.platform_account?.platform === "instagram"
+    ){
       const channelId = postData._def.extendedProps.platform_account.id
 
       let id
@@ -719,9 +786,12 @@ const hasRun = useRef(false);
             showError(`Error deleting post on facebook: ${facebookDeleteResponse.status}`)
           }
 
+          const facebookDeleteResponseJson = await facebookDeleteResponse.json();
+
+
       }
 
-      showSuccess('Facebook post Deleted')
+      showSuccess('Post Deleted')
     }
 
 
@@ -758,6 +828,8 @@ const hasRun = useRef(false);
       }
     }
 
+
+
     await deletePost([postData._def.extendedProps.database_info.post_publications_id])
 
     setCalendarEvents(prev => prev.filter((post)=> post.id !== postData.id))
@@ -778,7 +850,7 @@ const hasRun = useRef(false);
         close={setPostData}
         deletePostCallBack={deletePostCallback}
         cal={cal}
-        scheduleCallBack={updateEventStatus}
+        scheduleCallBack={schedulePostCallBack}
       />
 
       }
@@ -910,8 +982,11 @@ const FeedsPanel = ({
   }) => {
 
 
-      const importEvents = () => {
+    const [noPosts, setNoPosts] = useState(false)
 
+
+
+      const importEvents = () => {
 
         const newPosts = posts.map((post)=>{
           return{
@@ -943,7 +1018,7 @@ const FeedsPanel = ({
         const calendarEventsCheck = calendarApi.getEvents()
         const newEvents = events.map((event) => {
           const duplicate = calendarEventsCheck.find(
-            (calendarEvent) => calendarEvent._def.publicId === event.id
+            (calendarEvent) => calendarEvent.id === event.id
           )
 
           if (duplicate) {
@@ -985,6 +1060,9 @@ const FeedsPanel = ({
 
     const getFeed = async (selectedFeed, dateFilter) => {
 
+      setNoPosts(false)
+      setPosts([])
+
 
       if (selectedFeed.CMSType === 'contentful'){
         const client = contentful.createClient({
@@ -1019,8 +1097,10 @@ const FeedsPanel = ({
         }
 
 
-        if (filterPosts.length < 1) return
-
+        if (filterPosts.length === 0){
+          setNoPosts(true)
+          return
+        }
 
         if (selectedFeed.customFilterField){
           filterPosts = filterPosts.filter(function(node) {
@@ -1028,6 +1108,8 @@ const FeedsPanel = ({
 
            });
         }
+
+
 
         const posts = []
 
@@ -1063,8 +1145,6 @@ const FeedsPanel = ({
             },
             usePreview: false
           })
-
-
         }
 
         const checkedPosts = checkCalendarEventsDuplicate(posts)
@@ -1082,7 +1162,19 @@ const FeedsPanel = ({
         });
 
 
-        const response = await wp.posts().embed().perPage(100).order('desc').orderby('date').after(new Date(date)).get()
+        const response = await wp.posts()
+          .embed()
+          .perPage(100)
+          .after(start)
+          .before(end)
+          .orderby('date')
+          .order('desc')
+          .get()
+
+          if (response.length === 0){
+            setNoPosts(true)
+            return
+          }
 
         function multiIndex(obj,is) {  // obj,['1','2','3'] -> ((obj['1'])['2'])['3']
             return is.length ? multiIndex(obj[is[0]],is.slice(1)) : obj
@@ -1142,7 +1234,7 @@ const FeedsPanel = ({
         })
         }
       </select>
-      {selectedFeed.publishedDate &&
+
         <div>
           <label className='label'>Publication Date Filter</label>
             <DatePicker
@@ -1152,7 +1244,7 @@ const FeedsPanel = ({
               dateFormat="dd/MM/yyyy"
             />
         </div>
-      }
+
       {posts.length>0&&
       <button className="btn btn-sm secondary" onClick={importEvents}>Import Events</button>
       }
@@ -1166,6 +1258,11 @@ const FeedsPanel = ({
         alignContent: 'flex-start',
         gap: '2%'
       }}>
+        {noPosts &&
+          <div className='alert alert-danger'>
+            No Posts
+          </div>
+        }
         {posts.map((post, index)=>{
           return(
             <ExternalEvent key={post.id} data={post}/>
@@ -1244,11 +1341,11 @@ const Share = ({
   const [scheduled, setScheduled] = useState(false)
   const [postType, setPostType] = useState(postData?._def.extendedProps.type)
   const [status, setStatus] = useState(postData?._def.extendedProps?.status)
-  const [postState, setPostState]= useState('SCHEDULED')
+  const [postState, setPostState]= useState('SCHEDULE')
   const [buttonText, setButtonText]= useState('Schedule')
   //const [summary, setSummary]= useState(null)
   const [channelPreviews, setChannelPreviews]= useState([])
-  const [selectedChannelPreview, setSelectedChannelPreview]= useState('facebook')
+  const [selectedChannelPreview, setSelectedChannelPreview]= useState('')
   const [instagramMediaError, setInstagramMediaError] = useState(false)
   const [instagramCaptionError, setInstagramCaptionError] = useState(false)
 
@@ -1259,13 +1356,26 @@ const Share = ({
   const updateImages = useRef(false)
 
 
+    useEffect(()=>{
+
+    if (media.length > 1){
+      console.log('media updated', media)
+    }
+
+    },[media])
+
+    const isOneSignal = postData?._def?.extendedProps?.platform_account?.platform === 'One Signal'
+    const isFacebook = postData?._def?.extendedProps?.platform_account?.platform === 'facebook'
+    const postId = postData?._def.extendedProps?.metaData?.post_id
 
 
 
 
   const getPostInfo = async () => {
 
-    console.log('postData', postData)
+
+
+
 
 if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
@@ -1313,7 +1423,6 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
       const onesignalResponseJson = await onesignalResponse.json();
 
-      console.log('onesignalResponseJson', onesignalResponseJson)
   }
 
 
@@ -1394,7 +1503,7 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
     const calendarApi = cal.current.getApi()
 
-    let currentEvent = calendarApi.getEventById(postData._def.publicId);
+    let currentEvent = calendarApi.getEventById(postData.id);
 
     const newMetadata = {
       "post_id": currentEvent?._def?.extendedProps?.metaData.post_id,
@@ -1460,9 +1569,9 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
   const handlePostStateChange = (event) => {
     setPostState(event.target.value);
-    if (event.target.value === 'SCHEDULED'){
+    if (event.target.value === 'SCHEDULE'){
       setButtonText('Schedule')
-    }else if (event.target.value === 'PUBLISHED'){
+    }else if (event.target.value === 'PUBLISH'){
       setButtonText('Publish Now')
     }else{
       setButtonText('Save Draft')
@@ -1471,6 +1580,8 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
 
   const channelSelectorCallback = (pages) => {
+
+
     setSelectedSocialPages(pages)
 
     // get unique vales
@@ -1479,18 +1590,29 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
     setChannelPreviews(uniqueChannels)
 
+    if (uniqueChannels.length ===0){
+      setSelectedChannelPreview('')
+    }
+
+    if (uniqueChannels.length>0 && !selectedChannelPreview){
+      setSelectedChannelPreview(uniqueChannels[0])
+    }
+
+
+
+
   }
 
   const scheduleMultiple = async(status) => {
 
-        if (timeTravel(scheduleDate)){
-          showError('No Time Travel')
-          return
-        }
-
-       setLoader(true)
-
         try{
+
+          setLoader(true)
+
+          if (timeTravel(scheduleDate) && postState === 'SCHEDULE'){
+            showError('No Time Travel')
+            return
+          }
 
 
                const savedPost = await savePost({
@@ -1503,8 +1625,6 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
                    data:postData._def.extendedProps
                  }
                })
-
-
 
              const scheduledAtUTC = new Date(scheduleDate).toISOString()
 
@@ -1527,7 +1647,7 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
                  platform:acc.platform,
                  status: status,
                  caption:captionData,
-                 title:postData.title,
+                 title:title,
                  type:(acc.platform==='instagram' && postType==='link')?'photos':postType,
                  user_id:userId,
                  meta_data:{
@@ -1538,10 +1658,10 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
              const savedPostPublications = await savePostPublications(publications)
 
+             let savedMedia = []
 
              for (const savedPostPublication of savedPostPublications) {
                 for (const file of media) {
-
                   const fileId = file.source === 'external'
                     ? (
                         await storeFileInfo({
@@ -1554,12 +1674,17 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
                       ).id
                     : file.id
 
-                  await savePostFile({
+                  const newMedia = await savePostFile({
                     file_id: fileId,
                     usage_type: postType,
                     post_id:savedPost.id,
                     post_publication_id: savedPostPublication.id
                   })
+
+                  savedMedia.push(newMedia)
+
+                  console.log('savedMedia', savedMedia)
+
                 }
               }
 
@@ -1568,32 +1693,33 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
              const savedPostPublicationsOneSignal = savedPostPublications.filter((publication)=>publication.platform === 'One Signal')
 
+             console.log('postState', postState)
+
+             if (postState === 'PUBLISH'){
+               const savedPostPublicationsInstagram = savedPostPublications.filter((publication)=>publication.platform === 'instagram')
+
+
+              for (const publication of savedPostPublicationsInstagram) {
+
+                const channel = socialPages.find((social)=> social.id === publication.platform_id)
+
+                await instagramPublish(
+                  channel,
+                  publication,
+                  savedMedia
+                )
+               }
+             }
+
+
 
              for (const publication of savedPostPublicationsFacebook) {
                const channel = socialPages.find((social)=> social.id === publication.platform_id)
 
-               if (postType === 'video_reels'){
-                 await scheduleFacebookReel(
-                   channel,
-                   uploadedVideo.file_url,
-                   publication
-                 )
-               }else{
-
-                 /*
-                  await facebookSchedule(
-                 channel.external_account_id,
-                 channel.access_token,
-                 publication,
-                 status = 'scheduled'
-               )*/
-
-                 await facebookSchedule(
-                   channel,
-                   publication,
-                   true
-                 )
-               }
+               await facebookSchedule(
+                 channel,
+                 publication
+               )
              }
 
               for (const publication of savedPostPublicationsOneSignal) {
@@ -1604,8 +1730,14 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
                     channel,
                     publication
                   )
-
               }
+
+              scheduleCallBack(postData, 'scheduled', savedPostPublications)
+
+              setLoader(false)
+              showSuccess('All Posts Scheduled')
+              close(null)
+
 
         }catch(error){
           console.log('error', error)
@@ -1614,11 +1746,7 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
         }
 
-     scheduleCallBack(postData, 'scheduled')
 
-     setLoader(false)
-     showSuccess('All Posts Scheduled')
-     close(null)
   }
 
   const getFacebookPostEndpoint = (postType) => {
@@ -1691,48 +1819,26 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
 
       }
 
-      /*
-      for (let i = 0; i < idArrays.length; i++) {
-        mutipleImageData['attached_media['+i+']'] = {'media_fbid' : idArrays[i]}
-      }*/
-
-
       const attached_media = idArrays.map(id => ({
         media_fbid: id
       }));
 
       const payload = {
         message: publication.caption,
-        published: false,
-        unpublished_content_type: 'SCHEDULED',
+        //published: false,
+        //unpublished_content_type: 'SCHEDULED',
         attached_media
       };
 
+      if (postState === 'SCHEDULE'){
+        payload.published = false
+        payload.unpublished_content_type = 'SCHEDULED'
+
+      }else if (postState === 'PUBLISH'){
+        payload.published = true
+      }
 
       return payload
-
-
-
-
-      /*
-
-      if (media.length ===1){
-        return {
-          message: publication.caption,
-          url: media[0].file_url,
-        }
-      }else{
-        /*
-      const mutipleImageData = {
-          message : publication.caption,
-          published : false,
-          unpublished_content_type : 'SCHEDULED'
-        }
-*/
-
-
-
-
 
     case 'video':
       return {
@@ -1747,15 +1853,43 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
       }
 
     case 'video_reels':
+
+        const formData = new FormData();
+        formData.append('fileUrl', media[0].file_url);
+        formData.append('channelId', channel.id);
+
+        const response = await fetch('/api/facebook/upload-facebook-reel', {
+          method: 'POST',
+          body: formData,
+        });
+        // Ensure the response is successful
+        if (!response.ok) {
+          throw new Error(`Upload failed with status: ${response.status}`);
+        }
+
+        const uploadedVideo = await response.json();
+
+        if (!uploadedVideo) return
+
+        const videoId = uploadedVideo.videoId;
+
+        let video_state = 'SCHEDULED'
+        if (postState === 'PUBLISH'){
+          video_state = 'PUBLISHED'
+        }
+
+        let description = publication.caption
+
+        if (postLink){
+          description = publication.caption + '\n\n' + `Full story here: ${postLink}`
+        }
+
       return {
         video_id: videoId,
         upload_phase: 'finish',
-        video_state: postState,
-        description:
-          publication.caption +
-          '\n\n' +
-          `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
-        title: postInfo.data.title
+        video_state: video_state,
+        description: description,
+        title: title
       }
 
     default:
@@ -1873,13 +2007,23 @@ const onesignalSchedule = async(
           return
         }
 
-        const updateData = {
-          status: "scheduled",
+
+        const updateData  = {
+          status: 'scheduled',
           meta_data:{
             notification_id:notificationId,
-            post_data:publication.meta_data.post_data
+            post_data:publication.meta_data.post_data,
+            ...onesignalResponseJson
           }
         }
+
+        if (postState === 'PUBLISH'){
+          updateData.published_at = new Date().toISOString()
+          updateData.status = 'published'
+        }
+
+        console.log('updateData', updateData)
+
 
         await updatePostPublication(publication.id, updateData)
 
@@ -1888,21 +2032,62 @@ const onesignalSchedule = async(
 
 }
 
+
+const instagramPublish = async (
+  channel,
+  publication,
+  savedMedia
+) => {
+  try{
+
+    publication.media = media
+
+    const instagramResponse = await fetch(`/api/instagram/publish`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          channelId: channel.id,
+          publication:publication
+        }),
+      })
+
+      if (!instagramResponse.ok) {
+        setLoader(false)
+        showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+        return
+      }
+    showSuccess('Instgram Post Published')
+    const postResponseJson = await instagramResponse.json();
+
+    const postId = postResponseJson.id
+
+    const updateData  = {
+      status: 'published',
+      meta_data:{
+        post_id:postId,
+        post_data:publication.meta_data.post_data,
+        ...postResponseJson
+      },
+      published_at : new Date().toISOString()
+    }
+
+    await updatePostPublication(publication.id, updateData)
+  }catch(error){
+    console.log(error)
+    showError(`Facebook error: ${error}`)
+    setLoader(false)
+  }
+}
+
   const facebookSchedule = async (
     channel,
     publication,
-    schedule = true
   ) => {
 
-    /*pageId,
-accessToken,
-publication,
-schedule = true
-*/
 
-
-
-    if (timeTravel(scheduleDate)){
+    if (timeTravel(scheduleDate) && postState === 'SCHEDULE'){
       showError('No Time Travel')
       setLoader(false)
       return
@@ -1913,18 +2098,16 @@ schedule = true
     const endPoint = getFacebookPostEndpoint(postType)
     const data = await getFacebookPostDataSchedule(postType, publication, channel)
 
-
-
     if (!endPoint || !data){
       showError('no end point or data')
       return
     }
 
-    if (schedule){
+    if (postState === 'SCHEDULE'){
       data.scheduled_publish_time = scheduledPublishTime
       data.published = false
 
-    }else{
+    }else if (postState === 'PUBLISH'){
       data.published = true
     }
 
@@ -1971,16 +2154,25 @@ schedule = true
         return
       }
 
-
       showSuccess('Comment Added')
-      const updateData = {
-        status: "scheduled",
+
+      let status
+
+      const updateData  = {
+        status: 'scheduled',
         meta_data:{
           post_id:postId,
           post_data:publication.meta_data.post_data,
-          ...postResponseData
+          ...postResponseJson
         },
       }
+
+      if (postState === 'PUBLISH'){
+        updateData.published_at = new Date().toISOString()
+        updateData.status = 'published'
+      }
+
+
       await updatePostPublication(publication.id, updateData)
     }catch(error){
       console.log(error)
@@ -1989,137 +2181,75 @@ schedule = true
     }
   }
 
-  const updateScheduledEvent = (updateData) =>{
+
+
+  const updateEvent = (updateData, id) =>{
     const calendarApi = cal.current.getApi()
 
-    let currentEvent = calendarApi.getEventById(postData._def.publicId);
+    let currentEvent = calendarApi.getEventById(id);
 
     const newProps = {...postData._def.extendedProps, ...updateData }
 
+
+
+    /*
+
     currentEvent.mutate({
         extendedProps: newProps
-    })
+    })*/
+
+    setCalendarEvents(prev =>
+        prev.map(event =>
+          event.id === id
+            ? {
+                ...event,
+                extendedProps: {
+                  ...event.extendedProps,
+                  ...newProps
+                }
+              }
+            : event
+        )
+      );
 
 
   }
 
-  const scheduleFacebookReel = async (
-    channel,
-    video_url,
-    publication
-  ) => {
-
-    if (timeTravel(scheduleDate)){
-      showError('No Time Travel')
-      setLoader(false)
-      return
-    }
-
-    const video = videoBlobRef.current
-
-    const formData = new FormData();
-    formData.append('fileUrl', video_url);
-    //formData.append('videoBlob', video);
-    formData.append('channelId', channel.id);
-
-      const response = await fetch('/api/facebook/upload-facebook-reel', {
-        method: 'POST',
-        body: formData,
-      });
-      // Ensure the response is successful
-      if (!response.ok) {
-        throw new Error(`Upload failed with status: ${response.status}`);
-      }
-
-      const uploadedVideo = await response.json();
-
-      if (!uploadedVideo) return
-
-      const videoId = uploadedVideo.videoId;
-
-    // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
-    const scheduledPublishTime = (moment(scheduleDate).unix())
-
-    const data = {
-      video_id: videoId,
-      upload_phase : 'finish',
-      video_state : postState,
-      description: caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
-      title :postInfo.data.title,
-      scheduled_publish_time: scheduledPublishTime,
-      //access_token: accessToken
-    }
-
-
-    try{
-
-      const facebookResponse = await fetch(`/api/facebook/schedule`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            channelId: channel.id,
-            postData:data,
-            endPoint:path
-          }),
-        })
-
-    if (!facebookResponse.ok) {
-      //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
-      setLoader(false)
-      showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
-    }
-
-    showSuccess('Video Scheduled')
-
-    const videoData = await facebookResponse.json();
-    const postId = videoData.post_id
 
 
 
-    const facebookCommentResponse = await fetch(`/api/facebook/add-comment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          postId: postId,
-          postLink:postLink,
-          channelId: channel.id,
-        }),
-      })
 
-    if (!facebookCommentResponse.ok) {
-      setLoader(false)
-      showError(`Upload to add facebook comment: ${facebookResponse.status}`)
-      return
-    }
 
-      showSuccess('Comment Added')
-      setScheduled(true)
+  const updateScheduledEvent = (updateData, id) =>{
+    const calendarApi = cal.current.getApi()
 
-      postScheduled(postInfo)
+    let currentEvent = calendarApi.getEventById(id);
 
-      // update database
-      const updateData = {
-        status: "scheduled",
-        meta_data:{
-          post_id:videoId,
-          post_data:publication.meta_data.post_data,
-          ...videoData
-        },
-        //published_at: new Date().toISOString()
-      }
+    const newProps = {...postData._def.extendedProps, ...updateData }
 
-      await updatePostPublication(publication.id, updateData)
+    /*
 
-    }catch(error){
-      showError(`Facebook error: ${error}`)
-       setLoader(false)
-    }
+    currentEvent.mutate({
+        extendedProps: newProps
+    })*/
+
+    setCalendarEvents(prev =>
+        prev.map(event =>
+          event.id === id
+            ? {
+                ...event,
+                extendedProps: {
+                  ...event.extendedProps,
+                  ...newProps
+                }
+              }
+            : event
+        )
+      );
+
 
   }
+
 
   const deletePostDatabase = async() =>{
       setLoader(true)
@@ -2163,7 +2293,15 @@ const createCaption = () => {
 
   useEffect(() => {
     if (!showFiles && selectedFiles.length > 0) {
+
+      if (media.length === 1){
+        console.log('showFiles && selectedFiles.length > 0 setMedia', media)
+
+      }
+
+
         setMedia(prev => [...selectedFiles, ...media])
+        setSelectedFiles([])
     }
 
   }, [showFiles, selectedFiles]);
@@ -2204,11 +2342,28 @@ const createCaption = () => {
                 </div>
               }
 
-              {status&&
-                <div className="scheduled_badge">
-                  <strong>{capitilise(status)}</strong>
-                  <CircleCheck />
-                </div>
+              {((isFacebook || isOneSignal) && !postId)?
+                  (
+                    <div style={{
+                      background: 'var(--md-sys-color-error)',
+                      color:'#ffffff',
+                      padding:'10px',
+                      borderRadius: '10px',
+                      marginTop:'15px',
+                      marginBottom:'15px',
+                    }}>
+                      There was an error scheduling this post
+                    </div>
+                ):(
+                  <>
+                    {status&&
+                      <div className="scheduled_badge">
+                        <strong>{capitilise(status)}</strong>
+                        <CircleCheck />
+                      </div>
+                    }
+                  </>
+                )
               }
 
               <ChannelSelector
@@ -2223,42 +2378,55 @@ const createCaption = () => {
               }
 
               <div className="properties-container" style={{margin:'15px 0px'}}>
-                <p className='label'>Post Type</p>
-                <input
-                  style={{marginRight:'5px'}}
-                  type="radio"
-                  value="text"
-                  checked={postType === 'text'}
-                  onChange={handlePostTypeChange}
-                /><span style={{fontSize:'.9em'}}>Text</span>
-                <input
-                  style={{marginLeft:'10px', marginRight:'5px'}}
-                  type="radio"
-                  value="video_reels"
-                  checked={postType === 'video_reels'}
-                  onChange={handlePostTypeChange}
-                /><span style={{fontSize:'.9em'}}>Reel</span>
-                <input
-                  style={{marginLeft:'10px', marginRight:'5px'}}
-                  type="radio"
-                  value="link"
-                  checked={postType === 'link'}
-                  onChange={handlePostTypeChange}
-                /><span style={{fontSize:'.9em'}}>Link</span>
-                <input
-                  style={{marginLeft:'10px', marginRight:'5px'}}
-                  type="radio"
-                  value="photos"
-                  checked={postType === 'photos'}
-                  onChange={handlePostTypeChange}
-                /><span style={{fontSize:'.9em'}}>Photos</span>
+                <p className='label' style={{paddingLeft:'10px'}}>Post Type</p>
+                <div style={{display:'flex', alignItems:'center'}}>
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginRight:'0px'}}
+                      type="radio"
+                      value="text"
+                      checked={postType === 'text'}
+                      onChange={handlePostTypeChange}
+                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                    /><span style={{fontSize:'.9em'}}>Text</span>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginLeft:'10px', marginRight:'0px'}}
+                      type="radio"
+                      value="video_reels"
+                      checked={postType === 'video_reels'}
+                      onChange={handlePostTypeChange}
+                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                    /><span style={{fontSize:'.9em'}}>Reel</span>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginLeft:'10px', marginRight:'0px'}}
+                      type="radio"
+                      value="link"
+                      checked={postType === 'link'}
+                      onChange={handlePostTypeChange}
+                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                    /><span style={{fontSize:'.9em'}}>Link</span>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginLeft:'10px', marginRight:'0px'}}
+                      type="radio"
+                      value="photos"
+                      checked={postType === 'photos'}
+                      onChange={handlePostTypeChange}
+                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                    /><span style={{fontSize:'.9em'}}>Photos</span>
+                  </div>
+                </div>
               </div>
 
 
-              {(postType === 'photos' || postType === 'video_reels')&&
+              {(postType === 'photos' || postType === 'video_reels' || isInstagram)&&
 
                 <div className="properties-container" style={{margin:'15px 0px'}}>
-                  {console.log((postType === 'photos' || postType === 'video_reels'))}
                   <p className='label'>Media</p>
                   <button className="btn secondary btn-sm" onClick={() => {
                     setSelectedFiles([])
@@ -2266,6 +2434,7 @@ const createCaption = () => {
                     setShowFiles(prevState => !prevState)
                   }}>Add Files</button>
                   <MediaList
+                    key={postData.id}
                     postType={postType}
                     userId={userId}
                     media={media}
@@ -2318,27 +2487,27 @@ const createCaption = () => {
               <div className="properties-container" style={{margin:'15px 0px'}}>
                 <p className='label'>Schedule Date & Time</p>
                 <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
-                  <div>
-                    <input
-                      style={{marginRight:'5px'}}
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginRight:'0px'}}
                       type="radio"
-                      value="SCHEDULED"
-                      checked={postState === 'SCHEDULED'}
+                      value="SCHEDULE"
+                      checked={postState === 'SCHEDULE'}
                       onChange={handlePostStateChange}
                       disabled={status === 'published'}
                     /><strong style={{fontSize:'.9em'}}>Schedule</strong>
                   </div>
-                  <div>
-                    <input
-                      style={{marginRight:'5px'}}
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginRight:'0px'}}
                       type="radio"
-                      value="PUBLISHED"
-                      checked={postState === 'PUBLISHED'}
+                      value="PUBLISH"
+                      checked={postState === 'PUBLISH'}
                       onChange={handlePostStateChange}
                       disabled={status === 'published'}
                     /><strong style={{fontSize:'.9em'}}>Publish Now</strong>
                   </div>
-                  <div style={{marginLeft: 'auto'}}>
+                  <div style={{display:'flex', alignItems:'center', marginLeft: 'auto', display:'none'}}>
                     <input
                       style={{marginRight:'5px'}}
                       type="radio"
@@ -2349,25 +2518,27 @@ const createCaption = () => {
                     /><span style={{fontSize:'.9em'}}>Set as draft</span>
                   </div>
                 </div>
-                <DatePicker
-                  style={{minWidth:'300px'}}
-                  minDate={moment().toDate()}
-                  minTime={calculateMinTime(scheduleDate)}
-                  maxTime={moment().endOf('day').toDate()}
-                  selected={scheduleDate}
-                  onChange={(date) => setScheduleDate(date)}
-                  showTimeSelect
-                  className={'form-input'}
-                  dateFormat="MMMM d, yyyy h:mm aa"
-                />
+                {postState === 'SCHEDULE' &&
+                  <DatePicker
+                    style={{minWidth:'300px'}}
+                    minDate={moment().toDate()}
+                    minTime={calculateMinTime(scheduleDate)}
+                    maxTime={moment().endOf('day').toDate()}
+                    selected={scheduleDate}
+                    onChange={(date) => setScheduleDate(date)}
+                    showTimeSelect
+                    className={'form-input'}
+                    dateFormat="MMMM d, yyyy h:mm aa"
+                  />
+                }
                 {instagramMediaError &&
                   <p>instagram Error</p>
                 }
               </div>
-              {(selectedSocialPages.length>0 && !instagramMediaError) &&
+              {(selectedSocialPages.length>0) &&
                 <button
                   style={{marginLeft:'10px'}}
-                  disabled={(status === 'published' || status === 'scheduled') || (isInstagram && !instagramCaptionError)}
+                  disabled={(status === 'published' || status === 'scheduled') || (isInstagram && instagramCaptionError) || (isInstagram && instagramMediaError) || (!postType)}
                   className="btn primary"
                   onClick={() => scheduleMultiple('scheduled')}>{buttonText}
 
@@ -2398,49 +2569,72 @@ const createCaption = () => {
               padding: '30px 15px 10px 15px',
               backgroundColor: 'var(--md-sys-color-surface-container)'
             }}>
-              <select id="channel-select" className="form-input select" onChange={(e) => onChannelPreviewChange(e.target.value)} value={selectedChannelPreview}>
-                {channelPreviews.map((channel, index)=>{
-                  return <option key={index} value={channel}>{channel}</option>
-                })
-                }
-              </select>
-
-              {(postType=== 'link' &&  postLink && selectedChannelPreview === 'facebook') &&
-                <FacebookLinkPreview
-                url={postLink}
-                postData={postData}
-                caption={caption}
-              />
-              }
-              {(postType === 'video_reels' && postData?._def?.extendedProps?.media[0]?.file_type === "video/mp4") &&
-                <div className="video-container">
-                  <video
-                    src={postData?._def?.extendedProps?.media[0]?.file_url}
-                    controls // Adds play, pause, etc. controls
-                    className='video'
-                    // poster="thumbnail.jpg" // Optional: specify a placeholder image
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+              {channelPreviews.length===0?(
+                <div className='alert alert-danger' >
+                  Please pick at least one channel
                 </div>
-              }
-              {postType === 'link' &&  selectedChannelPreview === 'instagram' &&
-                <>
-                  <InstagramLinkPreview
-                    image={postData?._def.extendedProps?.media[0]?.file_url}
-                    postData={postData}
-                    caption={caption}
-                  />
-                </>
-              }
-              {postType === 'photos' &&  selectedChannelPreview === 'instagram' &&
-                <InstagramPhotosPreview media={media} />
-              }
+                ):(
+                  <>
+                    <p>{selectedChannelPreview}</p>
+                  {selectedChannelPreview && channelPreviews.length>0 &&
+                    <select id="channel-select" className="form-input select" onChange={(e) => onChannelPreviewChange(e.target.value)} value={selectedChannelPreview}>
+                      {channelPreviews.map((channel, index)=>{
+                        return <option key={index} value={channel}>{channel}</option>
+                      })
+                      }
+                    </select>
+                  }
 
-              {postType === 'photos' &&  selectedChannelPreview === 'facebook' &&
-                <FacebookPhotosPreview media={media}/>
-              }
+                    {(postType=== 'link' && selectedChannelPreview === 'facebook') &&
+                      <>
+                        <p>Facebook Link Preview</p>
+                        <FacebookLinkPreview
+                          url={postLink}
+                          postData={postData}
+                          caption={caption}
+                          selectedSocialPages={selectedSocialPages}
+                        />
+                      </>
+                    }
+                    {(postType === 'video_reels' && media[0]?.file_type === "video/mp4") &&
+                      <div className="video-container">
+                        <video
+                          src={media[0]?.file_url}
+                          controls // Adds play, pause, etc. controls
+                          className='video'
+                          // poster="thumbnail.jpg" // Optional: specify a placeholder image
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                    }
+                    {postType === 'link' &&  selectedChannelPreview === 'instagram' &&
+                      <>
+                        <p>Instagram Link Preview</p>
+                        <InstagramLinkPreview
+                          image={media[0]?.file_url}
+                          postData={postData}
+                          caption={caption}
+                        />
+                      </>
+                    }
+                    {postType === 'photos' &&  selectedChannelPreview === 'instagram' &&
+                      <>
+                        <p>Instagram Photos Preview</p>
+                        <InstagramPhotosPreview media={media} />
+                      </>
+                    }
 
+                    {postType === 'photos' && selectedChannelPreview === 'facebook' &&
+                      <>
+                        <p>Facebook Photos Preview</p>
+                        <FacebookPhotosPreview media={media}/>
+                      </>
+                    }
+
+                  </>
+                )
+              }
             </div>
         </div>
       </div>
@@ -2452,10 +2646,13 @@ const FacebookLinkPreview = ({
   url,
   postData,
   caption,
+  selectedSocialPages
 }) => {
   const [openGraph, setOpenGraph] = useState(null)
   const [openGraphError, setOpenGraphError] = useState(null)
   const hasRun = useRef(false);
+
+  console.log('url', url)
 
 const getOpenGraph = async () => {
   try {
@@ -2514,8 +2711,6 @@ const noPreview = () => {
 }
 
 
-
-
 useEffect(()=>{
   if (!hasRun.current && postData._def.extendedProps.usePreview) {
     getOpenGraph()
@@ -2525,65 +2720,136 @@ useEffect(()=>{
   }
 },[])
 
+const refreshShareAttachment = async () => {
 
+  if (!url){
+    showError(`No Url`)
+    return
+  }
+
+  const facebookAccounts = selectedSocialPages.filter((account)=>account.platform === 'facebook')
+
+  const facebookResponse = await fetch(`/api/facebook/refresh-share-attachment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        channelId:facebookAccounts[0].id,
+        url:url
+      }),
+    })
+
+    if (!facebookResponse.ok) {
+      showError(`Error refreshing post on facebook: ${facebookResponse.status}`)
+    }
+
+    const facebookResponseJson = await facebookResponse.json();
+
+    setOpenGraph({
+      ogTitle: facebookResponseJson.data?.title??null,
+      ogUrl: facebookResponseJson.data?.url??null,
+      ogDescription: facebookResponseJson.data?.description??null,
+      ogImage: facebookResponseJson.data?.image[0]?.url??null
+    })
+
+
+}
 
 return(
-  <div style={{marginTop:'25px'}}>
-    <div
-      style={{
-        background:'#ffffff',
-        borderTopLeftRadius: '8px',
-        borderTopRightRadius: '8px',
-        padding:'10px'
-      }}
-    >
-      <ReadMore maxCharacterCount={50}>
-          {caption}
-      </ReadMore>
-    </div>
-      <div style={{background:'#ffffff', borderRadius:'8px'}}>
-        {(openGraph?.ogImage)?(
-              <div className={`${'post-preview '}`} style={{paddingTop:'52.3%',
-                backgroundImage: `url(${openGraph.ogImage})`,
-                backgroundPosition: 'center',
-                backgroundSize: 'cover',
-                backgroundRepeat: 'no-repeat'
-                }}>
-              </div>
-          ):(
-            <div className={`${'post-preview '}`} style={{paddingTop:'52.3%'}}>
-            no OG Image
-            </div>
-          )
-        }
-        <div style={{
-          padding: '10px 12px',
-          border: '0.5px solid #e3e3e3',
-          borderBottomLeftRadius: '8px',
-          borderBottomRightRadius: '8px'
-        }}>
-          <div className="facebook-preview-url">
-          {openGraph?.ogUrl?(
-            openGraph.ogUrl
-          ):(
-            `No Url`
-          )
+    <div style={{marginTop:'25px'}}>
+      <div
+        style={{
+          background:'#ffffff',
+          borderTopLeftRadius: '8px',
+          borderTopRightRadius: '8px',
+          padding:'10px',
+          position:'relative'
+        }}
+      >
 
-          }
-          </div>
-          <div className="facebook-preview-title">
-            {openGraph?.title? openGraph.title : postData.title}
-          </div>
-          {/*}
-          <div className="facebook-preview-description">
-            {openGraph?.description? openGraph.description: postData._def.extendedProps.description }
-          </div>
-          */}
+        <div style={{position:'absolute', right:'10px'}}>
+          <ThreeDotMenu>
+            {(selectedSocialPages.length > 0 && url) &&
+              <button onClick={refreshShareAttachment} className='btn btn-sm'>Refresh Share Attachment</button>
+            }
+          </ThreeDotMenu>
         </div>
-    </div>
+        <ReadMore maxCharacterCount={50}>
+            {caption}
+        </ReadMore>
+      </div>
+        <div style={{background:'#ffffff', borderRadius:'8px'}}>
+          {(openGraph?.ogImage)?(
+                <div className={`${'post-preview '}`} style={{paddingTop:'52.3%',
+                  backgroundImage: `url(${openGraph.ogImage})`,
+                  backgroundPosition: 'center',
+                  backgroundSize: 'cover',
+                  backgroundRepeat: 'no-repeat'
+                  }}>
+                </div>
+            ):(
+              <div className={`${'post-preview '}`} style={{paddingTop:'52.3%'}}>
+              <p style={{paddingLeft:'10px'}}>no OG Image</p>
+              </div>
+            )
+          }
+          <div style={{
+            padding: '10px 12px',
+            border: '0.5px solid #e3e3e3',
+            borderBottomLeftRadius: '8px',
+            borderBottomRightRadius: '8px'
+          }}>
+            <div className="facebook-preview-url">
+            {openGraph?.ogUrl?(
+              openGraph.ogUrl
+            ):(
+              `No Url`
+            )
 
-  </div>
-)
+            }
+            </div>
+            <div className="facebook-preview-title">
+              {openGraph?.ogTitle? openGraph.ogTitle : postData.title !== 'null'? postData.title:`No Title`}
+            </div>
+            {/*}
+            <div className="facebook-preview-description">
+              {openGraph?.description? openGraph.description: postData._def.extendedProps.description }
+            </div>
+            */}
+          </div>
+      </div>
+
+    </div>
+  )
+}
+
+
+const ThreeDotMenu = ({styles, children}) => {
+
+  const [open, setOpen] = useState(false)
+
+
+  return(
+    <div style={{position:'relative'}}>
+      <EllipsisVertical onClick={() => setOpen(prev => !prev)}/>
+        {open &&
+          <div style={{
+            position:'absolute',
+            marginTop: '5px',
+            zIndex: '100',
+            backgroundColor: '#ffffff',
+            borderRadius:'var(--input-border-radius)',
+            padding:'10px',
+            right: '100%',
+            minWidth: '220px'
+          }} className='dropshadow'>
+            {children}
+          </div>
+        }
+    </div>
+  )
+
 }
 
 const InstagramLinkPreview = ({
@@ -2652,7 +2918,7 @@ const MediaList = ({
 }) => {
   const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
 
-    const [files, setFiles] = useState(media)
+    //const [files, setFiles] = useState(media)
     const editingIndex = useRef(null)
     const editImageRef = useRef(null)
     const editImageData = useRef(null)
@@ -2667,6 +2933,14 @@ const MediaList = ({
     }
 
     const handleReplace = (index, newItem) => {
+
+      if (media.length === 1){
+        console.log('setMedia handleReplace', media)
+
+      }
+
+
+      item.source = 'internal'
       setMedia(prevItems =>
         prevItems.map((item, i) => i === index ? newItem : item)
       );
@@ -2681,6 +2955,10 @@ const MediaList = ({
 
 
     const changeSortableState = (newState) => {
+      if (media.length === 1){
+        console.log('setMedia changeSortableState', media)
+      }
+
       setMedia(newState)
     }
 
@@ -2690,6 +2968,9 @@ const MediaList = ({
 
          const checkedImages = await Promise.all(images.map(async(image) => {
            let carouselImageError = await checkImageSize(image.file_url)
+           if (carouselImageError){
+             showError('Instagram Image Size Error')
+           }
            var temp = Object.assign({}, image);
            temp.instagram_image_error = carouselImageError
            if (carouselImageError === true){
@@ -2698,7 +2979,11 @@ const MediaList = ({
            return temp;
          }))
 
-         setFiles(checkedImages)
+         if (media.length>1){
+           console.log('media checkInstagramImages', media)
+         }
+
+         setMedia(checkedImages)
 
 
          if (errorArray.length > 0){
@@ -2718,12 +3003,16 @@ const MediaList = ({
         setInstagramError(false)
       }
 
-      setFiles(media)
+      //setFiles(media)
 
     },[media, channelPreviews])
 
 
     const removeImage = async (index) => {
+
+      if (media.length>1){
+        console.log('removeImage', media)
+      }
       setMedia(prev => prev.filter((_, i) => i !== index));
       //setFiles(prev => prev.filter((_, i) => i !== index));
     }
@@ -2739,6 +3028,14 @@ const MediaList = ({
         fileType = item?.file_type
       }else{
         fileType = await getImageType(item.file_url)
+
+
+
+        if (media.length>1){
+            console.log('checkIfImage setMedia', media)
+        }
+
+
         setMedia(prev => prev.map((prev, i)=>{
             if (i === index){
               prev.file_type = fileType
@@ -2788,6 +3085,10 @@ const MediaList = ({
 
               const newItem = {...fileInfo, source:'internal', chosen: editImageData.current.chosen}
 
+              if (media.length === 1){
+                console.log('media startSSE', media)
+              }
+
               setMedia(prevItems =>
                 prevItems.map((item, i) => item.id === editImageData.current.id ? newItem : item)
               );
@@ -2833,6 +3134,7 @@ const MediaList = ({
       }
     }
 
+//console.log('media', media)
 
   return(
     <ReactSortable
@@ -2842,12 +3144,12 @@ const MediaList = ({
       onDragStart={()=>onSortItems()}
       onDragEnd={()=>onSortItems()}
       >
-  {files.map((item, index) => {
+  {media.map((item, index) => {
     const isVideo = item.file_type === "video/mp4" || item.file_url.match(/\.(mp4|mov|m4v)$/i);
 
-      if (checkIfImage(item, index)){
+
         return(
-            <div key={index}
+            <div key={item.id}
               style={{
               display:'flex',
               alignItems: 'center',
@@ -2858,7 +3160,7 @@ const MediaList = ({
             }}>
               <GripVertical size={30} />
                 <div style={{marginLeft:'10px'}}>
-                  {(postType === 'photos' && (item.file_type === 'image/png' || item.file_type === 'image/jpeg'))&&
+                  {(item.file_type === 'image/png' || item.file_type === 'image/jpeg')&&
                       <img style={{
                       width:50,
                       height:50,
@@ -2880,7 +3182,7 @@ const MediaList = ({
 
                 </div>
               <div style={{marginLeft:'auto', height: '30px', display:'flex', alignItems:'center'}}>
-                {postType === 'photos' &&
+                {(postType === 'photos' || postType === 'link' )&&
                   <>
                   <img onClick={() => editInPhotoshop(item)} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
                   <Crop size={30} onClick={() => editMedia(item, index, 'crop')}/>
@@ -2891,9 +3193,7 @@ const MediaList = ({
               </div>
             </div>
           )
-      }else{
-        return null
-      }
+
 
 
      })
@@ -2957,7 +3257,7 @@ const FacebookPhotosPreview = ({media}) => {
 
     }else{
       return (
-        <img src={media[0].file_url}/>
+        <img src={media[0]?.file_url}/>
       )
 
     }
@@ -3001,15 +3301,15 @@ const InstagramPhotosPreview = ({media}) => {
      onChange={(args) => onCarouselChange(args)}
      showThumbs={false}
      selectedItem={currentSlide}
-  >
-  {media.map((item, index) => {
-      return(
-        <div>
-          <img src={item.file_url} style={{width:'100%'}}/>
-        </div>
-      )
-     })
-  }
-  </Carousel>
+    >
+    {media.map((item, index) => {
+        return(
+          <div>
+            <img src={item.file_url} style={{width:'100%'}}/>
+          </div>
+        )
+       })
+    }
+    </Carousel>
   )
 }

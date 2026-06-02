@@ -48,7 +48,7 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   EllipsisVertical,
   ArrowLeft,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
 import { updateFileDescriptionValue } from "@/lib/supabase";
@@ -2205,7 +2205,7 @@ async updateImage(image){
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = image;
+    img.src = image + (image.includes('?') ? '&' : '?') + 'cors=' + Date.now();
 
     await img.decode(); // waits until fully loaded
 
@@ -2237,7 +2237,7 @@ async replaceImage(image){
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = image;
+    img.src = image + (image.includes('?') ? '&' : '?') + 'cors=' + Date.now();
 
     await img.decode(); // waits until fully loaded
     this.img = img;
@@ -10144,6 +10144,7 @@ const Media = ({
   setFileEdit
 }) => {
   const [files, setFiles] = useState([]);
+  const [filter, setFilter] = useState('')
 
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false)
@@ -10294,21 +10295,33 @@ const deleteCallback = (fileId) => {
           {`Upload`}
         </label>
       </div>
+      <div style={{position:'relative', display:'flex', alignItems:'center', gap:'5px'}}>
+        <img src={'/filter.svg'} style={{maxWidth:'25px'}}/>
+        <input
+          id={'media-filter'}
+          className="form-input"
+          type="text"
+          onChange={(e) => setFilter(e.target.value)}
+          value={filter}
+        />
+      </div>
     <div style={{
       display: 'flex',
       flexWrap: 'wrap',
       overflowY: 'scroll',
       overflowX: 'hidden',
       alignContent: 'flex-start',
-      height: 'calc(100% - 65px)'
+      height: 'calc(100% - 120px)'
     }}>
 
       {files.length === 0?(
           <p>{`No files`}</p>
       ):(
         <>
-          {files.map((file, index)=>{
-
+          {files
+            .filter(item => item?.file_description?.toLowerCase().includes(filter.toLowerCase()))
+            .map((file, index)=>{
+              console.log(file)
             return (
               <div key={file.id} className={`media_container ${label}`} style={{width:(file.file_type === 'image/png' || file.file_type === 'image/jpeg')?'48%':'99%', margin:'1%', position:'relative'}}>
                 <div style={{
@@ -11322,8 +11335,8 @@ const FeedsPanel = ({
       }}>
         {noPosts &&
           <div className='alert alert-danger'>
-          No Posts
-        </div>
+            No Posts
+          </div>
         }
         {posts.map((post, index)=>{
           const facebook = {facebook_page_id:selectedFeed.facebook_page_id}
@@ -11821,7 +11834,7 @@ const Share = ({
   const [postType, setPostType]= useState('video_reels')
   const [customCaptions, setCustomCaptions] = useState([])
   const [customCaptionsToggle, setCustomCaptionsToggle] = useState(false)
-  const [postState, setPostState]= useState('SCHEDULED')
+  const [postState, setPostState]= useState('SCHEDULE')
   const [buttonText, setButtonText]= useState('Schedule')
   const [isInstagram, setIsInstagram] = useState(false)
   const [instagramCaptionError, setInstagramCaptionError] = useState(false)
@@ -11864,9 +11877,9 @@ const Share = ({
 
   const handlePostStateChange = (event) => {
     setPostState(event.target.value);
-    if (event.target.value === 'SCHEDULED'){
+    if (event.target.value === 'SCHEDUL'){
       setButtonText('Schedule')
-    }else if (event.target.value === 'PUBLISHED'){
+    }else if (event.target.value === 'PUBLISH'){
       setButtonText('Publish Now')
     }else{
       setButtonText('Save Draft')
@@ -11915,7 +11928,6 @@ const Share = ({
 
     } catch (error) {
 
-      console.log(error)
 
       showError('Error creating video ' + error)
 
@@ -11967,14 +11979,22 @@ const Share = ({
     // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
     const scheduledPublishTime = (moment(scheduleDate).unix())
 
-    const data = {
+    let video_state = 'SCHEDULED'
+    if (postState === 'PUBLISH'){
+      video_state = 'PUBLISHED'
+    }
+
+    let data = {
       video_id: videoId,
       upload_phase : 'finish',
-      video_state : postState,
+      video_state : video_state,
       description: publication.caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
       title :postInfo.data.title,
-      scheduled_publish_time: scheduledPublishTime,
-      //access_token: accessToken
+      //scheduled_publish_time: scheduledPublishTime,
+    }
+
+    if (postState === 'SCHEDULE'){
+      data.scheduled_publish_time = scheduledPublishTime,
     }
 
 
@@ -12028,9 +12048,17 @@ const Share = ({
 
       postScheduled(postInfo)
 
+      let status
+      if (postState === 'SCHEDULE'){
+        status = "scheduled"
+
+      }else if (postState === 'PUBLISH'){
+        status = "published"
+      }
+
       // update database
       const updateData = {
-        status: "scheduled",
+        status: status,
         meta_data:{
           post_id:videoId,
           post_data:publication.meta_data.post_data,
@@ -12400,25 +12428,25 @@ const getPostsScheduledPosts = async() => {
                 <div className="properties-container" style={{margin:'15px 0px'}}>
                   <p className='font-label'>Schedule Date & Time</p>
                   <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
-                    <div>
+                    <div style={{display:'flex', alignItems:'center'}}>
                       <input
                         style={{marginRight:'5px'}}
                         type="radio"
-                        value="SCHEDULED"
-                        checked={postState === 'SCHEDULED'}
+                        value="SCHEDULE"
+                        checked={postState === 'SCHEDULE'}
                         onChange={handlePostStateChange}
                       /><strong style={{fontSize:'.9em'}}>Schedule</strong>
                     </div>
-                    <div>
+                    <div style={{display:'flex', alignItems:'center'}}>
                       <input
                         style={{marginRight:'5px'}}
                         type="radio"
-                        value="PUBLISHED"
-                        checked={postState === 'PUBLISHED'}
+                        value="PUBLISH"
+                        checked={postState === 'PUBLISH'}
                         onChange={handlePostStateChange}
                       /><strong style={{fontSize:'.9em'}}>Publish Now</strong>
                     </div>
-                    <div style={{marginLeft: 'auto'}}>
+                    <div style={{display:'flex', alignItems:'center', marginLeft: 'auto', display:'none'}}>
                       <input
                         style={{marginRight:'5px'}}
                         type="radio"
@@ -12445,9 +12473,9 @@ const getPostsScheduledPosts = async() => {
                 {(videoSrc && selectedSocialPage) &&
                   <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText} Facebook only</button>
                 }*/}
-                {console.log('isInstagram && !instagramCaptionError', isInstagram && !instagramCaptionError)}
-                {console.log('isInstagram && !instagramCaptionError', isInstagram && instagramCaptionError)}
-                {console.log('instagramCaptionError', instagramCaptionError)}
+
+
+
                 {(videoSrc &&selectedSocialPages.length>0) &&
                   <button style={{marginLeft:'10px'}} disabled={scheduled || (isInstagram && instagramCaptionError)} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
                 }
@@ -12613,7 +12641,19 @@ const sortedSocialPages = useMemo(() => {
 
 
 return(
-    <div style={{position:'relative'}}>
+  <>
+    {open &&
+      <div
+        onClick={() => setOpen(prev => !prev)}
+        style={{
+        position:'fixed',
+        height:'100%',
+        width:'100%',
+        left: '0px',
+        top: '0px',
+      }}/>
+    }
+    <div style={{position:'relative', zIndex:1}}>
       <p className="font-label">Social Pages</p>
       <button style={{
         width:'100%',
@@ -12721,6 +12761,7 @@ return(
       </div>
     }
     </div>
+  </>
 )
 
 }
@@ -12745,6 +12786,7 @@ const MediaMenu = ({
   deleteCallback
 }) => {
   const [open, setOpen] = useState(false)
+
 
   const editImage = () => {
     setShowFileEdit(true)
