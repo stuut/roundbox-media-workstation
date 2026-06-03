@@ -354,9 +354,7 @@ async function updateInstagramPublished(result, job){
     .update({
       status: "published",
       meta_data: {
-        post_id:postId,
-        post_data:job.meta_data.post_data,
-        ...result
+        post_id:postId
       },
       published_at: new Date().toISOString()
     })

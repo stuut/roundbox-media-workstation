@@ -36,8 +36,13 @@ export async function POST(req) {
       return Response.json({ message: "No Access Token Found" },{ status: 500 })
     }
 
+    console.log('postId', postId)
 
-    const facebookResponse = await fetch(`https://graph.facebook.com/v23.0/${postId}?fields=is_published,scheduled_publish_time,created_time,status_type&access_token=${accessToken}`);
+    //const fields = `is_published,scheduled_publish_time,created_time,status_type`
+    const fields = `scheduled_publish_time,created_time`
+
+
+    const facebookResponse = await fetch(`https://graph.facebook.com/v23.0/${postId}?fields=${fields}&access_token=${accessToken}`);
 
 
     if (!facebookResponse.ok) {

@@ -71,18 +71,18 @@ export const ChannelSelector = ({
       //postInfo?.data?.facebook_page_id
 
       // ✅ Preselect safely
-      if (postInfo?._def?.extendedProps?.platform_account) {
+      if (postInfo?.platform_account) {
         const preSelectedIds = [
           ...facebookPages
-          .filter(p => p.external_account_id === postInfo?._def?.extendedProps?.platform_account.external_account_id)
+          .filter(p => p.external_account_id === postInfo?.platform_account.external_account_id)
               .map(p => p.id),
 
           ...instagramPages
-          .filter(p => p.external_account_id === postInfo?._def?.extendedProps?.platform_account.external_account_id)
+          .filter(p => p.external_account_id === postInfo?.platform_account.external_account_id)
             .map(p => p.id),
 
           ...onesignalPages
-          .filter(p => p.external_account_id === postInfo?._def?.extendedProps?.platform_account.external_account_id)
+          .filter(p => p.external_account_id === postInfo?.platform_account.external_account_id)
             .map(p => p.id)
         ]
 

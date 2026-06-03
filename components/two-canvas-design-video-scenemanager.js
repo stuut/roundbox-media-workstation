@@ -11211,7 +11211,6 @@ const FeedsPanel = ({
           'include': '10',
         })
 
-        console.log('response.items', response.items)
 
         let date = moment(dateFilter).format('YYYY-MM-DD');
 

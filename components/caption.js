@@ -3,6 +3,7 @@ import Switch from '@mui/material/Switch';
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
+import { updatePostPublication } from '@/lib/supabase';
 import {
   Facebook,
   Instagram,
@@ -11,6 +12,8 @@ import {
 } from 'lucide-react';
 
 export const Caption = ({
+  publicationId,
+  postId,
   caption,
   setCaption,
   customCaptions,
@@ -21,7 +24,9 @@ export const Caption = ({
   setIsInstagram,
   isInstagram,
   setInstagramCaptionError,
-  instagramCaptionError
+  instagramCaptionError,
+  calendarEvents,
+  setCalendarEvents
 
 }) => {
 
@@ -169,8 +174,37 @@ if (customCaptionsToggle){
 
 },[customCaptionsToggle])
 
+console.log('publicationId', publicationId)
+
+const handleBlur = async() =>{
+  if (publicationId){
+    await updatePostPublication(publicationId,
+      {
+        caption:caption
+      }
+    )
+  }
+
+  console.log('postId', postId)
+  console.log('CalendarEvents', calendarEvents)
+
+  if (postId){
+    setCalendarEvents(prev =>
+        prev.map(event =>
+          event.id === postId
+            ? {
+                ...event,
+                caption: caption
+              }
+            : event
+        )
+      );
+  }
+}
+
 return(
   <>
+    {selectedSocialPages.length>1&&
       <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
         <Switch
           onChange={customCaptionsToggleFunction}
@@ -183,9 +217,10 @@ return(
             },
           }}
         checked={customCaptionsToggle}
-      />
-      <p style={{margin:0, fontSize:'.9em'}}>Custom Captions</p>
-    </div>
+        />
+        <p style={{margin:0, fontSize:'.9em'}}>Custom Captions</p>
+      </div>
+    }
     {customCaptionsToggle&&
       <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
         {customCaptions.map((custom, index)=>{
@@ -221,6 +256,7 @@ return(
         value={caption??''}
         onChange={(e) => setCaption(e.target.value)}
         className={`form-input ${isInstagram && instagramCaptionError? 'error':''}`}
+        onBlur={handleBlur}
       /*  maxLength={isInstagram? "2200" : "5000"}*/
         cols={8}
       />

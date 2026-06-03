@@ -24,7 +24,6 @@ const removeMd = require('remove-markdown');
 import { ChannelSelector } from '@/components/channel-selector';
 import { getAllPostsSocialFilter } from '@/lib/supabase';
 import { updatePostPublication } from '@/lib/supabase';
-import { updatePost } from '@/lib/supabase';
 import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
 import { Carousel } from 'react-responsive-carousel';
 import { ReactSortable } from "react-sortablejs";
@@ -32,7 +31,6 @@ import { useFilesContext } from "@/context/files-context"
 import { useEditItemContext } from "@/context/edit-item-context"
 import Switch from '@mui/material/Switch';
 import Radio from '@mui/material/Radio';
-
 import { Summary } from '@/components/summary'
 import { Caption } from '@/components/caption'
 import { v4 as uuidv4 } from 'uuid'
@@ -40,6 +38,8 @@ import { storeFileInfo } from "@/lib/supabase";
 import { updatePostScheduleDate } from "@/lib/supabase";
 import { getPostsWithIds } from "@/lib/supabase";
 import { uploadFile } from '@/lib/upload-file'
+import { deletePostFiles } from "@/lib/supabase";
+import { DateTime } from "luxon";
 
 import {
   X,
@@ -102,6 +102,7 @@ const FEEDS = [
     image:'image',
     text:'copy',
     facebook_page_id:'100367901935086',
+    content_type: 'post',
     CTA_image : 'cowra-logo-stacked.png',
     postType: 'link',
     useDateFilter:true
@@ -150,8 +151,6 @@ const convertDateUnix = (unix) => {
 
 
 const checkPublished = (publishDate, statusOriginal) => {
-
-
 
   var status = statusOriginal
 
@@ -392,9 +391,7 @@ export const Scheduler = ({user})=>{
       if (!onesignalDeleteResponse.ok) {
         showError(`Error deleting one signal post: ${onesignalDeleteResponse.status}`)
       }
-
       const onesignalDeleteResponseJson = await onesignalDeleteResponse.json();
-
   }
 
 
@@ -423,6 +420,7 @@ export const Scheduler = ({user})=>{
       return event
     })
 
+
     if (hasChanges) {
       setCalendarEvents(newEvents)
     }
@@ -437,9 +435,12 @@ export const Scheduler = ({user})=>{
 
     const newPosts = posts.map((post)=>{
 
+
+
       const media = post?.post_files.map((media)=>{
         return {
           source: 'internal',
+          database_id:media.id,
           ...media.file_id
         }
       })
@@ -453,48 +454,31 @@ export const Scheduler = ({user})=>{
         allDay: false,
         title: post?.title,
         caption: post?.caption,
-        scheduleDate: post?.scheduled_at,
-        publishDate: post?.meta_data?.data?.publishedDate??null,
-        link: post?.meta_data?.post_data?.link??null,
-        slug: post?.meta_data?.post_data?.slug??null,
-        base_url: post?.meta_data?.post_data?.base_url??null,
+        schedule_date: post?.scheduled_at,
+        published_at: post?.published_at??null,
+        link: post?.link??null,
+        slug: post?.slug??null,
+        base_url: post?.base_url??null,
         status: status??null,
         type:post?.type??'',
         media: media??null,
         error: post?.last_error??'',
         database_info:{
-          post_id:post?.post?.id,
           post_publications_id:post.id,
         },
-        metaData: {
+        meta_data: {
           ...post?.meta_data,
-          ...post?.platform_account?.metadata
         },
         platform_account:post?.platform_account,
 
       }
     })
 
-
     setCalendarEvents(prev => [...prev, ...newPosts]);
 
-    /*
-    const calendarApi = cal.current.getApi()
-    let event = calendarApi.getEventById(postData.id);
-    if (event) {
-      event.remove();
-    }*/
+    // remove event
     setCalendarEvents(prev => prev.filter((post)=> post.id !== postData.id))
 
-
-
-
-    /*
-    event.mutate({
-      extendedProps: {
-        status: status
-      },
-    })*/
 
   }
 
@@ -542,16 +526,21 @@ const updateCalendarEvents = (data) => {
       setCalendarEvents([])
   }else{
 
-
-
     const calendarEvents = data.map((post)=>{
 
       const media = post?.post_files.map((media)=>{
         return {
           source: 'internal',
+          database_id:media.id,
           ...media.file_id
         }
       })
+
+      if (post.title === 'Local Athletics Legend Ernie Shankelton Named NSW Country Coach Of The Year '){
+        console.log('post', post)
+      }
+
+      //console.log(post.title)
 
 
       let status = post?.status??''
@@ -570,34 +559,27 @@ const updateCalendarEvents = (data) => {
         allDay: false,
         title: post?.title,
         caption: post?.caption,
-        scheduleDate: post?.scheduled_at,
-        publishDate: post?.meta_data?.data?.publishedDate??null,
-        link: post?.meta_data?.post_data?.link??null,
-        slug: post?.meta_data?.post_data?.slug??null,
-        base_url: post?.meta_data?.post_data?.base_url??null,
+        schedule_date: post?.scheduled_at,
+        published_at: post?.published_at??null,
+        link: post?.link??null,
+        slug: post?.slug??null,
+        base_url: post?.base_url??null,
         status: status??null,
         type:post?.type??'',
         media: media??null,
         error: post?.last_error??'',
         database_info:{
-          post_id:post?.post?.id,
           post_publications_id:post.id,
         },
-        metaData: {
+        meta_data: {
           ...post?.meta_data,
-          ...post?.platform_account?.metadata
         },
         platform_account:post?.platform_account,
 
       }
     })
-
-  //  handleEvents(calendarEvents)
      setCalendarEvents(calendarEvents)
-
   }
-
-
 }
 
 const hasRun = useRef(false);
@@ -613,7 +595,6 @@ const hasRun = useRef(false);
   const handleEventReceive = (data) => {
 
     var scheduled = data.event.start
-
     var now = new Date();
 
     if(scheduled.getTime() < now.getTime()){
@@ -621,34 +602,34 @@ const hasRun = useRef(false);
       return
     }
 
-
-    data.event.mutate({
-      extendedProps: {
-        scheduleDate: scheduled
-      },
+    setPostData({
+      id: uuidv4(),
+      start: data?.event?.startStr,
+      end: data?.event?.endStr,
+      allDay: false,
+      title: data?.event?.title,
+      caption: data?.event?._def?.extendedProps?.caption,
+      schedule_date: scheduled,
+      published_at: data?.event?._def?.extendedProps?.published_at,
+      link: data?.event?._def?.extendedProps?.link,
+      slug: data?.event?._def?.extendedProps?.slug,
+      base_url: data?.event?._def?.extendedProps?.base_url,
+      status: data?.event?._def?.extendedProps?.status,
+      type:data?.event?._def?.extendedProps.type,
+      media: data?.event?._def?.extendedProps.media,
+      error: data?.event?._def?.extendedProps.error,
+      database_info:data?.event?._def?.extendedProps.database_info,
+      meta_data: data?.event?._def?.extendedProps?.meta_data,
+      platform_account:data?.event?._def?.extendedProps.platform_account,
     })
-
-
-    setPostData(data.event)
 
   }
 
   const updateEventTime = async(data) => {
 
-    data.event.mutate({
-      extendedProps: {
-        scheduleDate: moment(data.event.start).format("YYYY-MM-DD HH:mm:ss"),
-        start : moment(data.event.start).format("YYYY-MM-DD HH:mm:ss")
-      },
-    })
-
-    await updatePostScheduleDate(moment(data.event.start).format("YYYY-MM-DD HH:mm:ss"), data.event._def.extendedProps.database_id)
-    // update schedule date on DB
-
   }
 
   const handleEventDrop = (data) => {
-
 
     var scheduled = data.event.start
     var now = new Date();
@@ -657,9 +638,9 @@ const hasRun = useRef(false);
       return
     }
 
-    const platform = data.event._def.extendedProps.platform_account.platform
+    const platform = data.event._def?.extendedProps?.platform_account.platform
 
-    if (data.event._def.extendedProps.status === "scheduled"){
+    if (data.event.status === "scheduled"){
 
       updateEventTime(data)
 
@@ -674,13 +655,49 @@ const hasRun = useRef(false);
 
   const handleEventClick = (data) =>{
 
-    setPostData(data.event)
+    console.log('handleEventClick')
+
+      console.log(data?.event?.startStr)
+
+      console.log(data?.event?.endStr)
+
+
+      console.log('event', data.event)
+
+      console.log('event id', data.event.id)
 
 
 
+
+    const newEvent = {
+      id: data.event.id,
+      start: data?.event?.startStr,
+      end: data?.event?.endStr,
+      allDay: false,
+      title: data?.event?.title,
+      caption: data?.event?._def?.extendedProps?.caption,
+      schedule_date: data?.event?.start,
+      published_at: data?.event?._def?.extendedProps?.published_at,
+      link: data?.event?._def?.extendedProps?.link,
+      slug: data?.event?._def?.extendedProps?.slug,
+      base_url: data?.event?._def?.extendedProps?.base_url,
+      status: data?.event?._def?.extendedProps?.status,
+      type:data?.event?._def?.extendedProps.type,
+      media: data?.event?._def?.extendedProps.media,
+      error: data?.event?._def?.extendedProps.error,
+      database_info:data?.event?._def?.extendedProps.database_info,
+      meta_data: data?.event?._def?.extendedProps?.meta_data,
+      platform_account:data?.event?._def?.extendedProps.platform_account,
+    }
+
+
+    setPostData(newEvent)
   }
 
-  const eventClickSelect = (data) =>{
+  const handleNewEventClick = (data) =>{
+
+    console.log('handleNewEventClick')
+
     var scheduled = data.start
     var now = new Date();
     if(scheduled.getTime() < now.getTime()){
@@ -688,48 +705,52 @@ const hasRun = useRef(false);
       return
     }
 
-    const calendarApi = cal.current.getApi()
 
-    let id = Date.now()
-
-    calendarApi.unselect()
-    // clear date selection
-
-    calendarApi.addEvent({
-      id: id,
+    const newEvent = {
+      id: uuidv4(),
       start: data.startStr,
       end: data.endStr,
-      media:[],
-      base_url: null,
-      title : null,
+      allDay: false,
+      title: null,
+      caption: 'Take a look at issue XXX...',
+      schedule_date: data.start,
+      published_at: null,
       link: null,
       slug: null,
-      caption: 'Take a look at issue XXX...',
-      emailTemplateData: null ,
+      base_url: null,
       status: 'unpublished',
-      scheduleDate: data.start,
-      type: null
-    })
-    let currentEvent = calendarApi.getEventById(id);
+      type:null,
+      media: [],
+      error: null,
+      database_info:{
+        post_publications_id:null,
+      },
+      meta_data: null,
+      platform_account:null,
+    }
+
+    console.log('setCalendarEvents handleNewEventClick')
+    setCalendarEvents(prev => [...prev, newEvent]);
 
 
-    setPostData(currentEvent)
+    setPostData(newEvent)
   }
 
-
-  function handleEvents(events) {
-    setCalendarEvents(events)
-  }
 
 
 
 
   function renderEventContent(eventInfo) {
 
+    if (!eventInfo.event.title){
+        console.log('renderEventContent', eventInfo)
+    }
+
+
 
     const isOneSignal = eventInfo?.event?._def?.extendedProps?.platform_account?.platform === 'One Signal'
     const isFacebook = eventInfo?.event?._def?.extendedProps?.platform_account?.platform === 'facebook'
-    const postId = eventInfo?.event?._def.extendedProps?.metaData?.post_id
+    const postId = eventInfo?.event?._def.extendedProps?.meta_data?.post_id
 
     let className = eventInfo.event._def.extendedProps.status
 
@@ -751,7 +772,7 @@ const hasRun = useRef(false);
       }}
         >
         <i>{eventInfo.timeText}</i><br/>
-        <b>{eventInfo.event.title !== 'null'?eventInfo.event.title:eventInfo.event._def.extendedProps.caption}</b>
+        <b>{eventInfo.event._def.extendedProps.caption?eventInfo.event._def.extendedProps.caption:eventInfo.event.title}</b>
       </div>
     )
   }
@@ -761,18 +782,18 @@ const hasRun = useRef(false);
 
   const deletePostCallback = async(postData) =>{
 
-    const postType = postData._def.extendedProps.type
+    const postType = postData.type
 
-    if (postData?._def?.extendedProps?.platform_account?.platform === "facebook" ||
-      postData?._def?.extendedProps?.platform_account?.platform === "instagram"
+    if (postData?.platform_account?.platform === "facebook" ||
+      postData?.platform_account?.platform === "instagram"
     ){
-      const channelId = postData._def.extendedProps.platform_account.id
+      const channelId = postData.platform_account.id
 
       let id
       if (postType === 'video_reels'){
-        id = postData?._def.extendedProps?.metaData?.post_id
+        id = postData?.meta_data?.post_id
       }else if (postType === 'text' || postType === 'link' || postType === 'photos') {
-        id = postData?._def.extendedProps?.metaData?.post_id
+        id = postData?.meta_data?.post_id
       }
 
       if (id) {
@@ -802,10 +823,10 @@ const hasRun = useRef(false);
     }
 
 
-    if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
+    if (postData?.platform_account?.platform === "One Signal"){
 
-      const notificationId = postData?._def.extendedProps?.metaData?.notification_id
-      const channelId = postData?._def.extendedProps?.platform_account?.id
+      const notificationId = postData?.meta_data?.post_id
+      const channelId = postData?.platform_account?.id
 
       if (notificationId && channelId) {
 
@@ -837,7 +858,7 @@ const hasRun = useRef(false);
 
 
 
-    await deletePost([postData._def.extendedProps.database_info.post_publications_id])
+    await deletePost([postData.database_info.post_publications_id])
 
     setCalendarEvents(prev => prev.filter((post)=> post.id !== postData.id))
 
@@ -858,6 +879,8 @@ const hasRun = useRef(false);
         deletePostCallBack={deletePostCallback}
         cal={cal}
         scheduleCallBack={schedulePostCallBack}
+        calendarEvents={calendarEvents}
+        setCalendarEvents={setCalendarEvents}
       />
 
       }
@@ -932,7 +955,7 @@ const hasRun = useRef(false);
           expandRows={true}
           nowIndicator={true}
           droppable={true}
-          select={eventClickSelect}
+          select={handleNewEventClick}
           eventContent={renderEventContent} // custom render function
           eventClick={handleEventClick}
           eventReceive={handleEventReceive}
@@ -991,24 +1014,19 @@ const FeedsPanel = ({
 
     const [noPosts, setNoPosts] = useState(false)
 
-
-
       const importEvents = () => {
 
         const newPosts = posts.map((post)=>{
           return{
             ...post,
-            start: post.scheduleDate,
-            end: post.scheduleDate,
+            start: post.schedule_date,
+            end: post.schedule_date,
             allDay: false,
 
           }
         })
 
-
         setCalendarEvents(prev => [...prev, ...newPosts]);
-
-
 
       }
 
@@ -1098,6 +1116,8 @@ const FeedsPanel = ({
 
         var filterPosts = response.items
 
+        console.log('filterPosts', filterPosts)
+
 
         if (selectedFeed.useDateFilter){
           filterPosts = response.items.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
@@ -1126,10 +1146,21 @@ const FeedsPanel = ({
           const fileName = url.pathname.split('/').pop();
           const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
 
+
+
           posts.push({
             id: item.sys.id,
-            scheduleDate: item.fields[selectedFeed.scheduleDate],
+            start: DateTime.fromISO(item.fields[selectedFeed.scheduleDate]).toISO(),
+            end: DateTime.fromISO(item.fields[selectedFeed.scheduleDate]).toISO(),
+            allDay: false,
+            title: item.fields[selectedFeed.title],
+            caption: removeMd(item.fields[selectedFeed.text]),
+            schedule_date: item.fields[selectedFeed.scheduleDate],
             link: selectedFeed.website+'/'+item.fields[selectedFeed.slug],
+            slug: item.fields[selectedFeed.slug],
+            base_url: selectedFeed.website,
+            status: 'unpublished',
+            type:selectedFeed.postType,
             media: [
               {
                 id:item?.fields[selectedFeed.image]?.sys?.id,
@@ -1140,13 +1171,9 @@ const FeedsPanel = ({
                 source: 'external'
               }
             ],
-            title: item.fields[selectedFeed.title],
-            slug: item.fields[selectedFeed.slug],
-            base_url: selectedFeed.website,
-            status: 'unpublished',
-            caption: removeMd(item.fields[selectedFeed.text]),
-            publishedDate: item.fields[selectedFeed.publishedDate],
-            type:selectedFeed.postType,
+            error: null,
+            database_info:null,
+            meta_data: null,
             platform_account:{
               external_account_id:selectedFeed.facebook_page_id
             },
@@ -1213,10 +1240,26 @@ const FeedsPanel = ({
           const fileName = url.pathname.split('/').pop();
           const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
 
+          const scheduleDate = pathIndex(item, selectedFeed.scheduleDate)
+
+          const formattedDate =  DateTime
+          .fromISO(scheduleDate.replace(' ', 'T'))
+          .toISO({ suppressMilliseconds: true });
+
+
           posts.push({
             id : item.id.toString(),
-            scheduleDate: pathIndex(item, selectedFeed.scheduleDate),
+            start: formattedDate,
+            end: formattedDate,
+            allDay: false,
+            title: decodeEntities(item.title.rendered),
+            caption: decodeCaptionEntities(item.content.rendered),
+            schedule_date: scheduleDate,
             link: item.slug? 'https://' + selectedFeed.website +'/' + item.slug : null,
+            slug: item.slug,
+            base_url: selectedFeed.website,
+            status: 'unpublished',
+            type:selectedFeed.postType,
             media: [
               {
                 id:item._embedded && item._embedded['wp:featuredmedia'][0].id,
@@ -1227,13 +1270,9 @@ const FeedsPanel = ({
                 source: 'external'
               }
             ],
-            title: decodeEntities(item.title.rendered),
-            slug: item.slug,
-            base_url: selectedFeed.website,
-            status: 'unpublished',
-            caption: decodeCaptionEntities(item.content.rendered),
-            publishedDate: item.date,
-            type:selectedFeed.postType,
+            error: null,
+            database_info:null,
+            meta_data: null,
             platform_account:{
               external_account_id:selectedFeed.facebook_page_id
             },
@@ -1343,28 +1382,30 @@ const Share = ({
   deletePostCallBack,
   close,
   cal,
-  scheduleCallBack
+  scheduleCallBack,
+  calendarEvents,
+  setCalendarEvents
 }) => {
 
 
   const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
-  const [scheduleDate, setScheduleDate] = useState(postData.start)
-  const [publishDate, setPublishDate] = useState(postData?._def.extendedProps.publishDate??'')
+  const [scheduleDate, setScheduleDate] = useState(postData.schedule_date)
+  const [publishedDate, setPublishedDate] = useState(postData?.published_at??'')
 
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
-  const [postLink, setPostLink] = useState(postData?._def.extendedProps.link?? '')
-  const [caption, setCaption] = useState(postData?._def.extendedProps.caption?? '')
+  const [postLink, setPostLink] = useState(postData?.link?? '')
+  const [caption, setCaption] = useState(postData?.caption?? '')
   const [title, setTitle] = useState(postData?.title??'')
+  const [slug, setSlug] = useState(postData?.slug??'')
 
-  const [media, setMedia] = useState(postData?._def.extendedProps.media??[])
-  const videoBlobRef = useRef(null)
+  const [media, setMedia] = useState(postData?.media??[])
   const [videoSrc, setVideoSrc] = useState(null)
   const [loader, setLoader] = useState(false)
   const [videoLoader, setVideoLoader] = useState(false)
   const [scheduled, setScheduled] = useState(false)
-  const [postType, setPostType] = useState(postData?._def.extendedProps.type)
-  const [status, setStatus] = useState(postData?._def.extendedProps?.status)
+  const [postType, setPostType] = useState(postData?.type)
+  const [status, setStatus] = useState(postData?.status)
   const [postState, setPostState]= useState('SCHEDULE')
   const [buttonText, setButtonText]= useState('Schedule')
   //const [summary, setSummary]= useState(null)
@@ -1379,6 +1420,7 @@ const Share = ({
   const [customCaptionsToggle, setCustomCaptionsToggle] = useState(false)
   const [isInstagram, setIsInstagram] = useState(false)
   const updateImages = useRef(false)
+  const videoBlobRef = useRef(null)
 
 
     useEffect(()=>{
@@ -1389,66 +1431,62 @@ const Share = ({
 
     },[media])
 
-    const isOneSignal = postData?._def?.extendedProps?.platform_account?.platform === 'One Signal'
-    const isFacebook = postData?._def?.extendedProps?.platform_account?.platform === 'facebook'
-    const postId = postData?._def.extendedProps?.metaData?.post_id
-
-
-
+    const isOneSignal = postData?.platform_account?.platform === 'One Signal'
+    const isFacebook = postData?.platform_account?.platform === 'facebook'
+    const postId = postData?.meta_data?.post_id
+    const type = postData?.type
+    const publicationId = postData?.database_info?.post_publications_id??null
 
   const getPostInfo = async () => {
 
 
+    if (postData?.platform_account?.platform === "facebook"){
 
+        const postId = postData?.meta_data?.post_id
+        const channelId = postData?.platform_account?.id
 
+        const facebookResponse = await fetch(`/api/facebook/get-post-info`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              channelId:channelId,
+              postId:postId,
+            }),
+          })
 
-if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
+          if (!facebookResponse.ok) {
+            showError(`get facebook info failed: ${facebookResponse.status}`)
+          }
 
-    const postId = postData?._def?.extendedProps?.metaData?.post_id
-    const channelId = postData?._def?.extendedProps?.platform_account?.id
+          const facebookResponseJson = await facebookResponse.json();
 
-    const facebookResponse = await fetch(`/api/facebook/get-post-info`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          channelId:channelId,
-          postId:postId,
-        }),
-      })
+    }
 
-      if (!facebookResponse.ok) {
-        showError(`get facebook info failed: ${facebookResponse.status}`)
-      }
+    if (postData?.platform_account?.platform === "One Signal"){
 
-      const facebookResponseJson = await facebookResponse.json();
+      const postId = postData?.meta_data?.post_id
+      const channelId = postData?.platform_account?.id
 
-}
+      const onesignalResponse = await fetch(`/api/one-signal/get-notification-info`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            channelId:channelId,
+            notificationId:postId,
+          }),
+        })
 
-  if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
+        if (!onesignalResponse.ok) {
+          showError(`get facebook info failed: ${facebookResponse.status}`)
+        }
 
-    const postId = postData?._def?.extendedProps?.metaData?.notification_id
-    const channelId = postData?._def?.extendedProps?.platform_account?.id
+        const onesignalResponseJson = await onesignalResponse.json();
 
-    const onesignalResponse = await fetch(`/api/one-signal/get-notification-info`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          channelId:channelId,
-          notificationId:postId,
-        }),
-      })
-
-      if (!onesignalResponse.ok) {
-        showError(`get facebook info failed: ${facebookResponse.status}`)
-      }
-
-      const onesignalResponseJson = await onesignalResponse.json();
-
-  }
+    }
 
 
   }
@@ -1456,23 +1494,24 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
   const updatePost = async () => {
 
-    if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
+    if (postData?.platform_account?.platform === "facebook"){
 
-      const channelId = postData?._def?.extendedProps?.platform_account?.id
+      const channelId = postData?.platform_account?.id
+      const channel = postData?.platform_account
 
       let endPoint
 
-      if (postType === 'video_reels'){
-        endPoint = postData?._def.extendedProps?.metaData?.post_id
-      }else if (postType === 'text' || postType === 'carousel' || postType === 'link') {
-        endPoint = postData?._def.extendedProps?.metaData?.post_id
+      if (postType === 'video_reels' || postType === 'text' || postType === 'carousel' || postType === 'link'){
+
+        endPoint = postData?.meta_data?.post_id
+
       }else if (postType === 'photos') {
-        endPoint = `${socialId}_${postData?._def.extendedProps?.metaData?.post_id}`
+        endPoint = `${socialId}_${postData?.meta_data?.post_id}`
       }
 
       const scheduledPublishTime = (moment(scheduleDate).unix())
       //const endPoint = getFacebookPostEndpoint(postType)
-      const data = getFacebookPostDataUpdate(postType)
+      const data = await getFacebookPostDataSchedule(postType, null, channel)
 
       if (status === 'scheduled'){
         data.scheduled_publish_time = scheduledPublishTime
@@ -1499,20 +1538,24 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
           return
         }
 
+        updatePostOnDatabase()
+
         showSuccess('Post Updated')
     }
 
-    if (postData?._def?.extendedProps?.platform_account?.platform === "instagram"){
+    if (postData?.platform_account?.platform === "instagram"){
+
+      if (status === 'scheduled'){
+        updatePostOnDatabase()
+      }
           //
     }
 
-    if (postData?._def?.extendedProps?.platform_account?.platform === "One Signal"){
-      return
+    if (postData?.platform_account?.platform === "One Signal"){
+      if (status === 'scheduled'){
+        updatePostOnDatabase()
+      }
     }
-
-
-    updatePostOnDatabase()
-
 
   }
 
@@ -1520,47 +1563,73 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
   const updatePostOnDatabase = async() => {
 
 
-    const publicationId = postData?._def?.extendedProps?.database_info?.post_publications_id
+    const publicationId = postData?.database_info?.post_publications_id
 
     const scheduledAtUTC = new Date(scheduleDate).toISOString()
-    const publishedAtUTC = new Date(publishDate).toISOString()
 
 
-    const calendarApi = cal.current.getApi()
-
-    let currentEvent = calendarApi.getEventById(postData.id);
-
-    const newMetadata = {
-      "post_id": currentEvent?._def?.extendedProps?.metaData.post_id,
-      "id":currentEvent?._def?.extendedProps?.metaData.post_id,
-      "post_data": {
-        "event_id": currentEvent.id,
-        "scheduleDate": scheduledAtUTC,
-        "link": currentEvent?._def?.extendedProps?.link,
-        "media": media,
-        "slug": currentEvent?._def?.extendedProps?.slug,
-        "base_url": currentEvent?._def?.extendedProps?.base_url,
-        "status": status,
-        "caption": caption,
-        "publishedDate": currentEvent?._def?.extendedProps?.publishedDate,
-        "type": postType,
-        "platform_account": currentEvent?._def?.extendedProps?.platform_account,
-        "usePreview": currentEvent?._def?.extendedProps?.usePreview
-      },
+    if (postState === 'PUBLISH'){
+      newMetadata.published_at = new Date().toISOString()
     }
+
+    const updateData = {
+      scheduled_at:scheduledAtUTC,
+      status: status,
+      caption:caption,
+      title:title,
+      type:postType,
+      status:status,
+      link: postData?.link??null,
+      slug: postData?.slug??null,
+      base_url: postData?.base_url??null,
+    }
+
+    if (postState === 'PUBLISH'){
+      updateData.published_at = new Date().toISOString()
+    }
+
 
     if (publicationId){
       await updatePostPublication(
         publicationId,
-        {
-        scheduled_at:scheduledAtUTC,
-        published_at:publishedAtUTC??'',
-        caption:caption,
-        title:title,
-        type:postType,
-        status:status,
-        meta_data:newMetadata
+        updateData
+      )
+    }
+
+    console.log('media', media)
+
+    const removeIds = media.map((media)=>{
+      if (media.source === 'internal'){
+        return media.id
+      }
+    })
+
+    console.log('removeIds',removeIds)
+
+
+    //await deletePostFiles(removeIds)
+
+
+
+    for (const file of media) {
+      const fileId = file.source === 'external'
+        ? (
+            await storeFileInfo({
+              user_id: userId,
+              file_url: file.file_url,
+              file_type: file.file_type,
+              file_name: file.file_name,
+              file_description: file.file_description ?? null
+            })
+          ).id
+        : file.id
+
+      const newMedia = await savePostFile({
+        file_id: fileId,
+        usage_type: postType,
+        post_publication_id: publicationId
       })
+
     }
 
   }
@@ -1569,7 +1638,7 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
 
 
-  const type = postData._def.extendedProps.type
+
 
   const onChannelPreviewChange = (channel) => {
     setSelectedChannelPreview(channel)
@@ -1581,9 +1650,9 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
   useEffect(()=>{
 
-    if (postData?._def.extendedProps.type){
+    if (postData?.type){
 
-      setPostType(postData?._def.extendedProps.type)
+      setPostType(postData?.type)
     }
 
   },[postData])
@@ -1640,17 +1709,6 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
           }
 
 
-               const savedPost = await savePost({
-                 user_id:userId,
-                 caption:caption,
-                 title:postData.title,
-                 type:postType,
-                 meta_data:{
-                   event_id:postData.id,
-                   data:postData._def.extendedProps
-                 }
-               })
-
              const scheduledAtUTC = new Date(scheduleDate).toISOString()
 
              const publications = selectedSocialPages.map((acc) => {
@@ -1666,7 +1724,7 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
                }
 
                return{
-                 post_id:savedPost.id,
+
                  platform_id: acc.id,
                  scheduled_at: scheduledAtUTC,
                  platform:acc.platform,
@@ -1675,9 +1733,9 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
                  title:title,
                  type:(acc.platform==='instagram' && postType==='link')?'photos':postType,
                  user_id:userId,
-                 meta_data:{
-                   post_data:{ event_id:postData.id, ...postData._def.extendedProps}
-                 }
+                 link:postLink,
+                 slug:slug,
+                 base_url:postData.base_url
                }
            })
 
@@ -1702,13 +1760,10 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
                   const newMedia = await savePostFile({
                     file_id: fileId,
                     usage_type: postType,
-                    post_id:savedPost.id,
                     post_publication_id: savedPostPublication.id
                   })
 
                   savedMedia.push(newMedia)
-
-                  console.log('savedMedia', savedMedia)
 
                 }
               }
@@ -1718,11 +1773,9 @@ if (postData?._def?.extendedProps?.platform_account?.platform === "facebook"){
 
              const savedPostPublicationsOneSignal = savedPostPublications.filter((publication)=>publication.platform === 'One Signal')
 
-             console.log('postState', postState)
 
              if (postState === 'PUBLISH'){
                const savedPostPublicationsInstagram = savedPostPublications.filter((publication)=>publication.platform === 'instagram')
-
 
               for (const publication of savedPostPublicationsInstagram) {
 
@@ -1809,13 +1862,13 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
   switch (postType) {
     case 'text':
       return {
-        message: publication.caption,
+        message: publication? publication.caption : caption,
       }
 
     case 'link':
     case 'carousel':
       return {
-        message: publication.caption + '\n\n' + `Full story here: ${postLink}`,
+        message: publication? publication.caption + '\n\n' + `Full story here: ${postLink}` : caption,
         link: postLink,
       }
 
@@ -1849,7 +1902,7 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
       }));
 
       const payload = {
-        message: publication.caption,
+        message: publication? publication.caption : caption,
         //published: false,
         //unpublished_content_type: 'SCHEDULED',
         attached_media
@@ -1867,8 +1920,8 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
 
     case 'video':
       return {
-        description: publication.caption,
-        file_url: videoUrlState,
+        description: publication? publication.caption : caption,
+        file_url: media[0].file_url,
       }
 
     case 'photo_stories':
@@ -1903,7 +1956,7 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
           video_state = 'PUBLISHED'
         }
 
-        let description = publication.caption
+        let description = publication?.caption?publication?.caption:caption
 
         if (postLink){
           description = publication.caption + '\n\n' + `Full story here: ${postLink}`
@@ -1914,7 +1967,7 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
         upload_phase: 'finish',
         video_state: video_state,
         description: description,
-        title: title
+        title: title==='null'?title:description
       }
 
     default:
@@ -1922,48 +1975,7 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
   }
 }
 
-const getFacebookPostDataUpdate = (postType) => {
-  switch (postType) {
-    case 'text':
-      return {
-        message: caption,
-      }
 
-    case 'link':
-    case 'carousel':
-      return {
-        message: caption,
-        link: postLink,
-      }
-
-    case 'photos':
-      return {
-        message: caption,
-        url: media[0].file_url,
-      }
-
-    case 'video':
-      return {
-        description: caption,
-        file_url: videoUrlState,
-      }
-
-    case 'photo_stories':
-      return {
-        link: postLink,
-        photo_id: media[0].file_url,
-      }
-
-    case 'video_reels':
-      return {
-        description:caption,
-        title: postData.title
-      }
-
-    default:
-      return null
-  }
-}
 
 const onesignalSchedule = async(
   channel,
@@ -1999,8 +2011,8 @@ const onesignalSchedule = async(
               "send_after" : dateString,
               "big_picture" : media[0].file_url,
               //"big_picture" : imgUrlState? imgUrlState: null,
-              "data" : postData?._def.extendedProps.slug? {
-                "slug" : postData?._def.extendedProps.slug
+              "data" : postData?.slug? {
+                "slug" : postData?.slug
               } : null,
               'ios_badgeType' : "SetTo",
               'ios_badgeCount' : 1
@@ -2036,9 +2048,7 @@ const onesignalSchedule = async(
         const updateData  = {
           status: 'scheduled',
           meta_data:{
-            notification_id:notificationId,
-            post_data:publication.meta_data.post_data,
-            ...onesignalResponseJson
+            post_id:notificationId,
           }
         }
 
@@ -2046,8 +2056,6 @@ const onesignalSchedule = async(
           updateData.published_at = new Date().toISOString()
           updateData.status = 'published'
         }
-
-        console.log('updateData', updateData)
 
 
         await updatePostPublication(publication.id, updateData)
@@ -2092,8 +2100,6 @@ const instagramPublish = async (
       status: 'published',
       meta_data:{
         post_id:postId,
-        post_data:publication.meta_data.post_data,
-        ...postResponseJson
       },
       published_at : new Date().toISOString()
     }
@@ -2112,6 +2118,7 @@ const instagramPublish = async (
   ) => {
 
 
+
     if (timeTravel(scheduleDate) && postState === 'SCHEDULE'){
       showError('No Time Travel')
       setLoader(false)
@@ -2122,6 +2129,7 @@ const instagramPublish = async (
     const scheduledPublishTime = (moment(scheduleDate).unix())
     const endPoint = getFacebookPostEndpoint(postType)
     const data = await getFacebookPostDataSchedule(postType, publication, channel)
+
 
     if (!endPoint || !data){
       showError('no end point or data')
@@ -2158,7 +2166,13 @@ const instagramPublish = async (
         }
       showSuccess('Post Scheduled')
       const postResponseJson = await facebookResponse.json();
-      const postId = postResponseJson.id
+
+      let postId = postResponseJson.id
+
+      if (endPoint === 'video_reels'){
+        postId = data.video_id
+      }
+
       const postResponseData = postResponseJson.data
 
       const facebookCommentResponse = await fetch(`/api/facebook/add-comment`, {
@@ -2187,8 +2201,6 @@ const instagramPublish = async (
         status: 'scheduled',
         meta_data:{
           post_id:postId,
-          post_data:publication.meta_data.post_data,
-          ...postResponseJson
         },
       }
 
@@ -2196,8 +2208,6 @@ const instagramPublish = async (
         updateData.published_at = new Date().toISOString()
         updateData.status = 'published'
       }
-
-
       await updatePostPublication(publication.id, updateData)
     }catch(error){
       console.log(error)
@@ -2206,74 +2216,6 @@ const instagramPublish = async (
     }
   }
 
-
-
-  const updateEvent = (updateData, id) =>{
-    const calendarApi = cal.current.getApi()
-
-    let currentEvent = calendarApi.getEventById(id);
-
-    const newProps = {...postData._def.extendedProps, ...updateData }
-
-
-
-    /*
-
-    currentEvent.mutate({
-        extendedProps: newProps
-    })*/
-
-    setCalendarEvents(prev =>
-        prev.map(event =>
-          event.id === id
-            ? {
-                ...event,
-                extendedProps: {
-                  ...event.extendedProps,
-                  ...newProps
-                }
-              }
-            : event
-        )
-      );
-
-
-  }
-
-
-
-
-
-
-  const updateScheduledEvent = (updateData, id) =>{
-    const calendarApi = cal.current.getApi()
-
-    let currentEvent = calendarApi.getEventById(id);
-
-    const newProps = {...postData._def.extendedProps, ...updateData }
-
-    /*
-
-    currentEvent.mutate({
-        extendedProps: newProps
-    })*/
-
-    setCalendarEvents(prev =>
-        prev.map(event =>
-          event.id === id
-            ? {
-                ...event,
-                extendedProps: {
-                  ...event.extendedProps,
-                  ...newProps
-                }
-              }
-            : event
-        )
-      );
-
-
-  }
 
 
   const deletePostDatabase = async() =>{
@@ -2285,8 +2227,8 @@ const instagramPublish = async (
 
   const lookUpPost = async() => {
 
-    const channelId = postData._def.extendedProps.platform_account.id
-    const id = postData?._def.extendedProps?.metaData?.post_id
+    const channelId = postData?.platform_account?.id
+    const id = postData?.meta_data?.post_id
 
     const facebookesponse = await fetch(`/api/facebook/look-up-post`, {
         method: 'POST',
@@ -2314,22 +2256,100 @@ const createCaption = () => {
 
 }
 
+const addNewFiles = async(selectedFiles) => {
+  const newFiles = selectedFiles.map((file)=>{
+    return{
+      source :'internal',
+      ...file
+    }
+  })
+
+    setMedia(prev => [...newFiles, ...media])
+
+  if (publicationId){
+    const newInternaFiles = []
+    for (const file of newFiles) {
+      const newMedia = await savePostFile({
+        file_id: file.id,
+        usage_type: postType,
+        post_publication_id: publicationId
+      })
+
+      const newFile = {
+        database_id:newMedia.id,
+        ...file
+      }
+      newInternaFiles.push(newFile)
+    }
+
+    if(postData.id){
+      setCalendarEvents(prev =>
+          prev.map(event =>
+            event.id === postData.id
+              ? {
+                  ...event,
+                  media: [...newInternaFiles, ...media]
+                }
+              : event
+          )
+        );
+    }
+  }else{
+    if(postData.id){
+      setCalendarEvents(prev =>
+          prev.map(event =>
+            event.id === postData.id
+              ? {
+                  ...event,
+                  media: [...newFiles, ...media]
+                }
+              : event
+          )
+        );
+      }
+
+  }
+  setSelectedFiles([])
+}
+
 
 
   useEffect(() => {
     if (!showFiles && selectedFiles.length > 0) {
-
-      if (media.length === 1){
-        console.log('showFiles && selectedFiles.length > 0 setMedia', media)
-
-      }
+      addNewFiles(selectedFiles)
+    }
+  }, [showFiles, selectedFiles]);
 
 
-        setMedia(prev => [...selectedFiles, ...media])
-        setSelectedFiles([])
+
+  useEffect(()=>{
+
+    console.log('calendarEvents', calendarEvents)
+  },[calendarEvents])
+
+
+  const handleLinkBlur = async() => {
+    if (publicationId){
+      await updatePostPublication(publicationId,
+        {
+          link:postLink
+        }
+      )
+    }
+    if (postId){
+      setCalendarEvents(prev =>
+          prev.map(event =>
+            event.id === postId
+              ? {
+                  ...event,
+                  link: postLink
+                }
+              : event
+          )
+        );
     }
 
-  }, [showFiles, selectedFiles]);
+  }
 
   return(
     <>
@@ -2355,7 +2375,7 @@ const createCaption = () => {
               <h2>Share To Social Media</h2>
               <hr/>
 
-              {postData._def.extendedProps.error&&
+              {postData.error&&
                 <div style={{
                   background: 'var(--md-sys-color-error)',
                   color:'#ffffff',
@@ -2363,7 +2383,7 @@ const createCaption = () => {
                   borderRadius: '10px',
                   marginTop:'15px'
                 }}>
-                  {postData._def.extendedProps.error}
+                  {postData.error}
                 </div>
               }
 
@@ -2396,13 +2416,13 @@ const createCaption = () => {
                 postInfo={postData}
                 setSocialPagesParent={setSocialPages}
                 callback={channelSelectorCallback}
-                disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                disabled={postData?.database_info?.post_publications_id}
               />
               {postData.title !== 'null'&&
                 <h4>{postData.title}</h4>
               }
 
-              <div className="properties-container" style={{margin:'15px 0px'}}>
+              <div className={`properties-container ${postData?.database_info?.post_publications_id?'disabled':''}`} style={{margin:'15px 0px'}}>
                 <p className='label' style={{paddingLeft:'10px'}}>Post Type</p>
                 <div style={{display:'flex', alignItems:'center'}}>
                   <div style={{display:'flex', alignItems:'center'}}>
@@ -2412,7 +2432,7 @@ const createCaption = () => {
                       value="text"
                       checked={postType === 'text'}
                       onChange={handlePostTypeChange}
-                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                      disabled={postData?.database_info?.post_publications_id}
                     /><span style={{fontSize:'.9em'}}>Text</span>
                   </div>
                   <div style={{display:'flex', alignItems:'center'}}>
@@ -2422,7 +2442,7 @@ const createCaption = () => {
                       value="video_reels"
                       checked={postType === 'video_reels'}
                       onChange={handlePostTypeChange}
-                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                      disabled={postData?.database_info?.post_publications_id}
                     /><span style={{fontSize:'.9em'}}>Reel</span>
                   </div>
                   <div style={{display:'flex', alignItems:'center'}}>
@@ -2432,7 +2452,7 @@ const createCaption = () => {
                       value="link"
                       checked={postType === 'link'}
                       onChange={handlePostTypeChange}
-                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                      disabled={postData?.database_info?.post_publications_id}
                     /><span style={{fontSize:'.9em'}}>Link</span>
                   </div>
                   <div style={{display:'flex', alignItems:'center'}}>
@@ -2442,7 +2462,7 @@ const createCaption = () => {
                       value="photos"
                       checked={postType === 'photos'}
                       onChange={handlePostTypeChange}
-                      disabled={postData?._def.extendedProps?.database_info?.post_publications_id}
+                      disabled={postData?.database_info?.post_publications_id}
                     /><span style={{fontSize:'.9em'}}>Photos</span>
                   </div>
                 </div>
@@ -2461,12 +2481,17 @@ const createCaption = () => {
                   <MediaList
                     key={postData.id}
                     postType={postType}
+                    postId={postData?.id}
+                    publicationId={publicationId}
                     userId={userId}
                     media={media}
                     setMedia={setMedia}
                     channelPreviews={channelPreviews}
                     setInstagramError={setInstagramMediaError}
                     setPostTypeError={setPostTypeError}
+                    calendarEvents={calendarEvents}
+                    setCalendarEvents={setCalendarEvents}
+
                   />
 
                 </div>
@@ -2482,6 +2507,7 @@ const createCaption = () => {
                     value={postLink}
                     onChange={(e) => setPostLink(e.target.value)}
                     className={'form-input'}
+                    onBlur={handleLinkBlur}
                   />
                   <a href={postLink} target="new-window" style={{height: '24px'}}>
                     <ExternalLink/>
@@ -2490,6 +2516,8 @@ const createCaption = () => {
               </div>
             }
             <Caption
+              publicationId={publicationId}
+              postId={postData?.id}
               caption={caption}
               setCaption={setCaption}
               customCaptions={customCaptions}
@@ -2501,6 +2529,8 @@ const createCaption = () => {
               isInstagram={isInstagram}
               instagramCaptionError={instagramCaptionError}
               setInstagramCaptionError={setInstagramCaptionError}
+              calendarEvents={calendarEvents}
+              setCalendarEvents={setCalendarEvents}
             />
 
               <button
@@ -2577,11 +2607,11 @@ const createCaption = () => {
                 </button>
               }
 
-              {postData?._def?.extendedProps?.database_info?.post_publications_id &&
+              {postData?.database_info?.post_publications_id &&
                 <>
                 <button style={{marginLeft:'10px'}} className="btn danger" onClick={deletePostDatabase}>Delete Post</button>
                 <button style={{marginLeft:'10px'}} className="btn secondary" onClick={getPostInfo}>Get Post Info</button>
-                {postData?._def?.extendedProps?.platform_account?.platform !== "One Signal" &&
+                {postData?.platform_account?.platform !== "One Signal" &&
                   <button
                     style={{marginLeft:'10px'}}
                     className="btn primary"
@@ -2684,8 +2714,6 @@ const FacebookLinkPreview = ({
   const [openGraphError, setOpenGraphError] = useState(null)
   const hasRun = useRef(false);
 
-  console.log('url', url)
-
 const getOpenGraph = async () => {
   try {
 
@@ -2735,16 +2763,16 @@ const getOpenGraph = async () => {
 const noPreview = () => {
 
   setOpenGraph({
-    ogTitle: postData?._def?.extendedProps?.title??null,
-    ogUrl: postData?._def?.extendedProps?.link??null,
-    ogDescription: postData?._def?.extendedProps?.caption??null,
-    ogImage: postData?._def.extendedProps?.media[0]?.file_url??null
+    ogTitle: postData?.title??null,
+    ogUrl: postData?.link??null,
+    ogDescription: postData?.caption??null,
+    ogImage: postData?.media[0]?.file_url??null
   })
 }
 
 
 useEffect(()=>{
-  if (!hasRun.current && postData._def.extendedProps.usePreview) {
+  if (!hasRun.current && postData.usePreview) {
     getOpenGraph()
     hasRun.current = true; // Mark as run to prevent double execution in dev
   }else{
@@ -2844,11 +2872,7 @@ return(
             <div className="facebook-preview-title">
               {openGraph?.ogTitle? openGraph.ogTitle : postData.title !== 'null'? postData.title:`No Title`}
             </div>
-            {/*}
-            <div className="facebook-preview-description">
-              {openGraph?.description? openGraph.description: postData._def.extendedProps.description }
-            </div>
-            */}
+
           </div>
       </div>
 
@@ -2941,13 +2965,17 @@ const ReadMore = ({ children, maxCharacterCount = 100 }) => {
 };
 
 const MediaList = ({
+  publicationId,
   postType,
+  postId,
   userId,
   media,
   setMedia,
   channelPreviews,
   setInstagramError,
-  setPostTypeError
+  setPostTypeError,
+  calendarEvents,
+  setCalendarEvents
 }) => {
   const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
 
@@ -2965,59 +2993,83 @@ const MediaList = ({
       setItem(media)
     }
 
-    const handleReplace = (index, newItem) => {
-
-      if (media.length === 1){
-        console.log('setMedia handleReplace', media)
-
-      }
-
+    const handleEditReplace = async(index, newItem) => {
 
       item.source = 'internal'
+
       setMedia(prevItems =>
         prevItems.map((item, i) => i === index ? newItem : item)
       );
+
+
+      if (publicationId){
+        const newMedia = await savePostFile({
+          file_id: newItem.id,
+          usage_type: postType,
+          post_publication_id: publicationId
+        })
+
+        const newFile = {
+          database_id:newMedia.id,
+          ...newItem
+        }
+
+        if (postId){
+          setCalendarEvents(prev =>
+              prev.map(event =>
+                event.id === postId
+                  ? {
+                      ...event,
+                      media: media.map((item, i) => i === index ? newFile : item)
+                    }
+                  : event
+              )
+            );
+        }
+
+
+
+
+      }else{
+        if (postId){
+          setCalendarEvents(prev =>
+              prev.map(event =>
+                event.id === postId
+                  ? {
+                      ...event,
+                      media: media.map((item, i) => i === index ? newItem : item)
+                    }
+                  : event
+              )
+            );
+        }
+
+      }
+
     };
 
+
+
+
     useEffect(() => {
+
       if (!displayEditItem && item) {
-          handleReplace(editingIndex.current, item)
+
+          handleEditReplace(editingIndex.current, item)
       }
 
     }, [displayEditItem, item]);
 
 
     const changeSortableState = (newState) => {
-      if (media.length === 1){
-        console.log('setMedia changeSortableState', media)
-      }
-
       setMedia(newState)
     }
-
-
 
     const checkPostType = (images) => {
 
       if (!postType) return
 
-
       let errorArray = []
-
-      /*
-      for (const file of images) {
-
-
-          const isImage = file.file_type === "image/png" || file.file_type === 'image/jpeg' || file.file_url.match(/\.(jpg|jpeg|png)$/i);
-          const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
-
-          if ((!isVideo && postType === 'video_reels') || (!isImage && postType === 'photos'){
-            errorArray.push(true)
-          }
-
-
-      }*/
-
 
       const checkedImages = images.map((file)=>{
 
@@ -3035,8 +3087,6 @@ const MediaList = ({
 
       })
 
-      console.log('checkedImages', checkedImages)
-
       setFiles(checkedImages)
 
       if (errorArray.length > 0){
@@ -3048,12 +3098,6 @@ const MediaList = ({
     }
 
     const checkInstagramImages = async (images) => {
-
-        const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
-
-        if (!hasInstagram && InstagramError){
-          setInstagramError(false)
-        }
 
 
         let errorArray = []
@@ -3091,7 +3135,9 @@ const MediaList = ({
 
     useEffect(()=>{
 
-      if (media.length > 0 && channelPreviews.length > 0){
+      const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
+
+      if (media.length > 0 && hasInstagram){
         checkInstagramImages(media)
       }
 
@@ -3109,8 +3155,42 @@ const MediaList = ({
 
     const removeImage = async (index) => {
 
-      console.log('index', index)
       setMedia(prev => prev.filter((_, i) => i !== index));
+
+
+        if (publicationId){
+
+          const remove = media[index]
+
+          if (remove?.source === 'internal' && remove?.database_id !== null){
+              await deletePostFiles([remove.database_id])
+
+          }
+
+          setCalendarEvents(prev =>
+              prev.map(event =>
+                event.id === postId
+                  ? {
+                      ...event,
+                      media: media.filter((_, i) => i !== index)
+                    }
+                  : event
+              )
+            );
+
+        }else{
+          setCalendarEvents(prev =>
+              prev.map(event =>
+                event.id === postId
+                  ? {
+                      ...event,
+                      media: media.filter((_, i) => i !== index)
+                    }
+                  : event
+              )
+            );
+        }
+
       //setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
@@ -3218,7 +3298,7 @@ const MediaList = ({
     const isVideo = item.file_type === "video/mp4" || item.file_url.match(/\.(mp4|mov|m4v)$/i);
 
         return(
-            <div key={item.id}
+            <div key={index}
               style={{
               display:'flex',
               alignItems: 'center',

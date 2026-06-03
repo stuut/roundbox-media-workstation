@@ -60,9 +60,12 @@ export async function POST(req) {
 
   const postResponseJson = await facebookResponse.json();
   const postId = postResponseJson.id
+  console.log('postResponseJson', postResponseJson)
 
-
-  return Response.json({ id:postResponseJson.id, data:postResponseJson },{ status: 200 })
+  return Response.json({ 
+    id:endPoint === 'video_reels'? postResponseJson.post_id : postResponseJson.id,
+    data:postResponseJson
+  },{ status: 200 })
 
 
   }catch (err){

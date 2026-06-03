@@ -1661,6 +1661,9 @@ input.form-input.column-name:disabled{
     cursor: pointer;
 }
 
+
+
+div.disabled,
 button:disabled{
   opacity:.5
 }
