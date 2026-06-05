@@ -399,10 +399,8 @@ export async function GET(request) {
         )
       `
       )
-      .eq("status", "processing")
-      .eq("platform", "instagram")
-      .eq("title", "Snippets...")
-      .lte("scheduled_at", new Date().toISOString())
+      .eq("status", "scheduled")
+       .lte("scheduled_at", new Date().toISOString())
       .limit(10) // batch size
 
 
