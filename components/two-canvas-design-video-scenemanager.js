@@ -995,7 +995,7 @@ export const Danva = (({postData, user}, ref) => {
                   Math.round((progressEvent.loaded * 100) / totalSize)
                 );
 
-                console.log('percentCompleted', percentCompleted)
+
 
 
                setVideoConvertProgress(percentCompleted);
@@ -2205,7 +2205,7 @@ async updateImage(image){
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = image + (image.includes('?') ? '&' : '?') + 'cors=' + Date.now();
+    img.src = image
 
     await img.decode(); // waits until fully loaded
 
@@ -2237,7 +2237,7 @@ async replaceImage(image){
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = image + (image.includes('?') ? '&' : '?') + 'cors=' + Date.now();
+    img.src = image
 
     await img.decode(); // waits until fully loaded
     this.img = img;
@@ -5266,6 +5266,8 @@ const getHandlePolygons = (object) => {
   const { x, y, cx, cy, angle } = object;
   const animatedProps = getAnimatedProps(object)
 
+  if (!animatedProps)return
+
   let width
   let h
 
@@ -5323,6 +5325,8 @@ const getHandlePolygons = (object) => {
 const getSideHandlePolygons = (object) => {
   const { cx, cy, angle } = object;
   const animatedProps = getAnimatedProps(object)
+
+  if (!animatedProps)return
 
   let width
   let h
@@ -10321,7 +10325,7 @@ const deleteCallback = (fileId) => {
           {files
             .filter(item => item?.file_description?.toLowerCase().includes(filter.toLowerCase()))
             .map((file, index)=>{
-              console.log(file)
+
             return (
               <div key={file.id} className={`media_container ${label}`} style={{width:(file.file_type === 'image/png' || file.file_type === 'image/jpeg')?'48%':'99%', margin:'1%', position:'relative'}}>
                 <div style={{
@@ -12064,11 +12068,13 @@ const Share = ({
         status: status,
         meta_data:{
           post_id:videoId,
-          post_data:publication.meta_data.post_data,
-          ...videoData
         },
         //published_at: new Date().toISOString()
       }
+
+
+
+
 
       await updatePostPublication(publication.id, updateData)
 
@@ -12100,13 +12106,7 @@ const Share = ({
 
              const videoId = uploadedVideo.id
 
-             const savedPost = await savePost({
-               user_id:userId,
-               caption:caption,
-               title:postInfo.data.title,
-               type:postType,
-               meta_data:postInfo
-             })
+
 
              const scheduledAtUTC = new Date(scheduleDate).toISOString()
 
@@ -12122,7 +12122,6 @@ const Share = ({
                }
 
               return {
-               post_id:savedPost.id,
                platform_id: acc.id,
                scheduled_at: scheduledAtUTC,
                platform:acc.platform,
@@ -12131,9 +12130,9 @@ const Share = ({
                title:postInfo.data.title,
                type:postType,
                user_id:userId,
-               meta_data:{
-                 post_data:postInfo
-               }
+               link:postLink,
+               slug:postInfo.data.slug,
+               base_url:postInfo?.data.base_url
              }
            })
 
@@ -12144,7 +12143,6 @@ const Share = ({
                await savePostFile({
                  file_id:uploadedVideo.id,
                  usage_type: postType,
-                 post_id:savedPost.id,
                  post_publication_id: savedPostPublication.id
                })
              }
@@ -13145,7 +13143,7 @@ export default function ExpandEditor({ file }) {
       originalHeight: file.originalHeight,
     };
 
-    console.log("EXPAND DATA:", data);
+
     return data;
   };
 

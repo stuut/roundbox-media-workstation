@@ -40,7 +40,10 @@ async function publishToInstagram(job) {
   const igId = job.platform_account.external_account_id;
   const accessToken = job.platform_account.access_token;
   const caption = job.caption;
-  const files = job?.post_files??[]
+
+  const files = job?.post_files
+  .sort((a, b) => a.sort_order - b.sort_order)
+  .filter((media) => media.file_id)
 
 
   if (!files?.length) throw new Error("No media");
@@ -382,6 +385,8 @@ export async function GET(request) {
         last_error,
         meta_data,
         post_files: post_files(
+          id,
+          sort_order,
           post_publication_id,
           file_id:files(*)
         ),
@@ -394,9 +399,12 @@ export async function GET(request) {
         )
       `
       )
-      .eq("status", "scheduled")
-       .lte("scheduled_at", new Date().toISOString())
+      .eq("status", "processing")
+      .eq("platform", "instagram")
+      .eq("title", "Snippets...")
+      .lte("scheduled_at", new Date().toISOString())
       .limit(10) // batch size
+
 
     //return Response.json({ jobs })
 

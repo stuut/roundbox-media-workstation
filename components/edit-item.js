@@ -80,18 +80,38 @@ const CropComponent = ({
       img.crossOrigin = 'anonymous';
 
       // cache-bust to prevent reused non-CORS response
-      img.src = src + (src.includes('?') ? '&' : '?') + 'cors=' + Date.now();
+      img.src = src
 
       img.onload = () => resolve(img);
       img.onerror = reject;
     });
+
+    const loadImageAsBlobURL = async (src) => {
+      const res = await fetch(src, {
+        mode: 'cors',
+        credentials: 'omit',
+      });
+
+      if (!res.ok) throw new Error('Image fetch failed');
+
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    };
 
 
 
     const getCroppedImg = async (imageSrc, croppedAreaPixels, canvas) => {
       const ctx = canvas.getContext('2d');
 
-      const image = await loadImage(imageSrc);
+      const blobUrl = await loadImageAsBlobURL(imageSrc);
+
+      const image = new Image();
+       image.src = blobUrl;
+
+       await new Promise((resolve, reject) => {
+         image.onload = resolve;
+         image.onerror = reject;
+       });
 
       canvas.width = croppedAreaPixels.width;
       canvas.height = croppedAreaPixels.height;

@@ -157,6 +157,10 @@ useEffect(()=>{
 
   if (selectedSocialPages.length > 1){
     createCustomCaptions()
+  }else{
+    if (customCaptionsToggle){
+      setCustomCaptionsToggle(false)
+    }
   }
 
 },[selectedSocialPages])
@@ -174,7 +178,6 @@ if (customCaptionsToggle){
 
 },[customCaptionsToggle])
 
-console.log('publicationId', publicationId)
 
 const handleBlur = async() =>{
   if (publicationId){
@@ -185,8 +188,6 @@ const handleBlur = async() =>{
     )
   }
 
-  console.log('postId', postId)
-  console.log('CalendarEvents', calendarEvents)
 
   if (postId){
     setCalendarEvents(prev =>

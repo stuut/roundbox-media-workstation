@@ -4,6 +4,11 @@ import { useDropzone } from "react-dropzone"
 import { useFilesContext } from "@/context/files-context"
 import { isObjectInArray } from '@/lib/utils'
 import { urlToFile } from '@/lib/utils'
+import { getFiles } from "@/lib/supabase";
+
+const imageTypes = ['image/png', 'image/jpeg']
+const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
+const videoTypes = ['video/mp4', 'video/webm']
 
 
 export function formatFileSize(bytes) {
@@ -14,14 +19,14 @@ export function formatFileSize(bytes) {
   return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
 }
 
-export function ImageUpload({ onImageSelect, currentImage }) {
+export function ImageUpload({ onImageSelect, currentImage, user }) {
   const [selectedFile, setSelectedFile] = useState(null)
   const [showMyFiles, setShowMyFiles] = useState(false)
   const {files, setFiles, selectedFiles, setSelectedFiles} = useFilesContext();
 
-  const getData = async (userId) => {
+  const getData = async (userId, fileTypes) => {
     try {
-      const myFiles = await getFiles(userId);
+      const myFiles = await getFiles(userId, fileTypes);
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
@@ -31,7 +36,9 @@ export function ImageUpload({ onImageSelect, currentImage }) {
   useEffect(()=>{
 
       if (showMyFiles){
-        getData()
+
+        getData(user.id, imageTypes)
+
       }
 
   },[showMyFiles])
@@ -81,10 +88,6 @@ export function ImageUpload({ onImageSelect, currentImage }) {
       console.error("Error fetching image:", error)
     }
 }
-
-
-
-
 
 
   // Update the selected file when the current image changes
@@ -138,26 +141,28 @@ export function ImageUpload({ onImageSelect, currentImage }) {
   return (
     <>
     {showMyFiles?(
-      <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
-        {files.map((file, index)=>{
-          return (
-            <div key={file.id} style={{width:'18%', margin:'1%'}}>
-                <div>
-                  {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                    <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
-                  }
+      <div>
+        <button onClick={() => setShowMyFiles(false)} className='btn danger'>Cancel</button>
+        <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
+          {files.map((file, index)=>{
+            return (
+              <div key={file.id} style={{width:'18%', margin:'1%'}}>
+                  <div>
+                    {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
+                      <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+                    }
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
-
     ):(
       <div>
         {!currentImage ? (
           <div>
           <div style={{display:'flex', alignItems:'center'}}>
-              <div style={{flex: 1, maxWidth: '50px'}}
+              <div style={{marginRight:'10px'}}
                 {...getRootProps()}
                 className={`
                 ${isDragActive ? "bg-secondary/50" : "bg-secondary"}
@@ -165,10 +170,11 @@ export function ImageUpload({ onImageSelect, currentImage }) {
               >
               <input {...getInputProps()} />
               <div>
-                  <img src='/upload_file.svg' style={{maxWidth: '50px'}} />
+                  <button className="btn primary">Upload File</button>
               </div>
             </div>
-            <img onClick={()=>setShowMyFiles(true)} src="/home_storage.svg" style={{maxWidth: '45px', flex:1}}/>
+            <button onClick={()=>setShowMyFiles(true)} className="btn primary">Choose Existing File</button>
+
           </div>
         <p style={{fontSize:'.8em'}}>
           Maximum file size: 10MB
@@ -196,7 +202,7 @@ export function ImageUpload({ onImageSelect, currentImage }) {
                 <span>Remove image</span>
               </button>
             </div>
-            <div>
+            <div style={{marginBottom:'15px'}}>
               <img
                 className='media-image-selected'
                 style={{maxWidth:'250px'}}

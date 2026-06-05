@@ -40,6 +40,7 @@ import { getPostsWithIds } from "@/lib/supabase";
 import { uploadFile } from '@/lib/upload-file'
 import { deletePostFiles } from "@/lib/supabase";
 import { DateTime } from "luxon";
+import { updatePostFilesSortOrder } from "@/lib/supabase"
 
 import {
   X,
@@ -436,13 +437,16 @@ export const Scheduler = ({user})=>{
     const newPosts = posts.map((post)=>{
 
 
+      const media = post?.post_files
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .filter((media) => media.file_id)
+      .map((media)=>{
+          return {
+            source: 'internal',
+            database_id:media.id,
+            ...media.file_id
+          }
 
-      const media = post?.post_files.map((media)=>{
-        return {
-          source: 'internal',
-          database_id:media.id,
-          ...media.file_id
-        }
       })
 
       let status = post?.status??''
@@ -466,9 +470,7 @@ export const Scheduler = ({user})=>{
         database_info:{
           post_publications_id:post.id,
         },
-        meta_data: {
-          ...post?.meta_data,
-        },
+        meta_data: post?.meta_data,
         platform_account:post?.platform_account,
 
       }
@@ -480,7 +482,21 @@ export const Scheduler = ({user})=>{
     setCalendarEvents(prev => prev.filter((post)=> post.id !== postData.id))
 
 
+    setPosts(prev =>
+        prev.map(post =>
+          post.id === postData.id
+            ? {
+                ...post,
+                status: 'scheduled'
+              }
+            : post
+        )
+      );
+
+
   }
+
+
 
 
 
@@ -528,29 +544,30 @@ const updateCalendarEvents = (data) => {
 
     const calendarEvents = data.map((post)=>{
 
-      const media = post?.post_files.map((media)=>{
-        return {
-          source: 'internal',
-          database_id:media.id,
-          ...media.file_id
-        }
+      const media = post?.post_files
+      .sort(
+        (a, b) => a.sort_order - b.sort_order
+      )
+      .filter((media) => media.file_id)
+      .map((media)=>{
+
+          return {
+            source: 'internal',
+            database_id:media.id,
+            ...media.file_id
+          }
+
       })
 
-      if (post.title === 'Local Athletics Legend Ernie Shankelton Named NSW Country Coach Of The Year '){
-        console.log('post', post)
-      }
+
+      console.log('media', media)
+
 
       //console.log(post.title)
 
 
       let status = post?.status??''
 
-      if (post?.platform_account === 'facebook' && status === 'scheduled'){
-        status = checkPublished(
-          post?.scheduled_at,
-          post?.status,
-        )
-      }
 
       return {
         id: post.id,
@@ -571,9 +588,7 @@ const updateCalendarEvents = (data) => {
         database_info:{
           post_publications_id:post.id,
         },
-        meta_data: {
-          ...post?.meta_data,
-        },
+        meta_data: post?.meta_data,
         platform_account:post?.platform_account,
 
       }
@@ -603,7 +618,7 @@ const hasRun = useRef(false);
     }
 
     setPostData({
-      id: uuidv4(),
+      id: data?.event?.id,
       start: data?.event?.startStr,
       end: data?.event?.endStr,
       allDay: false,
@@ -655,22 +670,9 @@ const hasRun = useRef(false);
 
   const handleEventClick = (data) =>{
 
-    console.log('handleEventClick')
-
-      console.log(data?.event?.startStr)
-
-      console.log(data?.event?.endStr)
-
-
-      console.log('event', data.event)
-
-      console.log('event id', data.event.id)
-
-
-
 
     const newEvent = {
-      id: data.event.id,
+      id: data?.event?.id,
       start: data?.event?.startStr,
       end: data?.event?.endStr,
       allDay: false,
@@ -742,8 +744,8 @@ const hasRun = useRef(false);
 
   function renderEventContent(eventInfo) {
 
+
     if (!eventInfo.event.title){
-        console.log('renderEventContent', eventInfo)
     }
 
 
@@ -881,6 +883,7 @@ const hasRun = useRef(false);
         scheduleCallBack={schedulePostCallBack}
         calendarEvents={calendarEvents}
         setCalendarEvents={setCalendarEvents}
+
       />
 
       }
@@ -1116,7 +1119,6 @@ const FeedsPanel = ({
 
         var filterPosts = response.items
 
-        console.log('filterPosts', filterPosts)
 
 
         if (selectedFeed.useDateFilter){
@@ -1156,7 +1158,7 @@ const FeedsPanel = ({
             title: item.fields[selectedFeed.title],
             caption: removeMd(item.fields[selectedFeed.text]),
             schedule_date: item.fields[selectedFeed.scheduleDate],
-            link: selectedFeed.website+'/'+item.fields[selectedFeed.slug],
+            link: 'https://' + selectedFeed.website+'/'+item.fields[selectedFeed.slug],
             slug: item.fields[selectedFeed.slug],
             base_url: selectedFeed.website,
             status: 'unpublished',
@@ -1361,7 +1363,7 @@ const ExternalEvent = memo(({data}) => {
 
 
   return (
-    <div ref={elRef} style={{width:'48%'}} className={`post_image ${data.scheduled? 'active': ''}`}>
+    <div ref={elRef} style={{width:'48%'}} className={`post_image ${data.status}`}>
       <img
         style={{
           height:'100px',
@@ -1371,6 +1373,7 @@ const ExternalEvent = memo(({data}) => {
         }}
         draggable
         src={data.media[0].file_url}
+        alt={data.media[0].title}
       />
     </div>
   )
@@ -1385,9 +1388,10 @@ const Share = ({
   scheduleCallBack,
   calendarEvents,
   setCalendarEvents
+
 }) => {
 
-
+  console.log('postData', postData)
   const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
   const [scheduleDate, setScheduleDate] = useState(postData.schedule_date)
   const [publishedDate, setPublishedDate] = useState(postData?.published_at??'')
@@ -1538,7 +1542,7 @@ const Share = ({
           return
         }
 
-        updatePostOnDatabase()
+        //updatePostOnDatabase()
 
         showSuccess('Post Updated')
     }
@@ -1546,14 +1550,14 @@ const Share = ({
     if (postData?.platform_account?.platform === "instagram"){
 
       if (status === 'scheduled'){
-        updatePostOnDatabase()
+        ///updatePostOnDatabase()
       }
           //
     }
 
     if (postData?.platform_account?.platform === "One Signal"){
       if (status === 'scheduled'){
-        updatePostOnDatabase()
+        //updatePostOnDatabase()
       }
     }
 
@@ -1594,42 +1598,6 @@ const Share = ({
         publicationId,
         updateData
       )
-    }
-
-    console.log('media', media)
-
-    const removeIds = media.map((media)=>{
-      if (media.source === 'internal'){
-        return media.id
-      }
-    })
-
-    console.log('removeIds',removeIds)
-
-
-    //await deletePostFiles(removeIds)
-
-
-
-    for (const file of media) {
-      const fileId = file.source === 'external'
-        ? (
-            await storeFileInfo({
-              user_id: userId,
-              file_url: file.file_url,
-              file_type: file.file_type,
-              file_name: file.file_name,
-              file_description: file.file_description ?? null
-            })
-          ).id
-        : file.id
-
-      const newMedia = await savePostFile({
-        file_id: fileId,
-        usage_type: postType,
-        post_publication_id: publicationId
-      })
-
     }
 
   }
@@ -1699,6 +1667,8 @@ const Share = ({
 
   const scheduleMultiple = async(status) => {
 
+
+
         try{
 
           setLoader(true)
@@ -1710,7 +1680,6 @@ const Share = ({
 
 
              const scheduledAtUTC = new Date(scheduleDate).toISOString()
-
              const publications = selectedSocialPages.map((acc) => {
 
                let captionData = caption
@@ -1741,7 +1710,7 @@ const Share = ({
 
              const savedPostPublications = await savePostPublications(publications)
 
-             let savedMedia = []
+
 
              for (const savedPostPublication of savedPostPublications) {
                 for (const file of media) {
@@ -1762,16 +1731,51 @@ const Share = ({
                     usage_type: postType,
                     post_publication_id: savedPostPublication.id
                   })
-
-                  savedMedia.push(newMedia)
-
                 }
               }
+
+              /*
+              const mediaWithIds = [];
+
+              for (const file of media) {
+                const fileId =
+                  file.source === 'external'
+                    ? (
+                        await storeFileInfo({
+                          user_id: userId,
+                          file_url: file.file_url,
+                          file_type: file.file_type,
+                          file_name: file.file_name,
+                          file_description: file.file_description ?? null
+                        })
+                      ).id
+                    : file.id;
+
+                mediaWithIds.push({
+                  ...file,
+                  fileId
+                });
+              }
+
+              for (const savedPostPublication of savedPostPublications) {
+                for (const file of mediaWithIds) {
+                  await savePostFile({
+                    file_id: file.fileId,
+                    usage_type: postType,
+                    post_publication_id: savedPostPublication.id,
+                    sort_order: index
+                  });
+                }
+              }*/
+
 
 
              const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
 
              const savedPostPublicationsOneSignal = savedPostPublications.filter((publication)=>publication.platform === 'One Signal')
+
+
+             console.log('postState', postState)
 
 
              if (postState === 'PUBLISH'){
@@ -2257,17 +2261,21 @@ const createCaption = () => {
 }
 
 const addNewFiles = async(selectedFiles) => {
+
+
   const newFiles = selectedFiles.map((file)=>{
     return{
       source :'internal',
+      database_id:file.id,
       ...file
     }
   })
 
-    setMedia(prev => [...newFiles, ...media])
+  console.log('newFiles', newFiles)
 
   if (publicationId){
     const newInternaFiles = []
+
     for (const file of newFiles) {
       const newMedia = await savePostFile({
         file_id: file.id,
@@ -2282,6 +2290,8 @@ const addNewFiles = async(selectedFiles) => {
       newInternaFiles.push(newFile)
     }
 
+    console.log('newInternaFiles', newInternaFiles)
+
     if(postData.id){
       setCalendarEvents(prev =>
           prev.map(event =>
@@ -2294,6 +2304,20 @@ const addNewFiles = async(selectedFiles) => {
           )
         );
     }
+
+    setMedia(prev => [...newInternaFiles, ...media])
+
+    // update file index
+    showSuccess('Post Files Updated')
+
+    /*
+    [
+      { id: 1, index: 11 },
+      { id: 2, qty: 9 },
+      { id: 3, qty: 6 }
+    ]*/
+
+
   }else{
     if(postData.id){
       setCalendarEvents(prev =>
@@ -2374,7 +2398,6 @@ const addNewFiles = async(selectedFiles) => {
 
               <h2>Share To Social Media</h2>
               <hr/>
-
               {postData.error&&
                 <div style={{
                   background: 'var(--md-sys-color-error)',
@@ -2637,7 +2660,6 @@ const addNewFiles = async(selectedFiles) => {
                 </div>
                 ):(
                   <>
-                    <p>{selectedChannelPreview}</p>
                   {selectedChannelPreview && channelPreviews.length>0 &&
                     <select id="channel-select" className="form-input select" onChange={(e) => onChannelPreviewChange(e.target.value)} value={selectedChannelPreview}>
                       {channelPreviews.map((channel, index)=>{
@@ -2649,7 +2671,6 @@ const addNewFiles = async(selectedFiles) => {
 
                     {(postType=== 'link' && selectedChannelPreview === 'facebook') &&
                       <>
-                        <p>Facebook Link Preview</p>
                         <FacebookLinkPreview
                           url={postLink}
                           postData={postData}
@@ -2672,7 +2693,7 @@ const addNewFiles = async(selectedFiles) => {
                     }
                     {postType === 'link' &&  selectedChannelPreview === 'instagram' &&
                       <>
-                        <p>Instagram Link Preview</p>
+
                         <InstagramLinkPreview
                           image={media[0]?.file_url}
                           postData={postData}
@@ -2682,14 +2703,14 @@ const addNewFiles = async(selectedFiles) => {
                     }
                     {postType === 'photos' &&  selectedChannelPreview === 'instagram' &&
                       <>
-                        <p>Instagram Photos Preview</p>
+
                         <InstagramPhotosPreview media={media} />
                       </>
                     }
 
                     {postType === 'photos' && selectedChannelPreview === 'facebook' &&
                       <>
-                        <p>Facebook Photos Preview</p>
+
                         <FacebookPhotosPreview media={media}/>
                       </>
                     }
@@ -3029,6 +3050,8 @@ const MediaList = ({
 
 
 
+        showSuccess('Post Files Updated')
+
 
       }else{
         if (postId){
@@ -3056,6 +3079,7 @@ const MediaList = ({
       if (!displayEditItem && item) {
 
           handleEditReplace(editingIndex.current, item)
+          setItem(null)
       }
 
     }, [displayEditItem, item]);
@@ -3067,14 +3091,18 @@ const MediaList = ({
 
     const checkPostType = (images) => {
 
+      console.log('images', images)
+
       if (!postType) return
 
       let errorArray = []
 
       const checkedImages = images.map((file)=>{
 
-        const isImage = file.file_type === "image/png" || file.file_type === 'image/jpeg' || file.file_url.match(/\.(jpg|jpeg|png)$/i);
-        const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
+        if (!file?.file_type || !file?.file_url) return
+
+        const isImage = file?.file_type === "image/png" || file?.file_type === 'image/jpeg' || file?.file_url?.match(/\.(jpg|jpeg|png)$/i);
+        const isVideo = file?.file_type === "video/mp4" || file?.file_type === 'video/webm' || file?.file_url?.match(/\.(mp4|mov|m4v)$/i);
 
         const temp = {...file}
 
@@ -3126,9 +3154,30 @@ const MediaList = ({
          }
     }
 
+    const updateMediaOrder = async(media) =>{
+
+      const mediaSortOrder = media.filter((media) => media.database_id)
+      .map((media, index)=>{
+        return { id: media.database_id, sort_order: index }
+      })
+
+      const uniqueArray = mediaSortOrder.filter((item, index, self) =>
+        index === self.findIndex(t => t.id === item.id)
+      );
+
+
+      await updatePostFilesSortOrder(uniqueArray)
+    }
+
     useEffect(()=>{
 
       setFiles(media)
+
+      if (media.length !== 0 && publicationId){
+
+        updateMediaOrder(media)
+      }
+
 
     },[media])
 
@@ -3153,6 +3202,8 @@ const MediaList = ({
     },[postType, media])
 
 
+
+
     const removeImage = async (index) => {
 
       setMedia(prev => prev.filter((_, i) => i !== index));
@@ -3164,7 +3215,6 @@ const MediaList = ({
 
           if (remove?.source === 'internal' && remove?.database_id !== null){
               await deletePostFiles([remove.database_id])
-
           }
 
           setCalendarEvents(prev =>
@@ -3177,6 +3227,7 @@ const MediaList = ({
                   : event
               )
             );
+
 
         }else{
           setCalendarEvents(prev =>
@@ -3295,7 +3346,9 @@ const MediaList = ({
       onDragEnd={()=>onSortItems()}
       >
   {files.map((item, index) => {
-    const isVideo = item.file_type === "video/mp4" || item.file_url.match(/\.(mp4|mov|m4v)$/i);
+    const isVideo = item?.file_type === "video/mp4" || item?.file_url?.match(/\.(mp4|mov|m4v)$/i);
+
+    if (!item?.file_url) return <div key={index}></div>
 
         return(
             <div key={index}
@@ -3309,7 +3362,7 @@ const MediaList = ({
             }}>
               <GripVertical size={30} />
                 <div style={{marginLeft:'10px'}}>
-                  {(item.file_type === 'image/png' || item.file_type === 'image/jpeg')&&
+                  {(item?.file_type === 'image/png' || item?.file_type === 'image/jpeg')&&
                       <img style={{
                       width:50,
                       height:50,
@@ -3319,7 +3372,7 @@ const MediaList = ({
                     }}
                     src={item.file_url}/>
                   }
-                  {(postType === 'video_reels' && item.file_type === 'video/mp4' || isVideo)&&
+                  {(postType === 'video_reels' && item?.file_type === 'video/mp4' || isVideo)&&
                     <video
                       src={item.file_url}
                       controls

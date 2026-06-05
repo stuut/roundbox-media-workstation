@@ -301,6 +301,9 @@ async function downloadAndZip() {
                           </>
                         }
                           </div>
+                          {filePicker &&
+                            <button className='btn primary' onClick={(e) => setShowFiles(false)} disabled={selectedFiles.length===0}>Choose Files</button>
+                          }
                       <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
                         <div style={{marginLeft:'5px'}}>
                           <Checkbox
@@ -397,9 +400,7 @@ async function downloadAndZip() {
 
                   </div>
                   }
-                  {filePicker &&
-                    <button className='btn primary' onClick={(e) => setShowFiles(false)} disabled={selectedFiles.length===0}>Choose Files</button>
-                  }
+
                   {filesDisplay ==='Gemini'&&
                     <div style={{marginTop:'10px', borderTop: '1px solid #999', paddingTop:'15px'}}>
                     <ImageGeneration/>

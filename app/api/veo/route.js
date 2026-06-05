@@ -35,15 +35,17 @@ function fileToGenerativePart(base64) {
 export async function POST(request) {
   try{
 
-    const { prompt, image} = await request.json();
+    const { prompt, image, numberOfVideos, aspectRatio, resolution, durationSeconds} = await request.json();
 
     const requestPayload = {
       model: 'veo-3.1-generate-preview',
       prompt,
       config: {
-        numberOfVideos: 1,
-        aspectRatio: '16:9',
-        durationSeconds: 8,
+        numberOfVideos: numberOfVideos,
+        aspectRatio: aspectRatio,
+        resolution: resolution,
+        //personGeneration: 'dont_allow',
+        durationSeconds: durationSeconds,
       },
     };
 
