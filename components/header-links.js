@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 export default function HeaderLinks() {
   const pagePath = usePathname();
 
+
 return(
   <div className='header-links'>
     <Link className={pagePath==="/dashboard"?'active':null} style={{marginRight:'10px'}} href='/dashboard'>Dashboard</Link>

@@ -26,11 +26,20 @@ export const Caption = ({
   setInstagramCaptionError,
   instagramCaptionError,
   calendarEvents,
-  setCalendarEvents
-
+  setCalendarEvents,
+  postData
 }) => {
 
   const [activeCaption, setActiveCaption] = useState(null)
+
+  const isOneSignalPost = postData?.platform_account?.platform === 'One Signal'
+  const isFacebookPost = postData?.platform_account?.platform === 'facebook'
+  const isInstagramPost = postData?.platform_account?.platform === 'instagram'
+
+  console.log('isInstagramPost', isInstagramPost)
+
+  console.log("postData.status === 'published'", postData.status === 'published')
+
 
   useEffect(() => {
     const isInstagram = selectedSocialPages.some(
@@ -259,6 +268,7 @@ return(
         className={`form-input ${isInstagram && instagramCaptionError? 'error':''}`}
         onBlur={handleBlur}
       /*  maxLength={isInstagram? "2200" : "5000"}*/
+        disabled={(isInstagramPost || isOneSignalPost) && postData.status === 'published'}
         cols={8}
       />
     }

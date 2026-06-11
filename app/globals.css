@@ -1235,6 +1235,14 @@ h2{
 
 }
 
+.btn.clear{
+  background-color: transparent;
+}
+
+.btn.clear:hover{
+  background-color: var(--md-sys-color-surface-container);
+}
+
 .btn.btn-sm{
   font-size: var(--sm-font-size);
     padding: var(--sm-btn-padding-y) var(--sm-btn-padding-x);
@@ -1696,10 +1704,12 @@ input.form-input.column-name:disabled{
 }
 
 
-
+textarea:disabled,
 div.disabled,
 button:disabled{
-  opacity:.5
+  opacity:.5;
+  pointer-events: none;
+  cursor: default;
 }
 
 .calendar-task.requested,

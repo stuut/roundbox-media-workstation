@@ -24,6 +24,7 @@ import Cropper from 'cropperjs';
 import { Summary } from '@/components/summary'
 import Slider from '@mui/material/Slider';
 import { Caption } from '@/components/caption'
+import { getFilesSearch } from "@/lib/supabase";
 
 
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
@@ -10154,23 +10155,52 @@ const Media = ({
   const [uploading, setUploading] = useState(false)
   const [fileDescription, setFileDescription] = useState('')
 
-  const getData = async (userId) => {
+
+  const getData = async () => {
 
     try {
-      const myFiles = await getFiles(userId, fileTypes);
+      const myFiles = await getFiles(user.id, fileTypes);
       setFiles(myFiles);
     } catch (error) {
       showError('error getting files', error);
     }
   };
 
-  useEffect(() => {
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    getSearchData()
 
-    if (user){
-      getData(user.id)
+  };
+
+  const getSearchData = async () => {
+    try{
+      const myFiles = await getFilesSearch(user.id, filter, fileTypes);
+      if (Array.isArray(myFiles)) {
+        setFiles(myFiles);
+      }
+    } catch (error) {
+      console.log('error getting files', error);
     }
 
-}, [user]);
+  }
+
+  const handleSearchChange = (data) => {
+    setFilter(data)
+
+    if (data.length === 0){
+      getData()
+    }
+  }
+
+  useEffect(() => {
+
+    if (filter.length === 0){
+      getData()
+    }else{
+      getSearchData();
+    }
+
+  }, [user]);
 
 const selectFileFunction = (data) => {
 
@@ -10299,16 +10329,35 @@ const deleteCallback = (fileId) => {
           {`Upload`}
         </label>
       </div>
-      <div style={{position:'relative', display:'flex', alignItems:'center', gap:'5px'}}>
-        <img src={'/filter.svg'} style={{maxWidth:'25px'}}/>
-        <input
-          id={'media-filter'}
-          className="form-input"
-          type="text"
-          onChange={(e) => setFilter(e.target.value)}
-          value={filter}
-        />
-      </div>
+      <div style={{position:'relative', width:'100%'}}>
+        <form onSubmit={handleSubmit}>
+            <div style={{position:'relative', display:'flex', alignItems:'center', gap:'10px'}}>
+              <input
+                id={'media-filter'}
+                style={{
+                  flex:4
+                }}
+                className="form-input"
+                type="text"
+                onChange={(e) => handleSearchChange(e.target.value)}
+                value={filter}
+                placeholder='Filter'
+                required
+              />
+              <button
+                type='submit'
+                style={{
+                  height:'38px',
+                  flex:1,
+                  lineHeight:1
+                }}
+                disabled={filter.length < 3}
+                className='btn primary'>
+                  GO
+                </button>
+          </div>
+        </form>
+    </div>
     <div style={{
       display: 'flex',
       flexWrap: 'wrap',
@@ -10323,7 +10372,7 @@ const deleteCallback = (fileId) => {
       ):(
         <>
           {files
-            .filter(item => item?.file_description?.toLowerCase().includes(filter.toLowerCase()))
+            //.filter(item => item?.file_description?.toLowerCase().includes(filter.toLowerCase()))
             .map((file, index)=>{
 
             return (
@@ -12424,6 +12473,7 @@ const getPostsScheduledPosts = async() => {
                 isInstagram={isInstagram}
                 instagramCaptionError={instagramCaptionError}
                 setInstagramCaptionError={setInstagramCaptionError}
+                postData={postInfo}
               />
                 <Summary text={caption} defaultPlatform={'facebook'}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>

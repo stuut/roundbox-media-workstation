@@ -11,27 +11,49 @@ import {Upload, Pause, Play} from 'lucide-react';
 import Checkbox from '@mui/material/Checkbox';
 import { storeFileInfo } from "@/lib/supabase";
 import { deleteFiles } from "@/lib/supabase";
+import { getFilesSearch } from "@/lib/supabase";
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 import JSZip from "jszip";
+import ReactPlayer from 'react-player'
+import { usePathname } from 'next/navigation';
+
 
 const imageTypes = ['image/png', 'image/jpeg']
 const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
 const videoTypes = ['video/mp4', 'video/webm']
 
 export default function MyFiles() {
+  const pathname = usePathname();
   const { user } = useUserContext();
   const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles, filePicker} = useFilesContext();
   const [userId, setUserId] = useState(null)
   const [filesDisplay, setFilesDisplay] = useState('My Files')
   const [uploading, setUploading] = useState(false)
   const [fileFilters, setFileFilters] = useState([])
+  const [imageSearch, setImageSearch] = useState('')
 
 
-  const getData = async (userId, fileTypes) => {
+  const getData = async () => {
+
     try {
-      const myFiles = await getFiles(userId, fileTypes);
+
+      const filterArray = []
+
+      if (fileFilters.includes('images')){
+        filterArray.push(...imageTypes)
+      }
+
+      if (fileFilters.includes('videos')){
+        filterArray.push(...videoTypes)
+      }
+
+      if (fileFilters.includes('audio')){
+        filterArray.push(...audioTypes)
+      }
+
+      const myFiles = await getFiles(user.id, filterArray);
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
@@ -39,28 +61,61 @@ export default function MyFiles() {
   };
 
 
+  const getSearchData = async () => {
+    try{
+      let filterArray = []
+
+      if (fileFilters.includes('images')){
+        filterArray.push(...imageTypes)
+      }
+
+      if (fileFilters.includes('videos')){
+        filterArray.push(...videoTypes)
+      }
+
+      if (fileFilters.includes('audio')){
+        filterArray.push(...audioTypes)
+      }
+
+
+
+      if (fileFilters.length === 0){
+        filterArray = [...imageTypes, ...videoTypes, ...audioTypes]
+      }
+
+      const myFiles = await getFilesSearch(user.id, imageSearch, filterArray);
+
+      if (Array.isArray(myFiles)) {
+        setFiles(myFiles);
+      }
+
+
+
+    } catch (error) {
+      console.log('error getting files', error);
+    }
+
+  }
+
+
+  const handleSearchChange = (data) => {
+    setImageSearch(data)
+    if (data.length === 0){
+      getData()
+    }
+  }
+
+
 
 
 useEffect(()=>{
 
-  const filterArray = []
+      if (imageSearch.length === 0){
+        getData()
+      }else{
+        getSearchData();
+      }
 
-    if (fileFilters.includes('images')){
-      filterArray.push(...imageTypes)
-    }
-
-    if (fileFilters.includes('videos')){
-      filterArray.push(...videoTypes)
-    }
-
-    if (fileFilters.includes('audio')){
-      filterArray.push(...audioTypes)
-    }
-
-
-    if (user){
-      getData(user.id, filterArray)
-    }
 
 },[fileFilters] )
 
@@ -76,15 +131,27 @@ const selectFileFunction = (data) => {
 
 }
 
-const uploadFile = async (event) => {
+const uploadFileLoop = async(event) => {
+  if (!event.target.files || event.target.files.length === 0) {
+    throw new Error('You must select an image to upload.')
+  }
+  console.log('event.target.files', event.target.files)
+
+  setUploading(true)
+
+  for (const file of event.target.files) {
+      await uploadFile(file)
+  // color = 'yellow'; // ❌ Throws TypeError: Assignment to constant variable.
+  }
+
+  setUploading(false)
+}
+
+
+
+const uploadFile = async (file) => {
   try {
-    setUploading(true)
-
-    if (!event.target.files || event.target.files.length === 0) {
-      throw new Error('You must select an image to upload.')
-    }
-
-    const file = event.target.files[0];
+    //const file = event.target.files[0];
     const fileExt = file.name.split('.').pop();
     const filePath = `${user.id}/${Math.random()}.${fileExt}`;
     const fileType = file.type;
@@ -92,7 +159,6 @@ const uploadFile = async (event) => {
     const formData = new FormData()
     formData.append('file', file)
 
-    try{
       const res = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
@@ -111,15 +177,11 @@ const uploadFile = async (event) => {
       } else {
         showError(result.error)
       }
-    }catch(error){
-      console.log('file upload error', error)
-    }
+
 
   } catch (error) {
     console.log(error)
     alert('Error uploading image!')
-  } finally {
-    setUploading(false)
   }
 }
 
@@ -141,7 +203,7 @@ const handleFileFunction = async (data) => {
       user_id: user.id
     }
 
-  setFiles(prev => [...prev, newFile]);
+  setFiles(prev => [newFile, ...prev]);
 
 
   }catch (error){
@@ -225,7 +287,11 @@ async function downloadAndZip() {
   return (
     <>
       {showFiles&&
-        <div className='overlay' onClick={(e) => setShowFiles(false)}>
+        <>
+        {  pathname !== '/my-media' &&
+          <div className='overlay' onClick={() => setShowFiles(false)}>
+          </div>
+        }
           <div className='center-absolute' style={{width:'100%', maxWidth:'900px'}}>
             <div className="card" onClick={(e) => e.stopPropagation()}>
               <div style={{display:'flex', padding:'15px'}}>
@@ -233,134 +299,146 @@ async function downloadAndZip() {
                   <button onClick={() => setFilesDisplay('My Files')} className={`${'btn'} ${filesDisplay ==='My Files'?'primary':'secondary'}`}>My files</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Gemini')} className={`${'btn'} ${filesDisplay ==='Gemini'?'primary':'secondary'}`}>Gemini</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Veo</button>
+                  <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('X Z Image Turbo')} className={`${'btn'} ${filesDisplay ==='X Z Image Turbo'?'primary':'secondary'}`}>X Z Image Turbo</button>
 
                 </div>
                 <div style={{flex:3, padding:'15px', overflowY: 'scroll', maxHeight: '800px'}}>
-                  {(filesDisplay ==='My Files' || filesDisplay ==='Gemini') &&
-                    <div>
-                      <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '10px'}}>
-                        {selectedFiles.map((file, index)=>{
-                          return(
-                                <div key={file.id} style={{width:'25%'}}>
-                                  {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                                    <img style={{width:'100%', height:'auto', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
-                                  }
-                                  {file.file_type === 'application/pdf'&&
-                                    <>
-                                      <img className={`${'media-file'}`} src={'/pdf-icon.png'}/>
-                                    </>
-                                  }
-                                  {file.file_type === 'video/mp4'&&
-                                    <>
-                                      <div>
-                                         <video
-                                           src={file.file_url}
-                                           controls
-                                           autoPlay={false}
-                                           className="video_thumb"
-                                           playsInline
-                                           style={{
-                                             minWidth:'unset',
-                                             borderRadius: '5px'
-                                           }}
-                                         />
-                                      </div>
-                                    </>
-                                  }
-                                </div>
-                            )
-                        })}
-                      </div>
-                      <div style={{display:'flex', alignItems:'center'}}>
-                        <input
-                          style={{display:'none'}}
-                          type="file"
-                          id="file-upload"
-                          accept="image/*,.pdf,.doc"
-                          onChange={uploadFile}
-                          disabled={uploading}
-                        />
-                        <label
-                          className="btn secondary icon-button"
-                          htmlFor="file-upload"
-                          style={{
-                            padding: '10px 15px',
-                            marginTop:'0px',
-                            marginBottom: '0px',
-                            marginLeft: '5px'
-                          }}
-                        >
-                          <Upload className='button-icon'/>
-                          {`Upload File`}
-                        </label>
-                        {selectedFiles.length>0 &&
-                          <>
-                            <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
-                            <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
-                            <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
-                          </>
+                  <div>
+                    <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '10px'}}>
+                      {selectedFiles.map((file, index)=>{
+                        return(
+                              <div key={file.id} style={{width:'25%'}}>
+                                {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
+                                  <img style={{width:'100%', height:'auto', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
+                                }
+                                {file.file_type === 'application/pdf'&&
+                                  <>
+                                    <img className={`${'media-file'}`} src={'/pdf-icon.png'}/>
+                                  </>
+                                }
+                                {file.file_type === 'video/mp4'&&
+                                  <>
+                                    <div>
+                                       <ReactPlayer
+                                         src={file.file_url}
+                                         controls
+                                         autoPlay={false}
+                                         className="video_thumb"
+                                         playsInline
+                                         style={{
+                                           minWidth:'unset',
+                                           borderRadius: '5px'
+                                         }}
+                                       />
+                                    </div>
+                                  </>
+                                }
+                              </div>
+                          )
+                      })}
+                    </div>
+                    <div style={{display:'flex', alignItems:'center'}}>
+                      <input
+                        style={{display:'none'}}
+                        type="file"
+                        id="file-upload"
+                        accept="image/*,.pdf,.doc"
+                        onChange={uploadFileLoop}
+                        disabled={uploading}
+                        multiple
+                      />
+                      <label
+                        className="btn secondary icon-button"
+                        htmlFor="file-upload"
+                        style={{
+                          padding: '10px 15px',
+                          marginTop:'0px',
+                          marginBottom: '0px',
+                          marginLeft: '5px'
+                        }}
+                      >
+                        <Upload className='button-icon'/>
+                        {`Upload Files`}
+                      </label>
+                      {selectedFiles.length>0 &&
+                        <>
+                          <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
+                          <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
+                          <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
+                        </>
+                      }
+                        </div>
+                        {filePicker &&
+                          <button className='btn primary' onClick={(e) => setShowFiles(false)} disabled={selectedFiles.length===0}>Choose Files</button>
                         }
-                          </div>
-                          {filePicker &&
-                            <button className='btn primary' onClick={(e) => setShowFiles(false)} disabled={selectedFiles.length===0}>Choose Files</button>
-                          }
-                      <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
-                        <div style={{marginLeft:'5px'}}>
-                          <Checkbox
-                            id={'iimages'}
-                            className="form-check-input"
-                            type="checkbox"
-                            onChange={() => checkboxFunction('images')}
-                            checked={fileFilters.includes('images')}
-                            sx={{
-                              color: 'var(--md-sys-color-secondary)',
-                              '&.Mui-checked': {
-                                color: 'var(--md-sys-color-primary)',
-                              },
-                            }}
-                          />
-                          <span style={{marginLeft:'5px'}}>Images</span>
-                        </div>
-                        <div style={{marginLeft:'5px'}}>
-                          <Checkbox
-                            id={'iimages'}
-                            className="form-check-input"
-                            type="checkbox"
-                            onChange={() => checkboxFunction('videos')}
-                            checked={fileFilters.includes('videos')}
-                            sx={{
-                              color: 'var(--md-sys-color-secondary)',
-                              '&.Mui-checked': {
-                                color: 'var(--md-sys-color-primary)',
-                              },
-                            }}
-                          />
-                          <span style={{marginLeft:'5px'}}>videos</span>
-                        </div>
-                        <div style={{marginLeft:'5px'}}>
-                          <Checkbox
-                            id={'iimages'}
-                            className="form-check-input"
-                            type="checkbox"
-                            onChange={() => checkboxFunction('audio')}
-                            checked={fileFilters.includes('audio')}
-                            sx={{
-                              color: 'var(--md-sys-color-secondary)',
-                              '&.Mui-checked': {
-                                color: 'var(--md-sys-color-primary)',
-                              },
-                            }}
-                          />
-                          <span style={{marginLeft:'5px'}}>audio</span>
-                        </div>
-
+                    <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
+                      <div style={{marginLeft:'5px'}}>
+                        <Checkbox
+                          id={'iimages'}
+                          className="form-check-input"
+                          type="checkbox"
+                          onChange={() => checkboxFunction('images')}
+                          checked={fileFilters.includes('images')}
+                          sx={{
+                            color: 'var(--md-sys-color-secondary)',
+                            '&.Mui-checked': {
+                              color: 'var(--md-sys-color-primary)',
+                            },
+                          }}
+                        />
+                        <span style={{marginLeft:'5px'}}>Images</span>
                       </div>
+                      <div style={{marginLeft:'5px'}}>
+                        <Checkbox
+                          id={'iimages'}
+                          className="form-check-input"
+                          type="checkbox"
+                          onChange={() => checkboxFunction('videos')}
+                          checked={fileFilters.includes('videos')}
+                          sx={{
+                            color: 'var(--md-sys-color-secondary)',
+                            '&.Mui-checked': {
+                              color: 'var(--md-sys-color-primary)',
+                            },
+                          }}
+                        />
+                        <span style={{marginLeft:'5px'}}>videos</span>
+                      </div>
+                      <div style={{marginLeft:'5px'}}>
+                        <Checkbox
+                          id={'iimages'}
+                          className="form-check-input"
+                          type="checkbox"
+                          onChange={() => checkboxFunction('audio')}
+                          checked={fileFilters.includes('audio')}
+                          sx={{
+                            color: 'var(--md-sys-color-secondary)',
+                            '&.Mui-checked': {
+                              color: 'var(--md-sys-color-primary)',
+                            },
+                          }}
+                        />
+                        <span style={{marginLeft:'5px'}}>audio</span>
+                      </div>
+
+                    </div>
+                    <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
+                      <input
+                        id="image-filter"
+                        type='text'
+                        value={imageSearch}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        className={'form-input'}
+                        placeholder='Filter'
+                      />
+                      <button className='btn primary' onClick={getSearchData} disabled={imageSearch.length===0}>Search</button>
+                    </div>
+                      </div>
+                  {(filesDisplay ==='My Files') &&
 
                     <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
                       {files.map((file, index)=>{
                         const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
-
-
                         return (
                           <div key={file.id} style={{width:'18%', margin:'1%'}}>
 
@@ -398,27 +476,30 @@ async function downloadAndZip() {
                       })}
                     </div>
 
-                  </div>
+
                   }
 
                   {filesDisplay ==='Gemini'&&
-                    <div style={{marginTop:'10px', borderTop: '1px solid #999', paddingTop:'15px'}}>
+                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
                     <ImageGeneration/>
                   </div>
                   }
                   {filesDisplay ==='Video'&&
-                    <div style={{marginTop:'10px', borderTop: '1px solid #999', paddingTop:'15px'}}>
+                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
                     <VideoGeneration/>
                   </div>
                   }
-
+                  {filesDisplay ==='X Z Image Turbo'&&
+                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                    </div>
+                  }
                 </div>
 
 
                 </div>
               </div>
           </div>
-      </div>
+        </>
       }
     </>
   )
