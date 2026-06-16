@@ -22,7 +22,7 @@ export default async function Page() {
     <div style={{padding:'0px 25px'}}>
       <h2>Extract Pdf</h2>
       <div>
-        <PdfTextExtractor/>
+        <PdfTextExtractor user={user}/>
       </div>
     </div>
   );

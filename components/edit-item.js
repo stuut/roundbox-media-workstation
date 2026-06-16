@@ -27,7 +27,7 @@ return(
       <div className='overlay' onClick={(e) => setDisplayEditItem(false)}>
         <div className='center-absolute' style={{width:'100%', maxWidth:'1200px', height:'800px'}}>
           <div className="card" onClick={(e) => e.stopPropagation()} style={{margin:0, height:'100%'}}>
-            <div style={{display:'flex'}}>
+            <div style={{display:'flex', height:'100%'}}>
               <div style={{flex:1, zIndex: 1}}>
                 <h4>MENU</h4>
                 <p className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}> Crop </p>

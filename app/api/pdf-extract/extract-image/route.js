@@ -1,16 +1,12 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { v4 as uuidv4 } from 'uuid'
 // Wait for pdfjs NodePackages to initialize, then inject canvas
 const { getDocument } = pdfjsLib;
-import { fromPath } from 'pdf2pic';
-import sharp from 'sharp';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
 
 
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
+
+//pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
 
 import { createCanvas } from 'canvas';
 
@@ -19,23 +15,6 @@ import { Path2D } from 'path2d';
 global.Path2D = Path2D;
 
 
-class CustomCanvasFactory {
-  create(width, height) {
-    const canvas = createCanvas(width, height);
-    const context = canvas.getContext('2d');
-    return { canvas, context };
-  }
-  reset(canvasAndContext, width, height) {
-    canvasAndContext.canvas.width = width;
-    canvasAndContext.canvas.height = height;
-  }
-  destroy(canvasAndContext) {
-    canvasAndContext.canvas.width = 0;
-    canvasAndContext.canvas.height = 0;
-    canvasAndContext.canvas = null;
-    canvasAndContext.context = null;
-  }
-}
 
 export const runtime = 'nodejs'; // not 'edge'
 
@@ -131,6 +110,7 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace){
     const imageBuffer = finalCanvas.toBuffer('image/png');
     return {
       id: uuidv4(),
+      file_name: uuidv4()+'.png',
       file_type: 'image/png',
       width:width,
       height:height,
@@ -142,6 +122,7 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace){
     const imageBuffer = croppedCanvas.toBuffer('image/png');
     return {
       id: uuidv4(),
+      file_name: uuidv4()+'.png',
       file_type: 'image/png',
       width:cropWidth,
       height:cropHeight,
@@ -172,7 +153,8 @@ export async function POST(req) {
 
     const loadingTask = pdfjsLib.getDocument({
       url: pdfUrl,
-      CanvasFactory: CustomCanvasFactory,  // capital C, class not instance
+    //  CanvasFactory: CustomCanvasFactory,  // capital C, class not instance
+       disableWorker: true,
     });
 
     const pdf = await loadingTask.promise;

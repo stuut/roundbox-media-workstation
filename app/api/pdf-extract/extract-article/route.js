@@ -1,18 +1,18 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { v4 as uuidv4 } from 'uuid'
 
 // Wait for pdfjs NodePackages to initialize, then inject canvas
 const { getDocument } = pdfjsLib;
 import sharp from 'sharp';
-import fs from 'fs/promises';
-import path from 'path';
+//import fs from 'fs/promises';
+//import path from 'path';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
+//pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
 
 
-import { Path2D } from 'path2d';
+//import { Path2D } from 'path2d';
 
-global.Path2D = Path2D;
+//global.Path2D = Path2D;
 
 
 class CustomCanvasFactory {
@@ -122,7 +122,8 @@ async function extractImagesFromPdf(page, rect){
         if (img) {
           images.push({
             id: uuidv4(),
-            name: imgName,
+            file_name: imgName,
+            file_type: 'image/jpeg',
             x,
             y,
             width: img.width,
@@ -135,83 +136,6 @@ async function extractImagesFromPdf(page, rect){
   }
   return images
 }
-
-
-async function extractImagesFromPdfV2(page, rect){
-
-  const viewport = page.getViewport({ scale: 1 });
-
-  const ops = await page.getOperatorList();
-  const commonObjs = page.commonObjs;
-  const objs = page.objs;
-
-  const OPS = pdfjsLib.OPS;
-  const images = [];
-
-  let currentTransform = [1, 0, 0, 1, 0, 0]; // identity matrix
-
-  for (let i = 0; i < ops.fnArray.length; i++) {
-    const fn = ops.fnArray[i];
-    const args = ops.argsArray[i];
-
-    if (fn === OPS.transform) {
-      currentTransform = args;
-    }
-
-    const imageRefs = [];
-
-
-    if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject) {
-      const x = currentTransform[4];
-      const y = viewport.height - currentTransform[5];
-
-      if (x >= rect.startX && x <= rect.endX && y >= rect.startY && y <= rect.endY) {
-          imageRefs.push({
-            name: args[0],
-            x: currentTransform[4],
-            y: viewport.height - currentTransform[5],
-          });
-      }
-
-      for (const ref of imageRefs) {
-          const imgName = args[0];
-          let img;
-
-            try {
-              const img = safeGet(objs, imgName) || safeGet(commonObjs, imgName);
-            } catch {}
-
-            if (!img) continue;
-
-            const jpegBuffer = await sharp(Buffer.from(img.data), {
-              raw: {
-                width: img.width,
-                height: img.height,
-                channels: 3,
-              },
-            })
-            .jpeg({ quality: 90 })
-            .toBuffer();
-
-            const base64 = jpegBuffer.toString('base64');
-
-            images.push({
-              id: uuidv4(),
-              name: imgName,
-              x,
-              y,
-              width: img.width,
-              height: img.height,
-              file_url: `data:image/jpeg;base64,${base64}`,
-            });
-        }
-    }
-  }
-
-  return images
-
-}
-
 
 
 
@@ -234,7 +158,8 @@ export async function POST(req) {
     const loadingTask = pdfjsLib.getDocument({
       url: pdfUrl,
       CanvasFactory: CustomCanvasFactory,  // capital C, class not instance
-    });
+       disableWorker: true,
+  });
 
     const pdf = await loadingTask.promise;
 

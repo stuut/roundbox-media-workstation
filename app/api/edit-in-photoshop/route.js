@@ -63,10 +63,8 @@ export async function POST(req) {
           fs.copyFileSync(filePath, destinationPath)
           // 🔥 IMPORTANT: switch to the copied file
           filePath = destinationPath;
-          console.log('Opening in Photoshop:', filePath);
       }
     }
-
     // Case 2: Remote URL
     else if (image.startsWith('http')) {
       const basePath = path.join(
@@ -78,13 +76,42 @@ export async function POST(req) {
 
       filePath = await downloadImage(image, basePath);
     }
+    // Case 3: Base64 image
+      else if (image.startsWith('data:image/')) {
+        const matches = image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
 
-    else {
-      return NextResponse.json(
-        { error: 'Invalid image input' },
-        { status: 400 }
-      );
-    }
+        if (!matches) {
+          return NextResponse.json(
+            { error: 'Invalid base64 image format' },
+            { status: 400 }
+          );
+        }
+
+        const mimeType = matches[1];
+        const base64Data = matches[2];
+
+        const extension = mimeType.split('/')[1]; // jpeg, png, webp, etc.
+
+        const destinationPath = path.join(
+          editDir,
+          `image.${extension === 'jpeg' ? 'jpg' : extension}`
+        );
+
+        fs.writeFileSync(
+          destinationPath,
+          Buffer.from(base64Data, 'base64')
+        );
+
+        filePath = destinationPath;
+
+        console.log('Saved base64 image:', filePath);
+      }
+      else {
+        return NextResponse.json(
+          { error: 'Invalid image input' },
+          { status: 400 }
+        );
+      }
 
     // Open in Photoshop
     exec(`open -a "Adobe Photoshop 2026" "${filePath}"`);

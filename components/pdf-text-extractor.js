@@ -13,6 +13,8 @@ import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 import moment from "moment";
 import dynamic from 'next/dynamic'
+import { storeFileInfo } from "@/lib/supabase";
+
 var WPAPI = require( 'wpapi' );
 import {
   X,
@@ -22,7 +24,8 @@ import {
   SquarePen,
   Trash2,
   Crop,
-  EllipsisVertical
+  EllipsisVertical,
+  Download
 } from 'lucide-react';
 //const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
 import { PDFViewer } from "@/components/pdf-viewer"
@@ -147,7 +150,7 @@ const tinymceAPIkey = 'p3buqczwwii4scekdj4yuqpuwif3v2w63nbm6krta5jdnazt'
 
 
 
-export default function PdfTextExtractor() {
+export default function PdfTextExtractor({user}) {
   const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
   const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
   const [pageNumber, setPageNumber] = useState(1)
@@ -181,31 +184,80 @@ export default function PdfTextExtractor() {
   const editImageData = useRef(null)
   const evtSourceRef = useRef(null);
 
-  function downloadBase64AsZip(base64DataUrl, fileName) {
+  async function downloadImagesAsZip() {
     // 1. Initialize JSZip
     const zip = new JSZip();
 
     // 2. Extract the raw base64 string by removing the "data:image/jpeg;base64," prefix
-    const rawBase64 = base64DataUrl.split(',')[1];
 
     // 3. Create a folder inside the ZIP and add the image file
     const imageFolder = zip.folder("images");
-    imageFolder.file(fileName, rawBase64, { base64: true });
+
+    for (const image of images) {
+      if (image.file_url.startsWith('data:image/')){
+        const rawBase64 = image.file_url.split(',')[1];
+        imageFolder.file(image.file_name, rawBase64, { base64: true });
+      }else{
+        const response = await fetch(image.file_url);
+        const imageBlob = await response.blob();
+        imageFolder.file(image.file_name, imageBlob);
+      }
+    }
 
     // 4. Generate the ZIP archive as a binary Blob
-    zip.generateAsync({ type: "blob" }).then(function (content) {
+    zip.generateAsync({ type: "blob" }).then(async function (content) {
 
-        // 5. Create a temporary anchor link to trigger the browser download
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(content);
-        link.download = "archive.zip";
-
-        // 6. Programmatically trigger the click event and clean up the DOM
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
+      const fileHandle = await window.showSaveFilePicker({
+        suggestedName: selectedFeed.label+'-images',
+        types: [{ description: 'application/zip', accept: { ['application/zip']: [".zip"] } }]
+      });
+      const writable = await fileHandle.createWritable();
+      await writable.write(content);
+      await writable.close();
     });
+}
+
+async function downloadImage(image) {
+
+
+  let fileToDownload
+  let file_type
+
+
+    if (image.file_url.startsWith('data:image/')){
+      const parts = image.file_url.split(';base64,');
+       const contentType = parts[0].split(':')[1];
+       const rawData = window.atob(parts[1]); // Decode base64 string
+
+       // 2. Convert raw data into an array of bytes
+       const rawDataLength = rawData.length;
+       const uInt8Array = new Uint8Array(rawDataLength);
+
+       for (let i = 0; i < rawDataLength; ++i) {
+           uInt8Array[i] = rawData.charCodeAt(i);
+       }
+
+       // 3. Create a Blob object from the byte array
+       const blob = new Blob([uInt8Array], { type: contentType });
+
+       fileToDownload = blob
+       file_type = contentType
+    }else{
+      const response = await fetch(image.file_url);
+      const imageBlob = await response.blob();
+      fileToDownload = imageBlob
+      file_type = image.file_type
+    }
+
+
+    const fileHandle = await window.showSaveFilePicker({
+      suggestedName: image.file_name,
+      types: [{ description: file_type, accept: { [file_type]: [".png", ".jpg", ".webm"] } }]
+    });
+    const writable = await fileHandle.createWritable();
+    await writable.write(fileToDownload);
+    await writable.close();
+
 }
 
 
@@ -591,7 +643,7 @@ const addWordPressArticle = (paragraphs, images) => {
 
   }else{
 
-    combinedContent = previousContent + paragraphText
+    combinedContent = previousContent
 
   }
 
@@ -823,6 +875,8 @@ function detectArticle(data) {
 
           if (selectedFeed && selectedFeed?.CMSType === "wordpress"){
                 text = isBold ? `<b>${text}</b>` : text;
+          }else if (selectedFeed && selectedFeed?.CMSType === "contentful"){
+                text = isBold ? `__${text}__` : text;
           }
 
           const endsWithPeriod = currentParagraph.trim().endsWith('.');
@@ -1204,6 +1258,95 @@ const checkImageSize = async (imageUrl) => {
 
 };
 
+const getFileName = (path) => path.split('/').pop(); // sample-image.jpg
+
+async function fileFromServer(path) {
+  const response = await fetch(path);
+  const blob = await response.blob();
+  const fileName = path.split("/").pop();
+  return new File([blob], fileName, { type: blob.type });
+}
+
+const startSSE = () => {
+  if (evtSourceRef.current) return; // already running
+
+  const evtSource = new EventSource('/api/events');
+  evtSourceRef.current = evtSource;
+
+  evtSource.onmessage = async (event) => {
+
+
+    const updatedFile = getFileName(event.data);
+    const currentFile = getFileName(editImageRef.current);
+
+    if (updatedFile === currentFile) {
+
+      const file = await fileFromServer(event.data);
+
+      const formData = new FormData()
+      formData.append('file', file)
+
+      try{
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const result = await res.json()
+
+        if (res.ok) {
+          const fileInfo = await storeFileInfo({
+            user_id:user.id,
+            file_url:result.url,
+            file_type:file.type,
+            file_name:file.name,
+            file_description:editImageData.current.caption??null
+          })
+
+
+          setImages(prevItems =>
+            prevItems.map((item, i) => item.id === editImageData.current.id ? fileInfo : item)
+          );
+
+
+        } else {
+          console.log(result.error)
+          showError(result.error)
+        }
+      }catch(error){
+        console.log(error)
+        showError('file upload error', error)
+      }
+
+
+    }
+  };
+
+  evtSource.onerror = () => {
+    console.warn('SSE error, reconnecting next edit if needed.');
+    evtSource.close();
+    evtSourceRef.current = null; // allow future reconnect
+  };
+};
+
+
+const editInPhotoshop = async (image) => {
+
+    const res = await fetch('/api/edit-in-photoshop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image:image.file_url}),
+    });
+
+    const data = await res.json();
+
+if (data.publicUrl) {
+    editImageRef.current = data.publicUrl
+    editImageData.current = image
+    startSSE();
+  }
+}
+
 
 
 
@@ -1284,11 +1427,18 @@ const checkImageSize = async (imageUrl) => {
             </div>
         </div>
         <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px'}}>
-          <button className="btn secondary btn-sm" onClick={() => {
+          <button className="btn primary btn-sm" onClick={() => {
             setSelectedFiles([])
             setFilePicker(true)
             setShowFiles(prevState => !prevState)
           }}>Add Images</button>
+          {images.length !== 0&&
+            <div>
+              <button style={{marginTop:'0px'}} className="btn secondary btn-sm" onClick={downloadImagesAsZip}>
+                Download Images
+              </button>
+            </div>
+          }
 
           {images.length !== 0&&
             <>
@@ -1304,6 +1454,8 @@ const checkImageSize = async (imageUrl) => {
                     handleDragOver={handleDragOver}
                     updateCaption={updateCaption}
                     editMedia={editMedia}
+                    editInPhotoshop={editInPhotoshop}
+                    downloadImage={downloadImage}
                   />
                 )
               })}
@@ -1313,7 +1465,7 @@ const checkImageSize = async (imageUrl) => {
 
         <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
 
-            <p className="label" >Schedule Date</p>
+            <p style={{marginBottom:'0px'}} className="label" >Schedule Date</p>
               <DatePicker
                 minDate={moment().toDate()}
                 minTime={minTime}
@@ -1336,6 +1488,8 @@ const checkImageSize = async (imageUrl) => {
                 handleDragOver={handleDragOver}
                 updateCaption={updateCaption}
                 editMedia={editMedia}
+                editInPhotoshop={editInPhotoshop}
+                downloadImage={downloadImage}
                 />
               </>
             }
@@ -1457,7 +1611,9 @@ const ImageComponent  = ({
   handleDrop,
   handleDragOver,
   updateCaption,
-  editMedia
+  editMedia,
+  editInPhotoshop,
+  downloadImage
 }) => {
 
   const [caption, setCaption] = useState(image.caption)
@@ -1499,10 +1655,13 @@ const ImageComponent  = ({
       >
       </textarea>
       <div style={{marginLeft:'auto', height: '30px', display:'flex', alignItems:'center'}}>
-        <img onClick={() => editInPhotoshop(item)} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
+        <img onClick={() => editInPhotoshop(image)} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
         <Crop size={30} onClick={() => editMedia(image, index, 'crop')}/>
         {/*}<SquarePen style={{marginLeft:'10px'}} size={30} onClick={() => editMedia(image, index, 'caption')}/>*/}
+        <Download style={{marginLeft:'10px'}} size={30} onClick={() => downloadImage(image)}/>
+
         <Trash2 style={{marginLeft:'10px'}} size={30} onClick={() => removeCallback(image.id)}/>
+
       </div>
     </div>
   )
