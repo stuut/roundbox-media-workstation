@@ -3508,25 +3508,22 @@ const MediaList = ({
 
     const checkInstagramImages = async (images) => {
 
-
         let errorArray = []
 
          const checkedImages = await Promise.all(images.map(async(image) => {
 
-           let carouselImageError = await checkImageSize(image.file_url)
-           if (carouselImageError){
-             showError('Instagram Image Size Error')
-           }
-           var temp = Object.assign({}, image);
-           temp.instagram_image_error = carouselImageError
-           if (carouselImageError === true){
+           let instagramImageCheck = await checkImageSize(image.file_url)
+
+           var temp = {...image}
+           temp.instagram_image_error = instagramImageCheck
+           if (instagramImageCheck){
               errorArray.push(true)
+              showError('Instagram Image Size Error')
            }
            return temp;
          }))
 
          setFiles(checkedImages)
-
 
          if (errorArray.length > 0){
            setInstagramError(true)
@@ -3552,8 +3549,6 @@ const MediaList = ({
 
     useEffect(()=>{
 
-      console.log('media', media)
-
       setFiles(media)
 
       if (media.length !== 0 && publicationId){
@@ -3561,19 +3556,17 @@ const MediaList = ({
         updateMediaOrder(media)
       }
 
-
     },[media])
 
 
     useEffect(()=>{
-
       const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
 
       if (media.length > 0 && hasInstagram){
         checkInstagramImages(media)
       }
 
-    },[files, channelPreviews])
+    },[media, channelPreviews])
 
 
     useEffect(()=>{
@@ -3582,7 +3575,7 @@ const MediaList = ({
         checkPostType(media)
       }
 
-    },[postType])
+    },[media, postType])
 
 
 

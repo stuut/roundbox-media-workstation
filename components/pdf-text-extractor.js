@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react";
 import { useFilesContext } from "@/context/files-context"
 import { useEditItemContext } from "@/context/edit-item-context"
-
+import JSZip from "jszip";
 import Checkbox from '@mui/material/Checkbox';
 import { Editor } from "@tinymce/tinymce-react";
 import MarkdownEditorComponent from '@/components/markdown-editor';
@@ -180,6 +180,33 @@ export default function PdfTextExtractor() {
   const editImageRef = useRef(null)
   const editImageData = useRef(null)
   const evtSourceRef = useRef(null);
+
+  function downloadBase64AsZip(base64DataUrl, fileName) {
+    // 1. Initialize JSZip
+    const zip = new JSZip();
+
+    // 2. Extract the raw base64 string by removing the "data:image/jpeg;base64," prefix
+    const rawBase64 = base64DataUrl.split(',')[1];
+
+    // 3. Create a folder inside the ZIP and add the image file
+    const imageFolder = zip.folder("images");
+    imageFolder.file(fileName, rawBase64, { base64: true });
+
+    // 4. Generate the ZIP archive as a binary Blob
+    zip.generateAsync({ type: "blob" }).then(function (content) {
+
+        // 5. Create a temporary anchor link to trigger the browser download
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = "archive.zip";
+
+        // 6. Programmatically trigger the click event and clean up the DOM
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    });
+}
 
 
   const createDate = () => {
