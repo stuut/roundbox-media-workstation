@@ -18,7 +18,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 //global.Path2D = Path2D;
 
-
+/*
 class CustomCanvasFactory {
   create(width, height) {
     const canvas = createCanvas(width, height);
@@ -35,7 +35,7 @@ class CustomCanvasFactory {
     canvasAndContext.canvas = null;
     canvasAndContext.context = null;
   }
-}
+}*/
 
 
 export const runtime = 'nodejs'; // not 'edge'
@@ -148,8 +148,6 @@ async function extractImagesFromPdf(page, rect){
  */
 export async function POST(req) {
 
-
-
   try {
     const { pdfUrl, rect, pageNumber } = await req.json();;
 
@@ -157,11 +155,9 @@ export async function POST(req) {
         return  Response.json({error: "Missing pdf"},{status: 400});
     }
 
-    //const pdfData = Buffer.from(pdfBase64, "base64");
-
     const loadingTask = pdfjsLib.getDocument({
       url: pdfUrl,
-      CanvasFactory: CustomCanvasFactory,  // capital C, class not instance
+    //  CanvasFactory: CustomCanvasFactory,  // capital C, class not instance
       useWorkerFetch: false,
       isEvalSupported: false,
   });

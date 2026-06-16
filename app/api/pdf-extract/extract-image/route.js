@@ -7,11 +7,9 @@ const { getDocument } = pdfjsLib;
 
 import { createCanvas } from 'canvas';
 
-import { Path2D } from 'path2d';
+//import { Path2D } from 'path2d';
 
-global.Path2D = Path2D;
-
-
+//global.Path2D = Path2D;
 
 
 export const runtime = 'nodejs'; // not 'edge'

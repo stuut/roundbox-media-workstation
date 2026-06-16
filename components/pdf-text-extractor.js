@@ -183,6 +183,7 @@ export default function PdfTextExtractor({user}) {
   const editImageRef = useRef(null)
   const editImageData = useRef(null)
   const evtSourceRef = useRef(null);
+  const [loader, setLoader] = useState(false)
 
   async function downloadImagesAsZip() {
     // 1. Initialize JSZip
@@ -420,16 +421,14 @@ useEffect(() => {
 
 
 const sendAreaData = async(selectionArea) => {
-
-
-
   const width  =  selectionArea.endX - selectionArea.startX
-
   const height  =  selectionArea.endY - selectionArea.startY
+  setSelectionArea(selectionArea)
 
   if (width < 50) return
 
-  setSelectionArea(selectionArea)
+  setLoader(true)
+
 
   let url
 
@@ -484,8 +483,6 @@ const sendAreaData = async(selectionArea) => {
 
       const checkedImages = await checkInstagramImages(imagesWithCaptions)
 
-      console.log('checkedImages', checkedImages)
-
       newImages = [...checkedImages, ...imagesRef.current]
 
       setImages(prev => [...checkedImages, ...prev])
@@ -497,6 +494,8 @@ const sendAreaData = async(selectionArea) => {
         addContentfulArticle(paragraphs, newImages)
     }
   }
+
+  setLoader(false)
 }
 
 const addCaptions = (images, captions) => {
@@ -1411,7 +1410,10 @@ if (data.publicUrl) {
       {/* Point explicitly to the public folder directory link */}
       {pdfUrl &&
         <div style={{display:'flex'}}>
-          <div style={{flex:1, maxWidth:'550px', minWidth:'600px'}}>
+          <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative'}}>
+            <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+            </div>
             <div
               id="drag-area"
               className='unselectable'
