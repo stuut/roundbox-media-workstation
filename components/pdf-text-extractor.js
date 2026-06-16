@@ -438,23 +438,35 @@ function removeDoubleSpaces(string) {
 
 const addContentfulArticle = (paragraphs, images) => {
 
-  let paragraphText = ''
+    let previousContent = mdValue
 
-  paragraphs.forEach((paragraph, index) => {
+    let combinedContent
 
-    const urlRegex = /(https?:\/\/[^\s]+)/gi;
-    const updatedUrlText = paragraph.replace(urlRegex, '[$1]($1)');
+  if (paragraphs){
 
-    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const updatedEmailText = updatedUrlText.replace(emailRegex, '[mailto:$1]($1)');
+      let paragraphText = ''
 
-    const newText = markdownLinkify(paragraph)
+      paragraphs.forEach((paragraph, index) => {
 
-    paragraphText += '\n'+removeDoubleSpaces(updatedEmailText)+' \n'
-  });
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const updatedUrlText = paragraph.replace(urlRegex, '[$1]($1)');
 
-  let previousContent = mdValue
-  let combinedContent = previousContent + paragraphText
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+        const updatedEmailText = updatedUrlText.replace(emailRegex, '[mailto:$1]($1)');
+
+        const newText = markdownLinkify(paragraph)
+
+        paragraphText += '\n'+removeDoubleSpaces(updatedEmailText)+' \n'
+      });
+
+      combinedContent = previousContent + paragraphText
+
+  }else{
+
+      combinedContent = previousContent
+
+  }
+
 
   if (images.length > 1){
     let lastImages = addLastImages(images)
@@ -517,6 +529,7 @@ function htmlLinkify(text) {
 
 const addWordPressArticle = (paragraphs, images) => {
 
+  if (!editorRef.current) return
 
   let htmlString = getEditorContent()
   var parser = new DOMParser();
@@ -535,17 +548,25 @@ const addWordPressArticle = (paragraphs, images) => {
 
   var previousContent = doc.body.innerHTML;
 
-  let paragraphText = ''
+  let combinedContent
 
-  paragraphs.forEach((paragraph, index) => {
+  if (paragraphs){
 
-    paragraphText += '<p>'+htmlLinkify(paragraph)+' </p>'
-  });
+    let paragraphText = ''
 
-  if (!editorRef.current) return
+    paragraphs.forEach((paragraph, index) => {
 
-  //let previousContent = editorRef.current.getContent()
-  let combinedContent = previousContent + paragraphText
+      paragraphText += '<p>'+htmlLinkify(paragraph)+' </p>'
+    });
+
+
+    combinedContent = previousContent + paragraphText
+
+  }else{
+
+    combinedContent = previousContent + paragraphText
+
+  }
 
 
   if (images.length === 0){
@@ -995,10 +1016,10 @@ const removeArticleImage = (id) => {
 
   if (selectedFeedRef.current.CMSType === 'wordpress'){
       setTinymceContent('')
-      addWordPressArticle(paragraphsState, newArticleImages)
+      addWordPressArticle(null, newArticleImages)
   }else if (selectedFeedRef.current.CMSType === 'contentful'){
       handleMDEditorChange('')
-      addContentfulArticle(paragraphsState, newArticleImages)
+      addContentfulArticle(null, newArticleImages)
   }
 }
 

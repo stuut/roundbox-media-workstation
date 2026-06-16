@@ -3473,7 +3473,6 @@ const MediaList = ({
 
     const checkPostType = (images) => {
 
-      console.log('images', images)
 
       if (!postType) return
 
@@ -3583,7 +3582,7 @@ const MediaList = ({
         checkPostType(media)
       }
 
-    },[postType, files])
+    },[postType])
 
 
 

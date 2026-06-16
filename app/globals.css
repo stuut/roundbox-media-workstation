@@ -37,8 +37,8 @@ cursor:crosshair;
 }
 
  #select-box {
-   border: 1px solid var(--md-sys-color-tertiary);
-   background: rgba(129, 74, 135, 0.2);
+   border: 1px solid var(--md-sys-color-tertiary-fixed-dim);
+   background: rgba(242, 176, 245, 0.2);
    position: absolute;
    display: none;
  }
