@@ -1,5 +1,6 @@
-module.exports = {
-  experimental: {
-    optimizePackageImports: ["lucide-react"]
-  }
-}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  serverExternalPackages: ['canvas'],
+};
+
+export default nextConfig;

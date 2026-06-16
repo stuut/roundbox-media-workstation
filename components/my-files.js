@@ -23,6 +23,8 @@ import { usePathname } from 'next/navigation';
 const imageTypes = ['image/png', 'image/jpeg']
 const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
 const videoTypes = ['video/mp4', 'video/webm']
+const documentTypes = ['application/pdf']
+
 
 export default function MyFiles() {
   const pathname = usePathname();
@@ -35,25 +37,41 @@ export default function MyFiles() {
   const [imageSearch, setImageSearch] = useState('')
 
 
+
+  const getFilterArray = () => {
+
+    const filterArray = []
+
+    if (fileFilters.includes('images')){
+      filterArray.push(...imageTypes)
+    }
+
+    if (fileFilters.includes('videos')){
+      filterArray.push(...videoTypes)
+    }
+
+    if (fileFilters.includes('audio')){
+      filterArray.push(...audioTypes)
+    }
+
+    if (fileFilters.includes('documents')){
+      filterArray.push(...documentTypes)
+    }
+
+    return filterArray
+
+  }
+
+
   const getData = async () => {
+
+    if (!user?.id) return
 
     try {
 
-      const filterArray = []
 
-      if (fileFilters.includes('images')){
-        filterArray.push(...imageTypes)
-      }
 
-      if (fileFilters.includes('videos')){
-        filterArray.push(...videoTypes)
-      }
-
-      if (fileFilters.includes('audio')){
-        filterArray.push(...audioTypes)
-      }
-
-      const myFiles = await getFiles(user.id, filterArray);
+      const myFiles = await getFiles(user.id, getFilterArray());
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
@@ -62,25 +80,19 @@ export default function MyFiles() {
 
 
   const getSearchData = async () => {
+
+    if (!user?.id) return
+
+
     try{
-      let filterArray = []
 
-      if (fileFilters.includes('images')){
-        filterArray.push(...imageTypes)
-      }
-
-      if (fileFilters.includes('videos')){
-        filterArray.push(...videoTypes)
-      }
-
-      if (fileFilters.includes('audio')){
-        filterArray.push(...audioTypes)
-      }
-
+      let filterArray
 
 
       if (fileFilters.length === 0){
-        filterArray = [...imageTypes, ...videoTypes, ...audioTypes]
+        filterArray = [...imageTypes, ...videoTypes, ...audioTypes, ...documentTypes]
+      }else{
+        filterArray = getFilterArray()
       }
 
       const myFiles = await getFilesSearch(user.id, imageSearch, filterArray);
@@ -292,7 +304,7 @@ async function downloadAndZip() {
           <div className='overlay' onClick={() => setShowFiles(false)}>
           </div>
         }
-          <div className='center-absolute' style={{width:'100%', maxWidth:'900px'}}>
+          <div className='center-absolute' style={{width:'100%', maxWidth:'900px', zIndex:'1000'}}>
             <div className="card" onClick={(e) => e.stopPropagation()}>
               <div style={{display:'flex', padding:'15px'}}>
                 <div style={{flex:1, flexDirection:'column', display:'flex'}}>
@@ -406,6 +418,22 @@ async function downloadAndZip() {
                       </div>
                       <div style={{marginLeft:'5px'}}>
                         <Checkbox
+                          id={'documents'}
+                          className="form-check-input"
+                          type="checkbox"
+                          onChange={() => checkboxFunction('documents')}
+                          checked={fileFilters.includes('documents')}
+                          sx={{
+                            color: 'var(--md-sys-color-secondary)',
+                            '&.Mui-checked': {
+                              color: 'var(--md-sys-color-primary)',
+                            },
+                          }}
+                        />
+                        <span style={{marginLeft:'5px'}}>documents</span>
+                      </div>
+                      <div style={{marginLeft:'5px'}}>
+                        <Checkbox
                           id={'iimages'}
                           className="form-check-input"
                           type="checkbox"
@@ -448,6 +476,7 @@ async function downloadAndZip() {
                               {file.file_type === 'application/pdf'&&
                                 <>
                                   <img className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={'/pdf-icon.png'}/>
+                                  <p style={{fontSize:'.8em'}}> {file.file_name}</p>
                                 </>
                               }
                               {(file.file_type === 'video/mp4' || file.file_type === 'video/webm' || isVideo)&&

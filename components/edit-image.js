@@ -26,8 +26,7 @@ export default function EditImage({ initialPath }) {
 
     //console.log('currentPath', currentPath)
 
-    console.log('updatedPath', updatedPath);
-    console.log('currentPath', currentPath);
+
 
 
     if (updatedFile === currentFile) {

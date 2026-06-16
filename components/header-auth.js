@@ -31,6 +31,7 @@ export default async function AuthButton() {
             >
               <Link href="/sign-in">Sign in</Link>
             </button>
+            {/*}
             <button
               className="btn"
               variant={"default"}
@@ -38,6 +39,7 @@ export default async function AuthButton() {
             >
               <Link href="/sign-up">Sign up</Link>
             </button>
+            */}
           </div>
         </div>
       </>
@@ -63,9 +65,11 @@ export default async function AuthButton() {
       <button style={{marginRight:"10px", marginLeft:'10px'}} className="btn primary">
         <Link href="/sign-in">Sign in</Link>
       </button>
+      {/*}
       <button className="btn primary">
         <Link href="/sign-up">Sign up</Link>
       </button>
+      */}
     </div>
   )
 }

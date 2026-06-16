@@ -23,6 +23,7 @@ import { usePathname } from 'next/navigation';
 const imageTypes = ['image/png', 'image/jpeg']
 const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
 const videoTypes = ['video/mp4', 'video/webm']
+const documentTypes = ['application/pdf']
 
 export default function MyFilesPageComponent() {
   const pathname = usePathname();
@@ -34,26 +35,38 @@ export default function MyFilesPageComponent() {
   const [fileFilters, setFileFilters] = useState([])
   const [imageSearch, setImageSearch] = useState('')
 
+  const getFilterArray = () => {
+
+    const filterArray = []
+
+    if (fileFilters.includes('images')){
+      filterArray.push(...imageTypes)
+    }
+
+    if (fileFilters.includes('videos')){
+      filterArray.push(...videoTypes)
+    }
+
+    if (fileFilters.includes('audio')){
+      filterArray.push(...audioTypes)
+    }
+
+    if (fileFilters.includes('documents')){
+      filterArray.push(...documentTypes)
+    }
+
+    return filterArray
+
+  }
+
 
   const getData = async () => {
 
+    if (!user?.id) return
+
     try {
 
-      const filterArray = []
-
-      if (fileFilters.includes('images')){
-        filterArray.push(...imageTypes)
-      }
-
-      if (fileFilters.includes('videos')){
-        filterArray.push(...videoTypes)
-      }
-
-      if (fileFilters.includes('audio')){
-        filterArray.push(...audioTypes)
-      }
-
-      const myFiles = await getFiles(user.id, filterArray);
+      const myFiles = await getFiles(user.id, getFilterArray());
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
@@ -62,25 +75,19 @@ export default function MyFilesPageComponent() {
 
 
   const getSearchData = async () => {
+
+    if (!user?.id) return
+
+
     try{
-      let filterArray = []
 
-      if (fileFilters.includes('images')){
-        filterArray.push(...imageTypes)
-      }
-
-      if (fileFilters.includes('videos')){
-        filterArray.push(...videoTypes)
-      }
-
-      if (fileFilters.includes('audio')){
-        filterArray.push(...audioTypes)
-      }
-
+      let filterArray
 
 
       if (fileFilters.length === 0){
-        filterArray = [...imageTypes, ...videoTypes, ...audioTypes]
+        filterArray = [...imageTypes, ...videoTypes, ...audioTypes, ...documentTypes]
+      }else{
+        filterArray = getFilterArray()
       }
 
       const myFiles = await getFilesSearch(user.id, imageSearch, filterArray);

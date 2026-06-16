@@ -25,7 +25,23 @@
   fill: rgb(186 26 26);
 }
 
+.unselectable {
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none;     /* IE 10 and 11 */
+  user-select: none;         /* Standard syntax for Chrome, Firefox, and Edge */
+}
 
+#drag-area {
+position: relative;
+cursor:crosshair;
+}
+
+ #select-box {
+   border: 1px solid var(--md-sys-color-tertiary);
+   background: rgba(129, 74, 135, 0.2);
+   position: absolute;
+   display: none;
+ }
 
 html,
 body {
@@ -1058,7 +1074,10 @@ h2{
   aspect-ratio: 16 / 9; /* Common horizontal layout */
 }
 
-.media-image.active,
+img.media-image.active{
+    border: var(--active-border-width) solid var(--md-sys-color-primary);
+}
+
 .media.active img,
 .media-image.active img{
   border: var(--active-border-width) solid var(--md-sys-color-primary);

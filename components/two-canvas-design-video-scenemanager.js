@@ -2949,6 +2949,7 @@ const onDragOver = (e) => {
 }
 
 const onDragStart = (data) => {
+  console.log('data', data)
   setDragMedia(data);
 };
 
@@ -3521,6 +3522,9 @@ const loadPost = async (postData) => {
 
 
 const onDrop = async(e) => {
+
+  console.log('dragMedia', dragMedia)
+
   if (dragMedia){
     if (dragMedia.file_type === 'video/mp4' || dragMedia.file_type === 'video/webm'){
       addVideo(dragMedia)
@@ -11405,9 +11409,20 @@ const FeedsPanel = ({
                   margin: '2% 0',
                   borderRadius: 'var(--input-border-radius)'
                 }}
+                crossOrigin="anonymous"
                 draggable
-                onDragStart={() => onDragStart({ type:'post', data: { ...post, ...facebook } } ) }
+                onDragStart={(e) => {
+                  console.log(e.dataTransfer.effectAllowed);
+
+                  e.dataTransfer.setData('text/plain', post.id.toString());
+                  onDragStart({
+                    type: 'post',
+                    data: { ...post, ...facebook }
+                  });
+                }}
                 src={post.image_url}
+                onLoad={() => console.log('loaded', post.image_url)}
+                onError={() => console.log('error', post.image_url)}
               />
             </div>
           )

@@ -460,6 +460,10 @@ export const Scheduler = ({user})=>{
   const [loader, setLoader] = useState(false)
 
 
+
+
+
+
   const getNotifications =  async () => {
 
     const onesignalDeleteResponse = await fetch('/api/one-signal/get-notifications', {
@@ -1647,6 +1651,10 @@ const Share = ({
     const publicationId = postData?.database_info?.post_publications_id??null
     const channelId = postData?.platform_account?.id
     const channel = postData?.platform_account
+
+    useEffect(()=>{
+        console.log('media', media)
+    }, [media])
 
   const getPostInfo = async () => {
 
@@ -3545,6 +3553,8 @@ const MediaList = ({
 
     useEffect(()=>{
 
+      console.log('media', media)
+
       setFiles(media)
 
       if (media.length !== 0 && publicationId){
@@ -3564,7 +3574,7 @@ const MediaList = ({
         checkInstagramImages(media)
       }
 
-    },[media, channelPreviews])
+    },[files, channelPreviews])
 
 
     useEffect(()=>{
@@ -3573,7 +3583,7 @@ const MediaList = ({
         checkPostType(media)
       }
 
-    },[postType, media])
+    },[postType, files])
 
 
 
