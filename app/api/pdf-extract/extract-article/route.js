@@ -1,4 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+
 import { v4 as uuidv4 } from 'uuid'
 
 // Wait for pdfjs NodePackages to initialize, then inject canvas
@@ -7,8 +9,10 @@ import sharp from 'sharp';
 //import fs from 'fs/promises';
 //import path from 'path';
 
-//pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
-
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  pdfjsWorker,
+  import.meta.url
+).toString();
 
 //import { Path2D } from 'path2d';
 
@@ -158,7 +162,8 @@ export async function POST(req) {
     const loadingTask = pdfjsLib.getDocument({
       url: pdfUrl,
       CanvasFactory: CustomCanvasFactory,  // capital C, class not instance
-       disableWorker: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
   });
 
     const pdf = await loadingTask.promise;

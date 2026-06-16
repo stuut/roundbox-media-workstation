@@ -8,9 +8,9 @@ import "react-pdf/dist/esm/Page/TextLayer.css"
 //import "./Sample.css"
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
+  'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
-).toString()
+).href;
 
 const options = {
   cMapUrl: "/cmaps/",

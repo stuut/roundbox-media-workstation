@@ -1,12 +1,9 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+
 import { v4 as uuidv4 } from 'uuid'
-// Wait for pdfjs NodePackages to initialize, then inject canvas
+
 const { getDocument } = pdfjsLib;
-
-
-
-
-//pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
 
 import { createCanvas } from 'canvas';
 
@@ -16,9 +13,14 @@ global.Path2D = Path2D;
 
 
 
+
 export const runtime = 'nodejs'; // not 'edge'
 
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  pdfjsWorker,
+  import.meta.url
+).toString();
 
 
 async function extractImagesCanvas(rect, page, removeWhiteSpace){
@@ -149,12 +151,12 @@ export async function POST(req) {
         return  Response.json({error: "Missing pdf"},{status: 400});
     }
 
-    //const pdfData = Buffer.from(pdfBase64, "base64");
+    pdfjsLib.GlobalWorkerOptions.workerPort = null;
 
     const loadingTask = pdfjsLib.getDocument({
       url: pdfUrl,
-    //  CanvasFactory: CustomCanvasFactory,  // capital C, class not instance
-       disableWorker: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
     });
 
     const pdf = await loadingTask.promise;
@@ -168,9 +170,6 @@ export async function POST(req) {
     // -------------------------
 
     const image = await extractImagesCanvas(rect, page, removeWhiteSpace)
-
-
-
 
 
 
