@@ -36,10 +36,6 @@ export const Caption = ({
   const isFacebookPost = postData?.platform_account?.platform === 'facebook'
   const isInstagramPost = postData?.platform_account?.platform === 'instagram'
 
-  console.log('isInstagramPost', isInstagramPost)
-
-  console.log("postData.status === 'published'", postData.status === 'published')
-
 
   useEffect(() => {
     const isInstagram = selectedSocialPages.some(

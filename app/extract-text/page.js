@@ -1,7 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
-import dynamic from 'next/dynamic';
+import { redirect } from "next/navigation";
 
-import PdfViewerComponent from '@/components/pdf-viewer-component'
 import PdfTextExtractor from '@/components/pdf-text-extractor'
 
 

@@ -109,7 +109,7 @@ export const PDFViewer = ({pdfUrl, sizeCallBack, setPageNumberCallBack}) => {
           width={ containerWidth ? Math.min(containerWidth, maxWidth) : maxWidth} loading={() => renderLoader()}/>
           </Document>
         </div>
-        <div style={{textAlign:'center'}}>
+        <div className='pdf-buttons' style={{textAlign:'center'}}>
           <p style={{margin:'0px 0px 15px 0px'}}>
             Page {pageNumber || (numPages ? 1 : '--')} of {numPages || '--'}
           </p>

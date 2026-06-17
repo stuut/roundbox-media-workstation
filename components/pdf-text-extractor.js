@@ -14,7 +14,8 @@ import { showInfo } from '@/lib/toast';
 import moment from "moment";
 import dynamic from 'next/dynamic'
 import { storeFileInfo } from "@/lib/supabase";
-
+import * as contentful from 'contentful'
+import Dropdown from "@/components/dropdown"
 var WPAPI = require( 'wpapi' );
 import {
   X,
@@ -25,7 +26,8 @@ import {
   Trash2,
   Crop,
   EllipsisVertical,
-  Download
+  Download,
+  FileImage
 } from 'lucide-react';
 //const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
 import { PDFViewer } from "@/components/pdf-viewer"
@@ -58,6 +60,19 @@ export const checkRatio = (w, h) => {
 
     return true;
 }
+
+function removeTags(str) {
+  if ((str === null) || (str === ''))
+      return false;
+  else
+      str = str.toString();
+
+  // Regular expression to identify HTML tags in
+  // the input string. Replacing the identified
+  // HTML tag with a null string.
+  return str.replace(/(<([^>]+)>)/ig, '');
+}
+
 
 const FEEDS = [
   {
@@ -184,6 +199,113 @@ export default function PdfTextExtractor({user}) {
   const editImageData = useRef(null)
   const evtSourceRef = useRef(null);
   const [loader, setLoader] = useState(false)
+  const [contentfulAuthorsList, setContentfulAuthorsList] = useState([]);
+  const [contentfulCategoriesList, setContentfulCategoriesList] = useState([]);
+  const [contentfulTagsList, setContentfulTagsList] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [categoriesNested, setCategoriesNested] = useState([]);
+  const [showMedia, setShowMedia] = useState(false);
+  const [searchMedia, setSearchMedia] = useState('');
+  const [mediaList, setMediaList] = useState([]);
+  const [imagesDragOver, setImagesDragOver] = useState(false);
+
+  const createWPAPI = () => {
+    let wpapiUrl
+    if (!selectedFeed.website.endsWith("/")){
+      wpapiUrl = 'https://' + selectedFeed.website + '/wp-json'
+    }else{
+      wpapiUrl = 'https://' + selectedFeed.website+'wp-json'
+    }
+    var wp = new WPAPI({
+        endpoint: wpapiUrl,
+        username: selectedFeed.username,
+        password: selectedFeed.password,
+    });
+    return wp
+
+  }
+
+
+  const getMedia = async (e) => {
+    e.preventDefault();
+    setMediaList([])
+
+  if (selectedFeed.CMSType === 'wordpress'){
+    var wp = createWPAPI()
+    wp.media().perPage(100).search(searchMedia).get().then(function( response ) {
+      const updateImages = response.map((entry, index) => {
+
+        console.log('entry', entry)
+
+          return {
+            id : entry.id,
+            file_name : entry.filename,
+            file_url : entry.source_url,
+            width: entry.media_details.width,
+            height: entry.media_details.height,
+            caption: entry.caption.rendered?removeTags(entry.caption.rendered):''
+          }
+      })
+
+      setMediaList(updateImages)
+    })
+  }else{
+
+    let client = contentful.createClient({
+        space: selectedFeed.spaceId,
+        accessToken: selectedFeed.accessToken,
+      })
+      async function getAssetsWithSearchTerm(searchTerm) {
+        try {
+          const response = await client.getAssets({
+            query: searchTerm
+          });
+
+          return response.items
+        } catch (error) {
+          console.error('Error fetching assets:', error);
+        }
+      }
+
+      const images = await getAssetsWithSearchTerm(searchMedia);
+
+
+      const updateImages = images.map((entry, index) => {
+
+            console.log('images', entry.fields.file.fileName)
+
+            return {
+              id : entry.sys.id,
+              file_name : entry.fields.file.fileName,
+              file_url : entry.fields.file.url,
+              width: entry.fields.file.details.image?entry.fields.file.details.image.width:'',
+              height: entry.fields.file.details.image?entry.fields.file.details.image.height:'',
+              caption: entry.fields.description
+            }
+      })
+      setMediaList(updateImages)
+  }
+}
+
+
+
+  const getContentfulData = async (data, contentType) => {
+    let client = contentful.createClient({
+        space: data.spaceId,
+        accessToken: data.accessToken,
+      })
+    const response = await client.getEntries({
+      'content_type': contentType,
+      'order': 'sys.updatedAt',
+       'limit': '1000',
+      'include': '10',
+    })
+
+
+    return response.items??[]
+}
+
+
 
   async function downloadImagesAsZip() {
     // 1. Initialize JSZip
@@ -197,6 +319,10 @@ export default function PdfTextExtractor({user}) {
     for (const image of images) {
       if (image.file_url.startsWith('data:image/')){
         const rawBase64 = image.file_url.split(',')[1];
+
+
+
+
         imageFolder.file(image.file_name, rawBase64, { base64: true });
       }else{
         const response = await fetch(image.file_url);
@@ -318,20 +444,13 @@ async function downloadImage(image) {
 
 
   const addNewFile = async (files) => {
-
     const file = files[0]
     if (file.file_type === 'application/pdf'){
       setpdfUrl(file.file_url)
     }else if (file.file_type === 'image/png' || file.file_type === 'image/jpeg'){
-
       const checkedImages = await checkInstagramImages(files)
-
-
-
       setImages(images => [...checkedImages, ...images])
-
     }
-
     setSelectedFiles([])
   }
 
@@ -344,79 +463,69 @@ async function downloadImage(image) {
 
 
   const onMouseDown = (event) => {
+    if (event.target.closest('.media-menu')) return;
+    if (event.target.closest('.pdf-buttons')) return;
+    const rect = dragAreaRef.current.getBoundingClientRect();
+    startXRef.current = event.clientX - rect.left;
+    startYRef.current = event.clientY - rect.top;
+
+    const selectBox = selectBoxRef.current;
+    selectBox.style.left = `${startXRef.current}px`;
+    selectBox.style.top = `${startYRef.current}px`;
+    selectBox.style.width = '0px';
+    selectBox.style.height = '0px';
+    selectBox.style.display = 'block';
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+
+  const onMouseMove = (event) => {
+    const rect = dragAreaRef.current.getBoundingClientRect();
+    const currentX = event.clientX - rect.left;
+    const currentY = event.clientY - rect.top;
+
+    const width = Math.abs(currentX - startXRef.current);
+    const height = Math.abs(currentY - startYRef.current);
+    const left = Math.min(startXRef.current, currentX);
+    const top = Math.min(startYRef.current, currentY);
+
+    const selectBox = selectBoxRef.current;
+    selectBox.style.width = `${width}px`;
+    selectBox.style.height = `${height}px`;
+    selectBox.style.left = `${left}px`;
+    selectBox.style.top = `${top}px`;
+  };
+
+  const onMouseUp = (event) => {
   const rect = dragAreaRef.current.getBoundingClientRect();
-  startXRef.current = event.clientX - rect.left;
-  startYRef.current = event.clientY - rect.top;
+  const endX = event.clientX - rect.left;
+  const endY = event.clientY - rect.top;
 
-  const selectBox = selectBoxRef.current;
-  selectBox.style.left = `${startXRef.current}px`;
-  selectBox.style.top = `${startYRef.current}px`;
-  selectBox.style.width = '0px';
-  selectBox.style.height = '0px';
-  selectBox.style.display = 'block';
+  const selectionArea = {
+    startX: Math.min(startXRef.current, endX),
+    startY: Math.min(startYRef.current, endY),
+    endX: Math.max(startXRef.current, endX),
+    endY: Math.max(startYRef.current, endY),
+  };
 
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-};
+  sendAreaData(selectionArea);
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onMouseUp);
 
-
-const onMouseMove = (event) => {
-  const rect = dragAreaRef.current.getBoundingClientRect();
-  const currentX = event.clientX - rect.left;
-  const currentY = event.clientY - rect.top;
-
-  const width = Math.abs(currentX - startXRef.current);
-  const height = Math.abs(currentY - startYRef.current);
-  const left = Math.min(startXRef.current, currentX);
-  const top = Math.min(startYRef.current, currentY);
-
-  const selectBox = selectBoxRef.current;
-  selectBox.style.width = `${width}px`;
-  selectBox.style.height = `${height}px`;
-  selectBox.style.left = `${left}px`;
-  selectBox.style.top = `${top}px`;
-};
-
-const onMouseUp = (event) => {
-const rect = dragAreaRef.current.getBoundingClientRect();
-const endX = event.clientX - rect.left;
-const endY = event.clientY - rect.top;
-
-const selectionArea = {
-  startX: Math.min(startXRef.current, endX),
-  startY: Math.min(startYRef.current, endY),
-  endX: Math.max(startXRef.current, endX),
-  endY: Math.max(startYRef.current, endY),
-};
-
-
-sendAreaData(selectionArea);
-
-
-document.removeEventListener('mousemove', onMouseMove);
-document.removeEventListener('mouseup', onMouseUp);
-
-//const selectBox = selectBoxRef.current;
-//selectBox.style.display = 'none';
-};
-
-
+  };
 
 useEffect(() => {
   if (pdfUrl){
     const dragArea = dragAreaRef.current;
     dragArea.addEventListener('mousedown', onMouseDown);
-
-
-
       return () => {
         dragArea.removeEventListener('mousedown', onMouseDown);
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
       };
-
   }
-
 }, [pdfUrl]);
 
 
@@ -953,6 +1062,14 @@ useEffect(()=>{
 
   imagesRef.current = images
 
+  if (selectedFeedRef.current.CMSType === 'wordpress'){
+      setTinymceContent('')
+      addWordPressArticle(null, images)
+  }else if (selectedFeedRef.current.CMSType === 'contentful'){
+      handleMDEditorChange('')
+      addContentfulArticle(null, images)
+  }
+
 },[images])
 
 
@@ -981,12 +1098,45 @@ useEffect(()=>{
 
 },[selectedFeed])
 
-const onFeedChange = (value) => {
+const onFeedChange = async(value) => {
+  setMediaList([])
   const feed = FEEDS.find(item => item.label === value);
   setSelectedFeed(feed);
 
 
+  if (feed.CMSType === 'wordpress'){
+
+
+  }
+
+  if (feed.CMSType === 'contentful'){
+
+    const categories = await getContentfulData(feed, 'category')
+
+    setContentfulCategoriesList(categories)
+
+    const authors = await getContentfulData(feed, 'author')
+
+    setContentfulAuthorsList(authors)
+
+    const tags = await getContentfulData(feed, 'tag')
+
+    setContentfulTagsList(tags)
+
+  }
+
+
 }
+
+const handleImagesDragOver = (event) => {
+  event.preventDefault();
+  setImagesDragOver(true)
+};
+
+const handleImagesDragLeave = (event) => {
+  event.preventDefault();
+  setImagesDragOver(false)
+};
 
 
 const onTinyEditorChange = function (content, editor) {
@@ -1001,6 +1151,8 @@ const handleEditorInit = (event, editor) => {
   const handleDragOver = (event) => {
     event.preventDefault();
   };
+
+
 
 // drop on editor
   const handleDrop = (event) => {
@@ -1092,19 +1244,12 @@ const handleMDEditorChange = (newValue) => {
 const removeArticleImage = (id) => {
   setImages(prev => prev.filter((image)=>image.id !== id))
 
-  const newArticleImages = images.filter((image)=>image.id !== id)
 
-  if (selectedFeedRef.current.CMSType === 'wordpress'){
-      setTinymceContent('')
-      addWordPressArticle(null, newArticleImages)
-  }else if (selectedFeedRef.current.CMSType === 'contentful'){
-      handleMDEditorChange('')
-      addContentfulArticle(null, newArticleImages)
-  }
 }
 
 const handleDragStart = (e, id, type) => {
   e.stopPropagation(); // Prevents parent drag event from triggering
+
   e.dataTransfer.setData('id', id);
   e.dataTransfer.setData('type', type);
 };
@@ -1112,11 +1257,20 @@ const handleDragStart = (e, id, type) => {
 const handleDrop = (e, id) => {
 
   e.preventDefault();
+
+  if (imagesDragOver){
+    setImagesDragOver(false)
+  }
+
+
   const draggedId = e.dataTransfer.getData('id');
   const draggedType = e.dataTransfer.getData('type');
 
+  console.log('id', id)
 
-  if (draggedId !== id) {
+  console.log('draggedId', draggedId)
+
+  if (id && draggedId !== id) {
     const updatedItems = [...images];
 
     const draggedItemIndex = images.findIndex(item => item.id === draggedId);
@@ -1170,6 +1324,30 @@ const handleDrop = (e, id) => {
 
       setImages(updatedItems);
     }
+  }else{
+
+
+    const newImage = mediaList.find((media)=>{
+
+      let checkId
+
+      if (typeof media.id === 'number') {
+        checkId = Number(draggedId)
+      }else{
+        checkId = draggedId
+      }
+
+      return media.id === checkId
+
+    })
+
+    console.log('newImage', newImage)
+
+    if (newImage){
+      setImages(prev => [ newImage, ...prev]);
+    }
+
+
   }
 };
 
@@ -1350,6 +1528,7 @@ if (data.publicUrl) {
 
 
   return (
+    <>
     <div>
       <div className='properties-container'>
         <label className='label'>Publication</label>
@@ -1384,8 +1563,6 @@ if (data.publicUrl) {
             display: 'inline-flex',
             alignItems:'center'
           }}>
-
-
                <Checkbox
                  style={{marginLeft: '0px', marginRight:'5px'}}
                  className="form-check-input"
@@ -1401,8 +1578,6 @@ if (data.publicUrl) {
                  }}
                  />
                  <label className="form-check-label"> Remove Whitespace</label>
-
-
          </div>
        }
          </>
@@ -1429,11 +1604,19 @@ if (data.publicUrl) {
             </div>
         </div>
         <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px'}}>
-          <button className="btn primary btn-sm" onClick={() => {
-            setSelectedFiles([])
-            setFilePicker(true)
-            setShowFiles(prevState => !prevState)
-          }}>Add Images</button>
+          <Dropdown placeholder="Add Images">
+            <button className="btn btn-sm clear" onClick={() => {
+              setSelectedFiles([])
+              setFilePicker(true)
+              setShowFiles(prevState => !prevState)
+            }}>From My Files</button>
+            <button className={`${'btn btn-sm'} ${showMedia? 'primary':'clear'}`}
+              onClick={() => setShowMedia(prevShowMedia => !prevShowMedia)}
+              disabled={selectedFeed === null}
+            >Show Media
+            </button>
+
+          </Dropdown>
           {images.length !== 0&&
             <div>
               <button style={{marginTop:'0px'}} className="btn secondary btn-sm" onClick={downloadImagesAsZip}>
@@ -1441,28 +1624,65 @@ if (data.publicUrl) {
               </button>
             </div>
           }
+          <div
+            className={`${imagesDragOver?'active':''} images-container`}
+            onDragOver={handleImagesDragOver}
+            onDragLeave={handleImagesDragLeave}
+            onDrop={(e) => handleDrop(e, null)}
+            style={{
+              position:'relative',
+              minHeight:images.length === 0?'150px':'0px',
+              backgroundColor:images.length === 0?'var(--md-sys-color-surface-container)':'transparent',
+              borderRadius: 'var(--input-border-radius)',
+            }}
+          >
+            {images.length === 0 &&
+              <div
+                style={{
+                  top:'50%',
+                  left:'50%',
+                  transform:'translate(-50%, -50%)',
+                  position:'absolute',
+                  display:'flex',
+                  flexDirection:'column',
+                  alignItems: 'center'
+                }}
+              >
+              <FileImage size={50}/>
+              <p><strong> No Images </strong></p>
+            </div>
+            }
 
-          {images.length !== 0&&
-            <>
-              {images.map((image, index)=>{
-                return(
-                    <ImageComponent
-                    key={image.id}
-                    image={image}
-                    index={index}
-                    removeCallback={removeArticleImage}
-                    handleDragStart={handleDragStart}
-                    handleDrop={handleDrop}
-                    handleDragOver={handleDragOver}
-                    updateCaption={updateCaption}
-                    editMedia={editMedia}
-                    editInPhotoshop={editInPhotoshop}
-                    downloadImage={downloadImage}
-                  />
-                )
-              })}
-            </>
-          }
+            {images.length !== 0 &&
+              <>
+                {images.map((image, index)=>{
+
+                  let margin=true
+
+                  if (index+1 === images.length){
+                    margin=false
+                  }
+
+                  return(
+                      <ImageComponent
+                      key={image.id}
+                      image={image}
+                      index={index}
+                      removeCallback={removeArticleImage}
+                      handleDragStart={handleDragStart}
+                      handleDrop={handleDrop}
+                      handleDragOver={handleDragOver}
+                      updateCaption={updateCaption}
+                      editMedia={editMedia}
+                      editInPhotoshop={editInPhotoshop}
+                      downloadImage={downloadImage}
+                      margin={margin}
+                      />
+                    )
+                })}
+              </>
+            }
+          </div>
         </div>
 
         <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
@@ -1596,11 +1816,21 @@ if (data.publicUrl) {
               </>
             }
 
-
         </div>
       </div>
       }
     </div>
+    {showMedia &&
+      <MediaPanel
+        mediaList={mediaList}
+        setShowMedia={setShowMedia}
+        getMedia={getMedia}
+        searchMedia={searchMedia}
+        setSearchMedia={setSearchMedia}
+        handleDragStart={handleDragStart}
+      />
+    }
+  </>
   );
 }
 
@@ -1615,7 +1845,8 @@ const ImageComponent  = ({
   updateCaption,
   editMedia,
   editInPhotoshop,
-  downloadImage
+  downloadImage,
+  margin
 }) => {
 
   const [caption, setCaption] = useState(image.caption)
@@ -1632,7 +1863,9 @@ const ImageComponent  = ({
       draggable
       onDrop={(e) => handleDrop(e, image.id)}
       className="properties-container"
-      style={{marginBottom:'20px'}}
+      style={{
+        marginBottom:margin?'20px':'0px'
+      }}
       onDragStart={(e) => handleDragStart(e, image.id, 'container')}
       onDragOver={handleDragOver}
     >
@@ -1664,6 +1897,96 @@ const ImageComponent  = ({
 
         <Trash2 style={{marginLeft:'10px'}} size={30} onClick={() => removeCallback(image.id)}/>
 
+      </div>
+    </div>
+  )
+}
+
+
+const MediaPanel = ({
+  mediaList,
+  setShowMedia,
+  getMedia,
+  searchMedia,
+  setSearchMedia,
+  handleDragStart
+
+}) => {
+
+  const mediaPanelRef = useRef(null);
+
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (mediaPanelRef.current && !mediaPanelRef.current.contains(event.target)) {
+        setShowMedia(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={mediaPanelRef}
+      className='dropshadow media-menu'
+        style={{
+        background:'#ffffff',
+        position: 'absolute',
+        top: '0px',
+        left: '0px',
+        height: '100%',
+        width:'400px',
+        padding: '100px 25px',
+        overflowY: 'scroll',
+        zIndex:1000
+      }}>
+      <p style={{display:'block'}} onClick={() => setShowMedia(false)}>CLOSE</p>
+      <form onSubmit={getMedia}>
+        <div style={{marginBottom:'10px', width:'100%'}}>
+          <input style={{
+            width:"100%",
+
+            margin:'15px 0px',
+            fontSize: '.8em'
+          }}
+            id='search-media'
+            type="text"
+            className={'form-input'}
+
+            value={searchMedia}
+            onChange={(e) => setSearchMedia(e.target.value)}
+            placeholder="Search..."
+          />
+        </div>
+        <button style={{marginTop:'15px'}} className="btn primary btn-sm" type="submit" disabled={searchMedia.length>0?false:true}>Search</button>
+      </form>
+      <div  style={{
+        display:'flex',
+        width:'100%',
+        flexWrap: 'wrap',
+       }}>
+        {
+          mediaList.map((media, index) => {
+            return(
+              <div draggable onDragStart={(e) => handleDragStart(e, media.id, 'image')} key={index} style={{padding:'10px', width:'50%'}}>
+                  <img
+                    id={media.id}
+                    data-id={media.id}
+                    data-image-type='media'
+                    width={media.width}
+                    height={media.height}
+                    style={{
+                      width:'100%',
+                      height:'auto',
+                      borderRadius: 'var(--input-border-radius)',
+                    }}
+                    src={media.file_url}
+                  />
+              </div>
+            )
+          })
+        }
       </div>
     </div>
   )

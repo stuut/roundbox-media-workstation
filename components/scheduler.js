@@ -50,7 +50,8 @@ import {
   SquarePen,
   Trash2,
   Crop,
-  EllipsisVertical
+  EllipsisVertical,
+  RefreshCcw
 } from 'lucide-react';
 
 const FEEDS = [
@@ -1263,7 +1264,10 @@ const FeedsPanel = ({
 
 
 
-    const getFeed = async (selectedFeed, dateFilter) => {
+    const getFeed = async (selectedFeed, dateFeed = dateFilter) => {
+
+      if (!selectedFeed) return
+
 
       setNoPosts(false)
       setPosts([])
@@ -1292,7 +1296,7 @@ const FeedsPanel = ({
           'include': '10',
         })
 
-        let date = moment(dateFilter).format('YYYY-MM-DD');
+        let date = moment(dateFeed).format('YYYY-MM-DD');
 
         var filterPosts = response.items
 
@@ -1315,8 +1319,6 @@ const FeedsPanel = ({
            });
         }
 
-
-
         const posts = []
 
         for (const item of filterPosts) {
@@ -1324,8 +1326,6 @@ const FeedsPanel = ({
           const url = new URL(urlString);
           const fileName = url.pathname.split('/').pop();
           const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
-
-
 
           posts.push({
             id: item.sys.id,
@@ -1361,10 +1361,11 @@ const FeedsPanel = ({
         }
 
         const checkedPosts = checkCalendarEventsDuplicate(posts)
+
         setPosts(checkedPosts)
       }else if (selectedFeed.CMSType === 'wordpress'){
 
-        let date = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
+        let date = moment(dateFeed).format('YYYY-MM-DD')+'T00:00:00';
 
         const wpapiUrl = 'https://' + selectedFeed.website + '/wp-json'
 
@@ -1397,8 +1398,8 @@ const FeedsPanel = ({
 
           if (selectedFeed.useDateFilter){
 
-            const start = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
-            const end = moment(dateFilter).format('YYYY-MM-DD')+'T23:59:59';
+            const start = moment(dateFeed).format('YYYY-MM-DD')+'T00:00:00';
+            const end = moment(dateFeed).format('YYYY-MM-DD')+'T23:59:59';
 
             response = await wp.posts()
               .embed()
@@ -1503,30 +1504,35 @@ const FeedsPanel = ({
 
   return(
     <div>
-      <label className='label'>Publication</label>
-      <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
-        {FEEDS.map((feed, index)=>{
-          return <option key={index} value={feed.label}>{feed.label}</option>
-        })
-        }
-      </select>
+        <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
+            <div>
+              <label className='label'>Publication</label>
+              <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
+                {FEEDS.map((feed, index)=>{
+                  return <option key={index} value={feed.label}>{feed.label}</option>
+                })
+                }
+              </select>
+            </div>
+            <RefreshCcw onClick={() => getFeed(selectedFeed, dateFilter)} style={{marginTop: '20px'}}/>
+          </div>
 
         {selectedFeed.useDateFilter&&
-          <div>
-            <label className='label'>Publication Date Filter</label>
-              <DatePicker
-                selected={dateFilter}
-                onChange={(date) => setDateFilterFunction(date)}
-                className={'form-input'}
-                dateFormat="dd/MM/yyyy"
-              />
-          </div>
+            <div>
+              <label className='label'>Publication Date Filter</label>
+                <DatePicker
+                  selected={dateFilter}
+                  onChange={(date) => setDateFilterFunction(date)}
+                  className={'form-input'}
+                  dateFormat="dd/MM/yyyy"
+                />
+            </div>
+
         }
 
       {(posts.length>0 && selectedFeed.useEventImport) &&
       <button className="btn btn-sm secondary" onClick={importEvents}>Import Events</button>
       }
-      {/*}<button className="btn btn-sm secondary" onClick={checkEvents}>check Events</button>*/}
 
       <div style={{
         display: 'flex',
@@ -1573,7 +1579,7 @@ const ExternalEvent = memo(({data}) => {
   };
 },[]);
 
-
+  console.log('data.media[0]', data.media[0])
 
   return (
     <div ref={elRef} style={{width:'48%'}} className={`post_image ${data.status}`}>
@@ -1586,7 +1592,8 @@ const ExternalEvent = memo(({data}) => {
         }}
         draggable
         src={data.media[0].file_url}
-        alt={data.media[0].title}
+        alt={data.media[0].file_name}
+        title={data.title}
       />
     </div>
   )
@@ -2016,7 +2023,6 @@ const Share = ({
                 });
               }*/
 
-              console.log('mediaWithIds', mediaWithIds)
 
 
               for (const savedPostPublication of savedPostPublications) {
@@ -2583,6 +2589,8 @@ useEffect(() => {
 
 const addNewFiles = async(selectedFiles) => {
 
+  console.log('addNewFiles')
+
   const newFiles = selectedFiles.map((file)=>{
     return{
       source :'internal',
@@ -2797,8 +2805,7 @@ const addNewFiles = async(selectedFiles) => {
                 </div>
               </div>
 
-
-              {(postType === 'photos' || postType === 'video_reels')&&
+              {(postType === 'photos' || postType === 'video_reels' || selectedChannelPreview==='instagram')&&
 
                 <div
                   className={`properties-container ${(isInstagramPost || isOneSignalPost) && postData.status === 'published'?'disabled':''}`}
@@ -3243,10 +3250,23 @@ return(
 const ThreeDotMenu = ({styles, children}) => {
 
   const [open, setOpen] = useState(false)
+  const dropdownRef = useRef(null);
+
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
 
   return(
-    <div style={{position:'relative'}}>
+    <div ref={dropdownRef} style={{position:'relative'}}>
       <EllipsisVertical onClick={() => setOpen(prev => !prev)}/>
         {open &&
           <div style={{
@@ -3398,12 +3418,13 @@ const MediaList = ({
 
     const handleEditReplace = async(index, newItem) => {
 
-      item.source = 'internal'
+      console.log('handleEditReplace')
 
+
+      item.source = 'internal'
       setMedia(prevItems =>
         prevItems.map((item, i) => i === index ? newItem : item)
       );
-
 
       if (publicationId){
         const newMedia = await savePostFile({
@@ -3430,11 +3451,7 @@ const MediaList = ({
             );
         }
 
-
-
         showSuccess('Post Files Updated')
-
-
       }else{
         if (postId){
           setCalendarEvents(prev =>
@@ -3448,26 +3465,21 @@ const MediaList = ({
               )
             );
         }
-
       }
-
     };
 
 
-
-
     useEffect(() => {
-
       if (!displayEditItem && item) {
-
+          console.log('handle Edit Replace')
           handleEditReplace(editingIndex.current, item)
           setItem(null)
       }
-
     }, [displayEditItem, item]);
 
 
     const changeSortableState = (newState) => {
+      console.log('changeSortableState')
       setMedia(newState)
     }
 
@@ -3582,6 +3594,8 @@ const MediaList = ({
 
     const removeImage = async (index) => {
 
+      console.log('removeImage')
+
       setMedia(prev => prev.filter((_, i) => i !== index));
 
 
@@ -3665,6 +3679,8 @@ const MediaList = ({
               if (media.length === 1){
                 console.log('media startSSE', media)
               }
+
+              console.log('edit photoshop')
 
               setMedia(prevItems =>
                 prevItems.map((item, i) => item.id === editImageData.current.id ? newItem : item)

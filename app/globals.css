@@ -31,6 +31,10 @@
   user-select: none;         /* Standard syntax for Chrome, Firefox, and Edge */
 }
 
+.images-container.active{
+  border: 2px dashed var(--md-sys-color-primary);
+}
+
 #drag-area {
 position: relative;
 cursor:crosshair;

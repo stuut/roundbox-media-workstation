@@ -3332,26 +3332,25 @@ const applyTemplate = async(type, template) => {
         });
         const data = await res.json();
 
+        console.log('data', data)
 
+        let parse
 
-      //  const aiString = data.article.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+        parse = JSON.parse(data.article);
 
+        console.log('parse', parse)
 
-        if (isDev){
-          endpoint = '/api/gemma/post-video-generator'
+        try {
+          parse = JSON.parse(data.article);
+        } catch (e) {
+
         }
 
 
-        const parse = JSON.parse(data.article);
+        console.log('parse', parse)
 
 
-        let scenes = parse.scenes
-
-
-        if (isDev){
-          scenes = parse.script
-        }
-
+        let scenes = parse.script
 
 
         scenes.push({
@@ -10380,7 +10379,15 @@ const deleteCallback = (fileId) => {
             .map((file, index)=>{
 
             return (
-              <div key={file.id} className={`media_container ${label}`} style={{width:(file.file_type === 'image/png' || file.file_type === 'image/jpeg')?'48%':'99%', margin:'1%', position:'relative'}}>
+              <div key={file.id} className={`media_container ${label}`}
+                style={{
+                  width:(file.file_type === 'image/png' || file.file_type === 'image/jpeg')?'48%':'99%',
+                  margin:'1%',
+                  position:'relative',
+                  display: 'block',
+                  height: 'auto',
+                  backgroundColor: 'none',
+                }}>
                 <div style={{
                       position:'absolute',
                       right:'5px',
@@ -12609,6 +12616,19 @@ const ChannelSelector = ({userId, postInfo, callback}) => {
   const [socialPages, setSocialPages] = useState([])
   const [selectedChannelIds, setSelectedChannelIds] = useState([])
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
+  const dropdownRef = useRef(null);
+
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
 
 
@@ -12707,19 +12727,8 @@ const sortedSocialPages = useMemo(() => {
 
 
 return(
-  <>
-    {open &&
-      <div
-        onClick={() => setOpen(prev => !prev)}
-        style={{
-        position:'fixed',
-        height:'100%',
-        width:'100%',
-        left: '0px',
-        top: '0px',
-      }}/>
-    }
-    <div style={{position:'relative', zIndex:1}}>
+
+    <div ref={dropdownRef} style={{position:'relative', zIndex:1}}>
       <p className="font-label">Social Pages</p>
       <button style={{
         width:'100%',
@@ -12827,7 +12836,6 @@ return(
       </div>
     }
     </div>
-  </>
 )
 
 }

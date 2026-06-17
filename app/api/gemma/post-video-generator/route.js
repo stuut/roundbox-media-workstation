@@ -50,7 +50,7 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemma3",
+        model: "gemma4",
         messages: [
           {
             role: "system",
@@ -62,7 +62,23 @@ export async function POST(req) {
           },
         ],
         stream: false,
-        format: "json",
+        format: {
+            type: "object",
+            properties: {
+              script: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    type: { type: "string" },
+                    text: { type: "string" }
+                  },
+                  required: ["type", "text"]
+                }
+              }
+            },
+            required: ["script"]
+          },
         options: {
           temperature: 0.6,
         },
@@ -72,7 +88,11 @@ export async function POST(req) {
 
     const data = await response.json();
 
+    console.log('data', data)
+
      return Response.json({article: data?.message?.content?.trim() || ""},{status: 200});
+
+
 
   }catch(error){
       console.log(error)

@@ -126,7 +126,7 @@ async function extractImagesFromPdf(page, rect){
         if (img) {
           images.push({
             id: uuidv4(),
-            file_name: imgName,
+            file_name: imgName+'.jpg',
             file_type: 'image/jpeg',
             x,
             y,

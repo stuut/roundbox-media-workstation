@@ -65,7 +65,7 @@ export async function POST(req) {
               type: "object",
               additionalProperties: false,
               properties: {
-                scenes: {
+                script: {
                   type: "array",
                   minItems: 6,
                   maxItems: 6,
@@ -100,7 +100,7 @@ export async function POST(req) {
 
      const message = completion.choices[0]?.message?.content?.trim() || "";
 
-     return Response.json({article: message},{status: 307});
+     return Response.json({article: message},{status: 200});
 
   }catch(error){
       console.log(error)

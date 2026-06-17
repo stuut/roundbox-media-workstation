@@ -21,6 +21,18 @@ export const ChannelSelector = ({
   const [selectedChannelIds, setSelectedChannelIds] = useState([])
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [pageFilter, setPageFilter] = useState('')
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!userId) return
@@ -154,19 +166,8 @@ const sortedSocialPages = useMemo(() => {
 
 
 return(
-  <>
-    {open &&
-      <div
-        onClick={() => setOpen(prev => !prev)}
-        style={{
-        position:'fixed',
-        height:'100%',
-        width:'100%',
-        left: '0px',
-        top: '0px',
-      }}/>
-    }
-    <div style={{position:'relative'}}>
+
+    <div ref={dropdownRef} style={{position:'relative'}}>
       <button
         disabled={disabled}
         style={{
@@ -315,7 +316,6 @@ return(
       </div>
     }
     </div>
-  </>
 )
 
 }
