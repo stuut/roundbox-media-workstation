@@ -1579,7 +1579,6 @@ const ExternalEvent = memo(({data}) => {
   };
 },[]);
 
-  console.log('data.media[0]', data.media[0])
 
   return (
     <div ref={elRef} style={{width:'48%'}} className={`post_image ${data.status}`}>
@@ -1728,7 +1727,7 @@ const Share = ({
         endPoint = postData?.meta_data?.post_id
 
       }else if (postType === 'photos') {
-        endPoint = `${socialId}_${postData?.meta_data?.post_id}`
+        endPoint = `${channelId}_${postData?.meta_data?.post_id}`
       }
 
       if (!endPoint) return
@@ -3179,7 +3178,7 @@ const refreshShareAttachment = async () => {
       ogImage: facebookResponseJson.data?.image[0]?.url??null
     })
 
-
+    showSuccess('Attachment updated')
 }
 
 return(
@@ -3279,7 +3278,9 @@ const ThreeDotMenu = ({styles, children}) => {
             right: '100%',
             minWidth: '220px'
           }} className='dropshadow'>
-            {children}
+            <div onClick={()=>{setOpen(false)}}>
+              {children}
+            </div>
           </div>
         }
     </div>
@@ -3413,13 +3414,13 @@ const MediaList = ({
       setActiveTool(tool)
       setDisplayEditItem(true)
       editingIndex.current = index
+
+      console.log('media', media)
+
       setItem(media)
     }
 
     const handleEditReplace = async(index, newItem) => {
-
-      console.log('handleEditReplace')
-
 
       item.source = 'internal'
       setMedia(prevItems =>
@@ -3471,7 +3472,6 @@ const MediaList = ({
 
     useEffect(() => {
       if (!displayEditItem && item) {
-          console.log('handle Edit Replace')
           handleEditReplace(editingIndex.current, item)
           setItem(null)
       }
@@ -3736,6 +3736,12 @@ const MediaList = ({
       onDragOver={()=>onSortItems()}
       onDragStart={()=>onSortItems()}
       onDragEnd={()=>onSortItems()}
+      // Require holding down the item for 200ms before it moves
+      delay={200}
+      // Only apply this delay rule on mobile/touch screens
+      delayOnTouchOnly={true}
+      // Prevents minor micro-twitches on sensitive touchscreens from canceling the drag
+      touchStartThreshold={10}
       >
   {files.map((item, index) => {
     const isVideo = item?.file_type === "video/mp4" || item?.file_url?.match(/\.(mp4|mov|m4v)$/i);

@@ -25,8 +25,8 @@ import { Summary } from '@/components/summary'
 import Slider from '@mui/material/Slider';
 import { Caption } from '@/components/caption'
 import { getFilesSearch } from "@/lib/supabase";
-
-
+import { useEditItemContext } from "@/context/edit-item-context"
+import { formatR2Url } from "@/lib/format-rs-url"
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
   Film, Clock, Loader2, Trash2, Maximize2, Upload, Download, Music,
@@ -460,6 +460,7 @@ function calculateMinAnimationDuration({
 
 
 export const Danva = (({postData, user}, ref) => {
+  const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
 
   const upperRef = useRef(null);
   const lowerRef = useRef(null);
@@ -1510,6 +1511,9 @@ const onSelectScene = (id) => {
     imageSrc = null,
     videoSrc = null,
     mediaCaption = null,
+    mediaDataBaseId = null,
+    mediaFileName = null,
+    mediaFileType = null,
     animations = [],
     currentTime = 0,
     frames = [],
@@ -1570,6 +1574,9 @@ const onSelectScene = (id) => {
     this.imageSrc = imageSrc
     this.videoSrc = videoSrc
     this.mediaCaption = mediaCaption
+    this.mediaDataBaseId = mediaDataBaseId
+    this.mediaFileName = mediaFileName
+    this.mediaFileType = mediaFileType
     this.animations = animations
     this.currentTime = currentTime
     this.frames = frames
@@ -2206,7 +2213,13 @@ async updateImage(image){
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = image
+
+    const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+    const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+
+
+    img.src = proxiedUrl
 
     await img.decode(); // waits until fully loaded
 
@@ -2238,7 +2251,13 @@ async replaceImage(image){
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = image
+
+    const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+    const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+
+
+    img.src = proxiedUrl
 
     await img.decode(); // waits until fully loaded
     this.img = img;
@@ -2273,7 +2292,11 @@ async drawImageInit() {
 
       const img = new Image();
       img.crossOrigin = "anonymous";
-      img.src = this.imageSrc;
+
+      const key = this.imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+      const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+      img.src = proxiedUrl;
 
       await img.decode(); // waits until fully loaded
 
@@ -3097,6 +3120,7 @@ const createStoryScene = async (scene, image) => {
     if (postInfo.data.CTA_image !== null){
 
       const img = new Image();
+
       img.crossOrigin = "anonymous";
       img.src = postInfo.data.CTA_image;
       await img.decode(); // waits until fully loaded
@@ -3583,7 +3607,11 @@ const addImage = async (image) => {
     cy:lowerRef.current.height/2,
     imageSrc : image.file_url,
     type:'image',
-    mediaCaption:image.file_description??''
+    mediaCaption:image.file_description??'',
+    mediaDataBaseId:image.id??null,
+    mediaFileName:image.file_name??null,
+    mediaFileType:image.file_type??null,
+
   })
 
   try{
@@ -8790,10 +8818,36 @@ const editImage = () => {
 
   const activeElement = getActiveElement()
   if (!activeElement) return
-  setFileEdit(activeElement)
 
-  setShowFileEdit(true)
+  console.log('activeElement', activeElement)
+
+  const newFile={
+    id: activeElement.id,
+    file_url:activeElement.imageSrc,
+    file_type:activeElement.file_type,
+    file_description:activeElement.mediaCaption,
+    file_name: activeElement.mediaFileName,
+    database_id:activeElement.mediaDataBaseId,
+    source: "internal",
+    user_id: user.id,
+  }
+
+
+  setDisplayEditItem(true)
+  setItem(newFile)
 }
+
+const handleEditReplace = async(newItem) => {
+
+  console.log(newItem)
+}
+
+useEffect(() => {
+  if (!displayEditItem && item) {
+      handleEditReplace(item)
+      setItem(null)
+  }
+}, [displayEditItem, item]);
 
   return (
     <>

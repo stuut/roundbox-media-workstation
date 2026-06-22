@@ -4,7 +4,6 @@ import { useEditItemContext } from "@/context/edit-item-context"
 import { useUserContext } from "@/context/user-context"
 import Cropper from 'react-easy-crop'
 import Slider from '@mui/material/Slider';
-import { storeFileInfo } from "@/lib/supabase";
 import {
 Palette,
 Square,
@@ -16,10 +15,17 @@ import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
 import { updateFileDescriptionValue } from "@/lib/supabase";
 import ColorPicker from 'react-pick-color';
+import { storeFileInfo } from "@/lib/supabase";
 
 export default function EditFile() {
   const { user } = useUserContext();
   const { displayEditItem, setDisplayEditItem, item, setItem, activeTool, setActiveTool} = useEditItemContext();
+  const [newFile, setNewFile] = useState(null);
+
+  const applyChanges = () => {
+    setItem(newFile)
+    setDisplayEditItem(false)
+  }
 
 return(
   <>
@@ -30,16 +36,43 @@ return(
             <div style={{display:'flex', height:'100%'}}>
               <div style={{flex:1, zIndex: 1}}>
                 <h4>MENU</h4>
+                {newFile&&
+                  <button onclick={applychanges}>Apply Changes</button>
+
+                }
                 <p className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}> Crop </p>
                 <p className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
+                <p className={`edit_image_menu_item ${activeTool === "out paint"? 'active':''}`}onClick={() => setActiveTool('out paint')}> Out Paint </p>
+
               </div>
               <div style={{flex:4, position:'relative'}}>
                 {activeTool === 'crop' &&
-                <CropComponent user={user} image={item} setItem={setItem} setDisplayEditItem={setDisplayEditItem}/>
+                <CropComponent
+                user={user}
+                image={item}
+                newFile={newFile}
+                setNewFile={setNewFile}
+                />
                 }
                 {activeTool === 'caption' &&
 
-                <CaptionComponent user={user} image={item} setItem={setItem} setDisplayEditItem={setDisplayEditItem}/>
+                <CaptionComponent
+                user={user}
+                image={item}
+                newFile={newFile}
+                setNewFile={setNewFile}
+                />
+
+                }
+                {activeTool === 'out paint' &&
+
+                  <OutPaint
+                  user={user}
+                  image={item}
+                  onCropChange={(data) => console.log(data)}
+                  newFile={newFile}
+                  setNewFile={setNewFile}
+                 />
 
                 }
               </div>
@@ -204,7 +237,7 @@ const CropComponent = ({
          file_description:data.file_description??null
        })
 
-       const newFile={
+       setNewFile({
          created_at: fileinfo.created_at,
          file_type: data.file_type,
          file_url: data.file_url,
@@ -212,12 +245,8 @@ const CropComponent = ({
          file_description:data.file_description??null,
          id: fileinfo.id,
          user_id: user.id
-       }
-
-       setItem(newFile)
+       })
        showSuccess('file uploaded')
-       setDisplayEditItem(false)
-
 
      }catch (error){
        console.log(error)
@@ -370,11 +399,11 @@ const CaptionComponent = ({
 
   await updateFileDescriptionValue(fileDescription, image.id)
 
-    const newFile = {...image, file_description: fileDescription}
+    const file = {...image, file_description: fileDescription}
 
-    setItem(newFile)
+
+    setNewFile(file)
     showSuccess('Image Caption Updated')
-    setDisplayEditItem(false)
   }
 
 
@@ -396,3 +425,1303 @@ const CaptionComponent = ({
     </div>
   )
 }
+
+const OutPaint = ({
+  user,
+  image,
+  setItem,
+  setDisplayEditItem,
+  newFile,
+  setNewFile
+}) => {
+
+  const [fileUrl, setFileUrl] = useState(image.file_url);
+  const [prompt, setPrompt] = useState('');
+  const [seed, setSeed] = useState(0);
+  const containerRef = useRef(null);
+  const boxRef = useRef(null);
+  const [scale, setScale] = useState(.5);
+  const imageRef = useRef(null);
+  const [actualImageDimension, setActualImageDimension] = useState(null);
+  const [displayedImageDimension, setDisplayedImageDimension] = useState(null);
+  const [ratio, setRatio] = useState(null);
+  const [scaleUp, setScaleUp] = useState({
+    scaleX:0,
+    scaleY:0
+  });
+
+  const [box, setBox] = useState({
+    left:0,
+    top:0,
+    right:0,
+    bottom:0,
+    width: 400,
+    height: 400,
+    boxLeft:0,
+    boxTop:0,
+    boxRight:0,
+    boxBottom:0,
+    x : 0,
+    y: 0
+  });
+  const imgRectRef = useRef(null);
+
+
+
+  const getImageSize = () => {
+    const img = imageRef.current;
+    const container = containerRef.current
+
+    const imageRect = imageRef.current.getBoundingClientRect();
+    const containerRect = containerRef.current.getBoundingClientRect();
+
+    const x = imageRect.left - containerRect.left;
+    const y = imageRect.top - containerRect.top;
+
+    // Actual image dimensions
+
+    setActualImageDimension({
+      width:img.naturalWidth,
+      height:img.naturalHeight
+    })
+
+    // Displayed dimensions
+    console.log('Offset Width:', img.offsetWidth);
+    console.log('Offset Height:', img.offsetHeight);
+
+    // More precise displayed dimensions
+
+    setDisplayedImageDimension({
+      width:imageRect.width,
+      height:imageRect.height
+    })
+
+
+    imgRectRef.current = imageRef.current.getBoundingClientRect();
+
+
+    const scaleX = img.naturalWidth / imageRect.width
+    const scaleY = img.naturalHeight /  imageRect.height
+
+
+    setRatio({
+      scaleX:scaleX,
+      scaleY:scaleY
+    })
+
+    setBox({
+      x:x,
+      y:y,
+      width: imageRect.width,
+      height: imageRect.height,
+    })
+
+
+  };
+
+/*
+  useEffect(()=>{
+    getImageSize()
+  },[image])
+  */
+
+
+  useEffect(()=>{
+    /*
+    setBox( prev => {
+      x:prev.x,
+      y:prev.y,
+      width: displayedImageDimension.width,
+      height: displayedImageDimension.height,
+    })*/
+
+  },[displayedImageDimension])
+
+
+
+
+
+  // -----------------------------
+  // DRAG BOX
+  // -----------------------------
+  /*
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+
+    let dragging = false;
+
+    let offsetX = 0;
+    let offsetY = 0;
+
+    const onMouseDown = (e) => {
+      dragging = true;
+
+      const rect = el.getBoundingClientRect();
+
+      // IMPORTANT: store click offset INSIDE the box
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+    };
+
+    const onMouseMove = (e) => {
+      if (!dragging) return;
+
+      const container = containerRef.current;
+      const containerRect = container.getBoundingClientRect();
+
+      setBox((prev) => ({
+        ...prev,
+        x: e.clientX - containerRect.left - offsetX,
+        y: e.clientY - containerRect.top - offsetY,
+      }));
+    };
+
+    const onMouseUp = () => {
+      dragging = false;
+    };
+
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      el.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);*/
+
+  // -----------------------------
+  // RESIZE HANDLER (bottom-right)
+  // -----------------------------
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-bottom-right");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setBox((prev) => {
+
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        const proposedWidth = prev.width + dx;
+        const proposedHeight = prev.height + dy;
+
+        const minWidth = img.width + Math.abs(coOrdinates.left);
+        const minHeight = img.height + Math.abs(coOrdinates.top);
+
+        const newWidth = Math.max(minWidth, proposedWidth);
+        const newHeight = Math.max(minHeight, proposedHeight);
+
+
+        return{
+          ...prev,
+          width: newWidth,
+          height: newHeight,
+        }
+      });
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (bottom-left)
+  // -----------------------------
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-bottom-left");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setBox((prev) => {
+
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        //const newWidth = Math.max(img.width, prev.width - dx);
+        //const newHeight = Math.max(img.height, prev.height + dy);
+
+        const proposedWidth = prev.width - dx;
+        const proposedHeight = prev.height + dy;
+
+        const minWidth = img.width + Math.abs(coOrdinates.right);
+        const minHeight = img.height + Math.abs(coOrdinates.top);
+
+        const newWidth = Math.max(minWidth, proposedWidth);
+        const newHeight = Math.max(minHeight, proposedHeight);
+
+        const actualHeightChange = newHeight - prev.height;
+        const actualWidthChange = newWidth - prev.width;
+
+
+        return {
+          ...prev,
+          width: newWidth,
+          height: newHeight,
+          x: prev.x - actualWidthChange,
+        };
+      });
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (top-left)
+  // -----------------------------
+
+  //top edge moves
+  //bottom edge stays fixed
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-top-left");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setBox((prev) => {
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        const proposedWidth = prev.width - dx;
+        const proposedHeight = prev.height - dy;
+
+        //const newWidth = Math.max(img.width, prev.width - dx);
+        //const newHeight = Math.max(img.height, prev.height - dy);
+
+        const minWidth = img.width + Math.abs(coOrdinates.right);
+        const minHeight = img.height + coOrdinates.bottom;
+
+
+        const newWidth = Math.max(minWidth, proposedWidth);
+        const newHeight = Math.max(minHeight, proposedHeight);
+
+        const actualHeightChange = newHeight - prev.height;
+
+        const actualWidthChange = newWidth - prev.width;
+
+
+        return {
+          ...prev,
+          width: newWidth,
+          height: newHeight,
+          x: prev.x - actualWidthChange,
+          y: prev.y - actualHeightChange,
+        };
+      });
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (top-right)
+  // -----------------------------
+
+  //top edge moves
+  //bottom edge stays fixed
+
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-top-right");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const minWidth = imageRef.current.getBoundingClientRect().width
+      const minHeight = imageRef.current.getBoundingClientRect().height
+
+      setBox((prev) => {
+
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        const proposedWidth = prev.width + dx;
+        const proposedHeight = prev.height - dy;
+
+        const minWidth = img.width + Math.abs(coOrdinates.left);
+        const minHeight = img.height + coOrdinates.bottom;
+
+        const newWidth = Math.max(minWidth, proposedWidth);
+        const newHeight = Math.max(minHeight, proposedHeight);
+
+        // derive Y from height (NOT dy)
+        const actualHeightChange = newHeight - prev.height;
+
+        return {
+          ...prev,
+          width: newWidth,
+          height: newHeight,
+          y: prev.y - actualHeightChange,
+        };
+
+      })
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // EXPORT EXPAND METADATA
+  // -----------------------------
+  const getExpandData = () => {
+    const data = {
+      expandWidth: box.width,
+      expandHeight: box.height,
+      offsetX: box.x,
+      offsetY: box.y,
+      originalWidth: file.originalWidth,
+      originalHeight: file.originalHeight,
+    };
+
+    return data;
+  };
+
+  const getCoOrdinates = () => {
+
+    const imgRect = imageRef.current.getBoundingClientRect();
+    const boxRect = boxRef.current.getBoundingClientRect();
+
+    const left   = boxRect.left - imgRect.left;
+    const top    = boxRect.top - imgRect.top;
+    const right  = imgRect.right - boxRect.right;
+    const bottom = boxRect.bottom - imgRect.bottom;
+
+
+    return{
+      left:left,
+      top:top,
+      right:right,
+      bottom:bottom
+    }
+  }
+
+
+  const submit = async () => {
+    const coOrdinates = getCoOrdinates()
+
+    const left = Math.abs(coOrdinates.left)
+    const top = Math.abs(coOrdinates.top)
+    const right = Math.abs(coOrdinates.right)
+    const bottom = Math.abs(coOrdinates.bottom)
+
+    const response = await fetch(`/api/stability/outpaint`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          left:left,
+          right:top,
+          up:top,
+          down:bottom,
+          imageUrl: image.file_url,
+          fileName: image.file_name,
+          fileType: image.file_type,
+          prompt:prompt,
+          seed:seed
+        }),
+      })
+
+      if (!response.ok) {
+        showError(`Out painting error: ${response.status}`)
+        return
+      }
+
+      const result = await response.json()
+
+      if (response.ok) {
+
+        const fileinfo = await storeFileInfo({
+          user_id: user.id,
+          file_url: result.url,
+          file_type: 'image/jpeg',
+          file_name: result.fileName,
+          file_description: image.file_description ?? null
+        })
+
+        setFileUrl(result.url)
+
+        setNewFile({
+          created_at: fileinfo.created_at,
+          file_type: 'image/jpeg',
+          file_url: result.url,
+          file_name: result.fileName,
+          file_description: image.file_description??null,
+          id: fileinfo.id,
+          user_id: user.id
+        })
+
+      }
+
+  }
+
+  const createImage = async() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = box.width * ratio.scaleX;
+    canvas.height = box.height * ratio.scaleY;
+    const coOrdinates = getCoOrdinates()
+    const imgRect = imageRef.current.getBoundingClientRect();
+
+    // Get the 2D rendering context
+    const ctx = canvas.getContext('2d');
+
+    // Draw a sample blue rectangle
+    ctx.fillStyle = '#007BFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const x = Math.abs(coOrdinates.left) * ratio.scaleX
+    const y = Math.abs(coOrdinates.top) * ratio.scaleX
+
+
+    ctx.fillStyle = 'red';
+    ctx.fillRect(x, y, imageRef.current.naturalWidth, imageRef.current.naturalHeight);
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = image.file_url; // Set your image path
+
+    // Crucial: Wait for the image to finish loading
+    await img.decode(); // waits until fully loaded
+
+
+    ctx.drawImage(
+      img,
+      x,
+      y,
+      img.originalWidth,
+      img.originalHeight
+    ); // Draws at x=0, y=0
+
+
+    // Draw sample white text
+
+    const dataURL = canvas.toDataURL('image/png');
+
+ // Create a temporary link element
+     const downloadLink = document.createElement('a');
+     downloadLink.href = dataURL;
+     downloadLink.download = 'fileName'.png;
+
+     // Append to body, trigger click, and remove the element
+     document.body.appendChild(downloadLink);
+     downloadLink.click();
+     document.body.removeChild(downloadLink);
+  }
+
+  const acceptFile = () =>{
+    setItem(newFile)
+    showSuccess('file uploaded')
+    setDisplayEditItem(false)
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
+      {/* ORIGINAL IMAGE */}
+
+      <img
+        className='unselectable'
+        ref={imageRef}
+        src={fileUrl}
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          zIndex: 1,
+        }}
+        onLoad={() => {
+          getImageSize();
+        }}
+      />
+
+
+      {/* EXPAND BOX */}
+      <div
+        ref={boxRef}
+        style={{
+          position: "absolute",
+          left: box.x,
+          top: box.y,
+          width: box.width,
+          height: box.height,
+          border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+          background: "rgba(242, 176, 245, 0.2)",
+          cursor: "move",
+          zIndex: 2,
+        }}
+      >
+        {/* RESIZE HANDLE */}
+          <div
+            id="resize-handle-bottom-right"
+            style={{
+              position: "absolute",
+              right: -6,
+              bottom: -6,
+              width: 14,
+              height: 14,
+              border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+              background: "var(--md-sys-color-surface)",
+              cursor: "nwse-resize",
+            }}
+          />
+          <div
+              id="resize-handle-bottom-left"
+              style={{
+                position: "absolute",
+                left: -6,
+                bottom: -6,
+                width: 14,
+                height: 14,
+                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                background: "var(--md-sys-color-surface)",
+                cursor: "nwse-resize",
+              }}
+            />
+          <div
+              id="resize-handle-top-left"
+              style={{
+                position: "absolute",
+                left: -6,
+                top: -6,
+                width: 14,
+                height: 14,
+                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                background: "var(--md-sys-color-surface)",
+                cursor: "nwse-resize",
+              }}
+            />
+          <div
+              id="resize-handle-top-right"
+              style={{
+                position: "absolute",
+                right: -6,
+                top: -6,
+                width: 14,
+                height: 14,
+                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                background: "var(--md-sys-color-surface)",
+                cursor: "nwse-resize",
+              }}
+            />
+      </div>
+
+
+      {/* ACTION BUTTON */}
+
+      {/*}
+      <button
+        className='unselectable'
+        onClick={createImage}>
+        Create Image
+      </button>*/}
+      <button
+        className='unselectable btn secondary'
+        onClick={submit}>
+        Create Image
+      </button>
+      {newFile &&
+        <button
+          style={{marginLeft:'10px'}}
+          className='unselectable btn primary'
+          onClick={acceptFile}>
+          OK
+        </button>
+      }
+    </div>
+  );
+}
+
+/*
+const CustomCropper = ({
+  user,
+  image,
+  setItem,
+  setDisplayEditItem
+}) => {
+
+  const containerRef = useRef(null);
+  const boxRef = useRef(null);
+  const [scale, setScale] = useState(.5);
+  const imageRef = useRef(null);
+  const [actualImageDimension, setActualImageDimension] = useState(null);
+  const [displayedImageDimension, setDisplayedImageDimension] = useState(null);
+  const [ratio, setRatio] = useState(null);
+  const [box, setBox] = useState({
+    x: 80,
+    y: 80,
+    width: 400,
+    height: 400,
+  });
+  const imgRectRef = useRef(null);
+
+
+
+
+  const getImageSize = () => {
+    const img = imageRef.current;
+    const container = containerRef.current
+
+    const imageRect = imageRef.current.getBoundingClientRect();
+    const containerRect = containerRef.current.getBoundingClientRect();
+
+    const x = imageRect.left - containerRect.left;
+    const y = imageRect.top - containerRect.top;
+
+    // Actual image dimensions
+
+    setActualImageDimension({
+      width:img.naturalWidth,
+      height:img.naturalHeight
+    })
+
+    // Displayed dimensions
+    console.log('Offset Width:', img.offsetWidth);
+    console.log('Offset Height:', img.offsetHeight);
+
+    // More precise displayed dimensions
+
+    setDisplayedImageDimension({
+      width:imageRect.width,
+      height:imageRect.height
+    })
+
+
+    imgRectRef.current = imageRef.current.getBoundingClientRect();
+
+
+    const scaleX = img.naturalWidth / imageRect.width
+    const scaleY = img.naturalHeight /  imageRect.height
+
+
+    setRatio({
+      scaleX:scaleX,
+      scaleY:scaleY
+    })
+
+    setBox({
+      x:x,
+      y:y,
+      width: imageRect.width,
+      height: imageRect.height,
+    })
+
+
+  };
+
+
+  useEffect(()=>{
+    getImageSize()
+  },[image])
+
+
+
+  useEffect(()=>{
+
+
+    setBox((prev) => {
+        return{
+        x:prev.x,
+        y:prev.y,
+        width: displayedImageDimension.width,
+        height: displayedImageDimension.height,
+      }
+    })
+
+  },[displayedImageDimension])
+
+
+
+
+  // -----------------------------
+  // DRAG BOX
+  // -----------------------------
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+
+    let dragging = false;
+
+    let offsetX = 0;
+    let offsetY = 0;
+
+    const onMouseDown = (e) => {
+      dragging = true;
+
+      const rect = el.getBoundingClientRect();
+
+      // IMPORTANT: store click offset INSIDE the box
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+    };
+
+    const onMouseMove = (e) => {
+      if (!dragging) return;
+
+      const container = containerRef.current;
+      const containerRect = container.getBoundingClientRect();
+
+      setBox((prev) => ({
+        ...prev,
+        x: e.clientX - containerRect.left - offsetX,
+        y: e.clientY - containerRect.top - offsetY,
+      }));
+    };
+
+    const onMouseUp = () => {
+      dragging = false;
+    };
+
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      el.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (bottom-right)
+  // -----------------------------
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-bottom-right");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+
+      setBox((prev) => {
+
+        const img = imgRectRef.current;
+
+        return{
+          ...prev,
+          width: Math.max(100, prev.width + dx),
+          height: Math.max(100, prev.height + dy),
+        }
+      });
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (bottom-left)
+  // -----------------------------
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-bottom-left");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setBox((prev) => {
+
+        return {
+          ...prev,
+          width: Math.max(100, prev.width - dx),
+          height: Math.max(100, prev.height + dy),
+          x: prev.x + dx,
+        };
+      });
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (top-left)
+  // -----------------------------
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-top-left");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setBox((prev) => {
+
+        return {
+          ...prev,
+          width: Math.max(100, prev.width - dx),
+          height: Math.max(100, prev.height - dy),
+          x: prev.x + dx,
+          y: prev.y + dy,
+        };
+      });
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (top-right)
+  // -----------------------------
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-top-right");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const minWidth = imageRef.current.getBoundingClientRect().width
+      const minHeight = imageRef.current.getBoundingClientRect().height
+
+      setBox((prev) => {
+
+        return {
+          ...prev,
+          width: Math.max(100, prev.width + dx),
+          height: Math.max(100, prev.height - dy),
+          y: prev.y + dy,
+        };
+      });
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // EXPORT EXPAND METADATA
+  // -----------------------------
+  const getExpandData = () => {
+    const data = {
+      expandWidth: box.width,
+      expandHeight: box.height,
+      offsetX: box.x,
+      offsetY: box.y,
+      originalWidth: file.originalWidth,
+      originalHeight: file.originalHeight,
+    };
+
+
+    return data;
+  };
+
+  const getCoOrdinates = () => {
+
+    const imgRect = imageRef.current.getBoundingClientRect();
+    const boxRect = boxRef.current.getBoundingClientRect();
+
+    const left   = boxRect.left - imgRect.left;
+    const top    = boxRect.top - imgRect.top;
+    const right  = imgRect.right - boxRect.right;
+    const bottom = boxRect.bottom - imgRect.bottom;
+  }
+
+  const createImage = () => {
+
+    const canvas = document.createElement('canvas');
+    canvas.width = box.width * ratio.scaleX;
+    canvas.height = box.height * ratio.scaleY;
+
+    const coOrdinates = getCoOrdinates()
+
+
+    const imgRect = imageRef.current.getBoundingClientRect();
+
+
+
+
+
+    // Get the 2D rendering context
+    const ctx = canvas.getContext('2d');
+
+    // Draw a sample blue rectangle
+    ctx.fillStyle = '#007BFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const x = Math.abs(coOrdinates.left) * ratio.scaleX
+    const y = Math.abs(coOrdinates.top) * ratio.scaleX
+
+
+    ctx.fillStyle = 'red';
+    ctx.fillRect(x, y, imgRect.width, imgRect.height);
+
+    // Draw sample white text
+
+    const dataURL = canvas.toDataURL('image/png');
+
+ // Create a temporary link element
+     const downloadLink = document.createElement('a');
+     downloadLink.href = dataURL;
+     downloadLink.download = 'fileName'.png;
+
+     // Append to body, trigger click, and remove the element
+     document.body.appendChild(downloadLink);
+     downloadLink.click();
+     document.body.removeChild(downloadLink);
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
+
+
+      <img
+        className='unselectable'
+        ref={imageRef}
+        src={image.file_url}
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          zIndex: 1,
+        }}
+        onLoad={() => {
+          getImageSize();
+        }}
+      />
+
+
+      <div
+        ref={boxRef}
+        style={{
+          position: "absolute",
+          left: box.x,
+          top: box.y,
+          width: box.width,
+          height: box.height,
+          border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+          background: "rgba(242, 176, 245, 0.2)",
+          cursor: "move",
+          zIndex: 2,
+        }}
+      >
+
+          <div
+            id="resize-handle-bottom-right"
+            style={{
+              position: "absolute",
+              right: -6,
+              bottom: -6,
+              width: 14,
+              height: 14,
+              border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+              background: "var(--md-sys-color-surface)",
+              cursor: "nwse-resize",
+            }}
+          />
+          <div
+              id="resize-handle-bottom-left"
+              style={{
+                position: "absolute",
+                left: -6,
+                bottom: -6,
+                width: 14,
+                height: 14,
+                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                background: "var(--md-sys-color-surface)",
+                cursor: "nwse-resize",
+              }}
+            />
+          <div
+              id="resize-handle-top-left"
+              style={{
+                position: "absolute",
+                left: -6,
+                top: -6,
+                width: 14,
+                height: 14,
+                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                background: "var(--md-sys-color-surface)",
+                cursor: "nwse-resize",
+              }}
+            />
+          <div
+              id="resize-handle-top-right"
+              style={{
+                position: "absolute",
+                right: -6,
+                top: -6,
+                width: 14,
+                height: 14,
+                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                background: "var(--md-sys-color-surface)",
+                cursor: "nwse-resize",
+              }}
+            />
+      </div>
+
+
+
+      <button
+        className='unselectable'
+        onClick={getExpandData}
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          zIndex: 10,
+          padding: 10,
+        }}
+      >
+        Export Expand
+      </button>
+      <button
+        className='unselectable'
+        onClick={createImage}>
+        Create Image
+      </button>
+    </div>
+  );
+}
+*/

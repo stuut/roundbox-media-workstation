@@ -36,8 +36,8 @@
 }
 
 #drag-area {
-position: relative;
-cursor:crosshair;
+  position: relative;
+  cursor:crosshair;
 }
 
  #select-box {
