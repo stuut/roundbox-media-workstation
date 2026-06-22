@@ -1727,7 +1727,8 @@ const Share = ({
         endPoint = postData?.meta_data?.post_id
 
       }else if (postType === 'photos') {
-        endPoint = `${channelId}_${postData?.meta_data?.post_id}`
+        //endPoint = `${channelId}_${postData?.meta_data?.post_id}`
+          endPoint = postData?.meta_data?.post_id
       }
 
       if (!endPoint) return

@@ -2076,7 +2076,11 @@ async drawVideoInit(ctx) {
     const videoEl = document.createElement('video');
 
     videoEl.crossOrigin = 'anonymous';
-    videoEl.src = this.videoSrc;
+
+    const key = this.videoSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+    const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+    videoEl.src = proxiedUrl;
 
     videoEl.muted = true;
     videoEl.preload = 'auto';
@@ -2250,7 +2254,7 @@ async replaceImage(image){
     if (!ctx) return;
 
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    = "anonymous";
 
     const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
     const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
@@ -2291,7 +2295,7 @@ async drawImageInit() {
     try{
 
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      = "anonymous";
 
       const key = this.imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
       const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
@@ -8376,7 +8380,7 @@ const createVideo = async (format) => {
     if (audioUrl) {
       // Create a fresh audio element for export
       const exportAudio = new Audio();
-      exportAudio.crossOrigin = "anonymous";
+      exportAudio.gin = "anonymous";
       exportAudio.src = audioUrl;
 
       const audioContext = new AudioContext();
@@ -8819,8 +8823,6 @@ const editImage = () => {
   const activeElement = getActiveElement()
   if (!activeElement) return
 
-  console.log('activeElement', activeElement)
-
   const newFile={
     id: activeElement.id,
     file_url:activeElement.imageSrc,
@@ -8832,14 +8834,34 @@ const editImage = () => {
     user_id: user.id,
   }
 
-
   setDisplayEditItem(true)
   setItem(newFile)
 }
 
 const handleEditReplace = async(newItem) => {
 
-  console.log(newItem)
+  const obj = getActiveElement()
+  if (!obj) return
+
+  await obj.updateImage(newItem.file_url)
+  const activeScene = sceneManagerRef.current.getActiveScene()
+  handleUpdateElementState(
+    activeScene.id,
+    obj.id,
+    {
+      img: obj.img,
+      imageSrc: obj.imageSrc,
+      originalWidth: obj.originalWidth,
+      originalHeight: obj.originalHeight
+    }
+  )
+
+
+ drawLower()
+ drawUpper()
+ drawArtboard()
+
+
 }
 
 useEffect(() => {

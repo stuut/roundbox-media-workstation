@@ -35,6 +35,11 @@
   border: 2px dashed var(--md-sys-color-primary);
 }
 
+.btn{
+  white-space: nowrap;
+  cursor:pointer;
+}
+
 #drag-area {
   position: relative;
   cursor:crosshair;
@@ -1051,13 +1056,11 @@ h2{
 
 .controls {
   position: absolute;
-  bottom: 40px;
+  bottom: 30px;
   left: 50%;
   width: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   height: 40px;
-  display: flex;
-  align-items: center;
 }
 
 .grid-container {

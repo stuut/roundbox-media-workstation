@@ -16,6 +16,12 @@ export async function POST(req) {
     // Convert to a Buffer
     const imageBuffer = Buffer.from(imageResponse.data);
 
+    /*
+
+    const imageRes = await fetch(`https://pub-xxx.r2.dev/${key}`);
+    const buffer = await imageRes.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+*/
     // Create FormData
     const form = new FormData();
     form.append("image", imageBuffer, {
@@ -70,9 +76,9 @@ export async function POST(req) {
       })
       await r2Client.send(command)
 
-      const fileUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`
+      const fileUrl = `${process.env.R2_PUBLIC_URL}/${NewfileName}`
 
-      return response.json({ success: true, url: fileUrl, fileName: NewfileName},{ status: 200 })
+      return Response.json({ success: true, url: fileUrl, fileName: NewfileName},{ status: 200 })
 
 
     } else {

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useFilesContext } from "@/context/files-context"
+import { useEditItemContext } from "@/context/edit-item-context"
 import { useUserContext } from "@/context/user-context"
 import { isObjectInArray } from '@/lib/utils'
 import { getFiles } from "@/lib/supabase";
@@ -18,6 +19,7 @@ import { showInfo } from '@/lib/toast';
 import JSZip from "jszip";
 import ReactPlayer from 'react-player'
 import { usePathname } from 'next/navigation';
+import { ThreeDotMenu } from "components/three-dot-menu"
 
 
 const imageTypes = ['image/png', 'image/jpeg']
@@ -29,11 +31,25 @@ export default function MyFilesPageComponent() {
   const pathname = usePathname();
   const { user } = useUserContext();
   const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles, filePicker} = useFilesContext();
+  const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
   const [userId, setUserId] = useState(null)
   const [filesDisplay, setFilesDisplay] = useState('My Files')
   const [uploading, setUploading] = useState(false)
   const [fileFilters, setFileFilters] = useState([])
   const [imageSearch, setImageSearch] = useState('')
+
+  const editMedia = (media) => {
+    setDisplayEditItem(true)
+    setItem(media)
+  }
+
+  useEffect(() => {
+    if (!displayEditItem && item) {
+
+        setItem(null)
+        getData()
+    }
+  }, [displayEditItem, item]);
 
   const getFilterArray = () => {
 
@@ -308,9 +324,16 @@ async function downloadAndZip() {
                     <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '10px'}}>
                       {selectedFiles.map((file, index)=>{
                         return(
-                              <div key={file.id} style={{width:'25%'}}>
+                              <div key={file.id} style={{width:'25%', position:'relative'}}>
                                 {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                                  <img style={{width:'100%', height:'auto', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
+                                  <>
+                                    <div style={{position:'absolute', right:'5px', top:'5px'}}>
+                                        <ThreeDotMenu>
+                                          <button onClick={() => editMedia(file)} className='btn btn-sm clear'>Edit Image</button>
+                                        </ThreeDotMenu>
+                                    </div>
+                                    <img style={{width:'100%', height:'auto', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
+                                  </>
                                 }
                                 {file.file_type === 'application/pdf'&&
                                   <>
@@ -339,41 +362,47 @@ async function downloadAndZip() {
                       })}
                     </div>
                     <div style={{display:'flex', alignItems:'center'}}>
-                      <input
-                        style={{display:'none'}}
-                        type="file"
-                        id="file-upload"
-                        accept="image/*,.pdf,.doc"
-                        onChange={uploadFileLoop}
-                        disabled={uploading}
-                        multiple
-                      />
-                      <label
-                        className="btn secondary icon-button"
-                        htmlFor="file-upload"
-                        style={{
-                          padding: '10px 15px',
-                          marginTop:'0px',
-                          marginBottom: '0px',
-                          marginLeft: '5px'
-                        }}
-                      >
+                        <input
+                          style={{display:'none'}}
+                          type="file"
+                          id="file-upload"
+                          accept="image/*,.pdf,.doc"
+                          onChange={uploadFileLoop}
+                          disabled={uploading}
+                          multiple
+                        />
+                        <label
+                          className="btn secondary icon-button"
+                          htmlFor="file-upload"
+                          style={{
+                            padding: '10px 15px',
+                            marginTop:'0px',
+                            marginBottom: '0px',
+                            marginLeft: '5px'
+                          }}
+                        >
                         <Upload className='button-icon'/>
-                        {`Upload Files`}
-                      </label>
-                      {selectedFiles.length>0 &&
-                        <>
-                          <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
-                          <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
-                          <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
-                        </>
-                      }
+                          {`Upload Files`}
+                        </label>
+                        {selectedFiles.length>0 &&
+                          <>
+                            <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
+                            <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
+                            <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
+                          </>
+                        }
+                        {selectedFiles.length===1 &&
+                          <>
+                            <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>editMedia(selectedFiles[0])}>Edit Image</button>
+                          </>
+                        }
                         </div>
+                        {/*
                         {filePicker &&
                           <button className='btn primary' onClick={(e) => setShowFiles(false)} disabled={selectedFiles.length===0}>Choose Files</button>
-                        }
-                    <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
-                      <div style={{marginLeft:'5px'}}>
+                        }*/}
+                    <div className="properties-container" style={{display:'flex', gap:'10px', margin:'15px 0px', padding:'20px'}}>
+                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
                         <Checkbox
                           id={'iimages'}
                           className="form-check-input"
@@ -389,7 +418,7 @@ async function downloadAndZip() {
                         />
                         <span style={{marginLeft:'5px'}}>Images</span>
                       </div>
-                      <div style={{marginLeft:'5px'}}>
+                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
                         <Checkbox
                           id={'iimages'}
                           className="form-check-input"
@@ -405,7 +434,7 @@ async function downloadAndZip() {
                         />
                         <span style={{marginLeft:'5px'}}>videos</span>
                       </div>
-                      <div style={{marginLeft:'5px'}}>
+                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
                         <Checkbox
                           id={'iimages'}
                           className="form-check-input"
@@ -441,10 +470,17 @@ async function downloadAndZip() {
                       {files.map((file, index)=>{
                         const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
                         return (
-                          <div key={file.id} style={{width:'18%', margin:'1%'}}>
+                          <div key={file.id} style={{width:'18%', margin:'1%', position:'relative'}}>
 
                               {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                                <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+                                <>
+                                  <div style={{position:'absolute', right:'5px', top:'5px'}}>
+                                    <ThreeDotMenu>
+                                      <button onClick={() => editMedia(file)} className='btn btn-sm clear'>Edit Image</button>
+                                    </ThreeDotMenu>
+                                  </div>
+                                  <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+                                </>
                               }
                               {file.file_type === 'application/pdf'&&
                                 <>

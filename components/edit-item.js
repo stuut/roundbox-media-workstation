@@ -37,12 +37,12 @@ return(
               <div style={{flex:1, zIndex: 1}}>
                 <h4>MENU</h4>
                 {newFile&&
-                  <button onclick={applychanges}>Apply Changes</button>
+                  <button className='btn primary' onClick={applyChanges}>Apply Changes</button>
 
                 }
-                <p className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}> Crop </p>
-                <p className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
-                <p className={`edit_image_menu_item ${activeTool === "out paint"? 'active':''}`}onClick={() => setActiveTool('out paint')}> Out Paint </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}> Crop </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "out paint"? 'active':''}`}onClick={() => setActiveTool('out paint')}> Out Paint </p>
 
               </div>
               <div style={{flex:4, position:'relative'}}>
@@ -89,8 +89,8 @@ return(
 const CropComponent = ({
   user,
   image,
-  setItem,
-  setDisplayEditItem
+  setNewFile,
+  newFile
 }) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -106,21 +106,15 @@ const CropComponent = ({
   const canvasRef = useRef(null);
   const [loader, setLoader] = useState(false)
 
-  const loadImage = (src) =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-
-      img.crossOrigin = 'anonymous';
-
-      // cache-bust to prevent reused non-CORS response
-      img.src = src
-
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-    });
+  const colorPickerRef = useRef(null);
 
     const loadImageAsBlobURL = async (src) => {
-      const res = await fetch(src, {
+
+      const key = src.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+      const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+
+      const res = await fetch(proxiedUrl, {
         mode: 'cors',
         credentials: 'omit',
       });
@@ -215,7 +209,25 @@ const CropComponent = ({
              file_url:result.url
            }
 
-           handleFileFunction(fileData)
+           const fileinfo = await storeFileInfo({
+             user_id:user.id,
+             file_url: fileData.file_url,
+             file_type:fileData.file_type,
+             file_name:fileData.file_name,
+             file_description:fileData.file_description??null
+           })
+
+           setNewFile({
+             created_at: fileinfo.created_at,
+             file_type: fileData.file_type,
+             file_url: fileData.file_url,
+             file_name:fileData.file_name,
+             file_description:fileData.file_description??null,
+             id: fileinfo.id,
+             user_id: user.id
+           })
+
+
          } else {
            showError(result.error)
          }
@@ -226,33 +238,7 @@ const CropComponent = ({
       setLoader(false)
    }
 
-   const handleFileFunction = async (data) => {
 
-     try{
-       const fileinfo = await storeFileInfo({
-         user_id:user.id,
-         file_url: data.file_url,
-         file_type:data.file_type,
-         file_name:data.file_name,
-         file_description:data.file_description??null
-       })
-
-       setNewFile({
-         created_at: fileinfo.created_at,
-         file_type: data.file_type,
-         file_url: data.file_url,
-         file_name:data.file_name,
-         file_description:data.file_description??null,
-         id: fileinfo.id,
-         user_id: user.id
-       })
-       showSuccess('file uploaded')
-
-     }catch (error){
-       console.log(error)
-       showError('Error saving file: ', error)
-     }
-   }
 
 
    const onCropComplete = useCallback((croppedArea, croppedAreaPixels) => {
@@ -286,13 +272,24 @@ const CropComponent = ({
      }
    }, []);
 
+   useEffect(() => {
+     const handleClickOutside = (event) => {
+       if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
+         setShowColourPicker(false);
+       }
+     };
+
+     document.addEventListener("mousedown", handleClickOutside);
+     return () => document.removeEventListener("mousedown", handleClickOutside);
+   }, []);
+
 
   return(
     <div>
       <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
           <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
       </div>
-      <div style={{height:'800px'}}>
+      <div style={{height:'700px'}}>
         <div className="crop-container">
           <div className="reactEasyCrop_CropArea" ref={cropperRef} style={{
             width: `${cropAreaSize.width}px`,
@@ -314,11 +311,29 @@ const CropComponent = ({
             classes={'social-crop'}
           />
         </div>
-        <div className="controls">
+        <div className="controls" style={{bottom: '10px', width: '600px'}}>
           <div style={{alignItems: 'center', display:'flex', marginLeft:'10px', gap:'10px'}}>
             {showColourPicker&&
-               <div style={{position:'relative', position: 'absolute', bottom: '20px', background:'#ffffff'}}>
-                 <ColorPicker color={color} onChange={color => setColor(color.hex)} />
+               <div
+                 ref={colorPickerRef}
+                 className='dropshadow'
+                 style={{
+                   position: 'absolute',
+                   bottom: '50px',
+                   background:'#ffffff',
+                   borderRadius:'var(--input-border-radius)',
+                   padding:'10px',
+                   left: 'calc(100% - 250px)'
+                 }}>
+                 <ColorPicker
+                 color={color}
+                 onChange={color => setColor(color.hex)}
+                 theme={{
+                    boxShadow: 'none',
+                    border: '0px solid transparent',
+                    borderColor: 'white',
+                  }}
+                />
                  <EyeDropperButton setColor={setColor}/>
                </div>
              }
@@ -384,14 +399,14 @@ const EyeDropperButton = ({setColor}) => {
     }
   };
 
-  return <button className='btn-primary btn' onClick={handlePickColor}>Pick Color</button>;
+  return <button className='btn primary btn-sm' onClick={handlePickColor}>Pick Color</button>;
 };
 
 const CaptionComponent = ({
   user,
   image,
-  setItem,
-  setDisplayEditItem
+  newFile,
+  setNewFile
 }) => {
   const [fileDescription, setFileDescription] = useState(image?.file_description??'')
 
@@ -686,9 +701,6 @@ const OutPaint = ({
         const coOrdinates = getCoOrdinates()
         const img = imgRectRef.current;
 
-        //const newWidth = Math.max(img.width, prev.width - dx);
-        //const newHeight = Math.max(img.height, prev.height + dy);
-
         const proposedWidth = prev.width - dx;
         const proposedHeight = prev.height + dy;
 
@@ -883,6 +895,277 @@ const OutPaint = ({
   }, []);
 
   // -----------------------------
+  // RESIZE HANDLER (top)
+  // -----------------------------
+
+
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-top");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const minWidth = imageRef.current.getBoundingClientRect().width
+      const minHeight = imageRef.current.getBoundingClientRect().height
+
+      setBox((prev) => {
+
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        const proposedHeight = prev.height - dy;
+
+        const minHeight = img.height + coOrdinates.bottom;
+
+        const newHeight = Math.max(minHeight, proposedHeight);
+
+        const actualHeightChange = newHeight - prev.height;
+
+        return {
+          ...prev,
+          height: newHeight,
+          y: prev.y - actualHeightChange,
+        };
+
+      })
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (bottom)
+  // -----------------------------
+
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-bottom");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const minWidth = imageRef.current.getBoundingClientRect().width
+      const minHeight = imageRef.current.getBoundingClientRect().height
+
+      setBox((prev) => {
+
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        const proposedHeight = prev.height + dy;
+
+        const minHeight = img.height + Math.abs(coOrdinates.top);
+
+        const newHeight = Math.max(minHeight, proposedHeight);
+
+        const actualHeightChange = newHeight - prev.height;
+
+        return {
+          ...prev,
+          height: newHeight,
+        };
+
+      })
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (left)
+  // -----------------------------
+
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-left");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const minWidth = imageRef.current.getBoundingClientRect().width
+      const minHeight = imageRef.current.getBoundingClientRect().height
+
+      setBox((prev) => {
+
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        const proposedWidth = prev.width - dx;
+
+        const minWidth = img.width + Math.abs(coOrdinates.right);
+
+        const newWidth = Math.max(minWidth, proposedWidth);
+
+        const actualWidthChange = newWidth - prev.width;
+
+        return {
+          ...prev,
+          width: newWidth,
+          x: prev.x - actualWidthChange,
+        };
+
+      })
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
+  // RESIZE HANDLER (right)
+  // -----------------------------
+
+  useEffect(() => {
+    const handle = document.getElementById("resize-handle-right");
+    if (!handle) return;
+
+    let resizing = false;
+    let startX = 0;
+    let startY = 0;
+
+    const onDown = (e) => {
+      e.stopPropagation();
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!resizing) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const minWidth = imageRef.current.getBoundingClientRect().width
+      const minHeight = imageRef.current.getBoundingClientRect().height
+
+      setBox((prev) => {
+
+        const coOrdinates = getCoOrdinates()
+        const img = imgRectRef.current;
+
+        const proposedWidth = prev.width + dx;
+
+        const minWidth = img.width + Math.abs(coOrdinates.left);
+
+        const newWidth = Math.max(minWidth, proposedWidth);
+
+        const actualWidthChange = newWidth - prev.width;
+
+        return {
+          ...prev,
+          width: newWidth,
+        };
+
+      })
+
+      startX = e.clientX;
+      startY = e.clientY;
+    };
+
+    const onUp = () => {
+      resizing = false;
+    };
+
+    handle.addEventListener("mousedown", onDown);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+
+    return () => {
+      handle.removeEventListener("mousedown", onDown);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  // -----------------------------
   // EXPORT EXPAND METADATA
   // -----------------------------
   const getExpandData = () => {
@@ -932,15 +1215,15 @@ const OutPaint = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          left:left,
-          right:top,
-          up:top,
-          down:bottom,
+          left:Math.round(left),
+          right:Math.round(top),
+          up:Math.round(top),
+          down:Math.round(bottom),
           imageUrl: image.file_url,
           fileName: image.file_name,
           fileType: image.file_type,
           prompt:prompt,
-          seed:seed
+          seed:seed??0
         }),
       })
 
@@ -1037,12 +1320,13 @@ const OutPaint = ({
   }
 
   return (
+    <>
     <div
       ref={containerRef}
       style={{
         position: "relative",
         width: "100%",
-        height: "100%",
+        height: "90%",
         overflow: "hidden",
       }}
     >
@@ -1074,13 +1358,69 @@ const OutPaint = ({
           top: box.y,
           width: box.width,
           height: box.height,
-          border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+          border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
           background: "rgba(242, 176, 245, 0.2)",
           cursor: "move",
           zIndex: 2,
         }}
       >
         {/* RESIZE HANDLE */}
+          <div
+            id="resize-handle-top"
+            style={{
+              position: "absolute",
+              left: '50%',
+              transform: 'translateX(-50%)',
+              top: -8,
+              width: 40,
+              height: 14,
+              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              background: "var(--md-sys-color-surface)",
+              cursor: "ns-resize",
+            }}
+          />
+          <div
+            id="resize-handle-bottom"
+            style={{
+              position: "absolute",
+              left: '50%',
+              transform: 'translateX(-50%)',
+              bottom: -8,
+              width: 40,
+              height: 14,
+              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              background: "var(--md-sys-color-surface)",
+              cursor: "ns-resize",
+            }}
+          />
+          <div
+            id="resize-handle-left"
+            style={{
+              position: "absolute",
+              left: -8,
+              transform: 'translateY(-50%)',
+              top: '50%',
+              width: 14,
+              height: 40,
+              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              background: "var(--md-sys-color-surface)",
+              cursor: "ew-resize",
+            }}
+          />
+          <div
+            id="resize-handle-right"
+            style={{
+              position: "absolute",
+              right: -8,
+              transform: 'translateY(-50%)',
+              top: '50%',
+              width: 14,
+              height: 40,
+              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              background: "var(--md-sys-color-surface)",
+              cursor: "ew-resize",
+            }}
+          />
           <div
             id="resize-handle-bottom-right"
             style={{
@@ -1089,7 +1429,7 @@ const OutPaint = ({
               bottom: -6,
               width: 14,
               height: 14,
-              border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
               background: "var(--md-sys-color-surface)",
               cursor: "nwse-resize",
             }}
@@ -1102,9 +1442,9 @@ const OutPaint = ({
                 bottom: -6,
                 width: 14,
                 height: 14,
-                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
                 background: "var(--md-sys-color-surface)",
-                cursor: "nwse-resize",
+                cursor: "nesw-resize",
               }}
             />
           <div
@@ -1115,7 +1455,7 @@ const OutPaint = ({
                 top: -6,
                 width: 14,
                 height: 14,
-                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
                 background: "var(--md-sys-color-surface)",
                 cursor: "nwse-resize",
               }}
@@ -1128,36 +1468,39 @@ const OutPaint = ({
                 top: -6,
                 width: 14,
                 height: 14,
-                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
                 background: "var(--md-sys-color-surface)",
-                cursor: "nwse-resize",
+                cursor: "nesw-resize",
               }}
             />
       </div>
-
-
-      {/* ACTION BUTTON */}
-
-      {/*}
-      <button
-        className='unselectable'
-        onClick={createImage}>
-        Create Image
-      </button>*/}
-      <button
-        className='unselectable btn secondary'
-        onClick={submit}>
-        Create Image
-      </button>
-      {newFile &&
-        <button
-          style={{marginLeft:'10px'}}
-          className='unselectable btn primary'
-          onClick={acceptFile}>
-          OK
-        </button>
-      }
     </div>
+    <div  style={{
+            position: "relative",
+            width: "100%",
+            height: "10%",
+          }}>
+      <div className='properties-container' style={{paddingLeft:'20px', paddingRight:'20px'}}>
+        <div style={{alignItems: 'center', display:'flex', gap:'10px', width: '100%'}}>
+          <input
+            id="image-prompt"
+            type='text'
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className={'form-input'}
+            placeholder='Image Fill Prompt'
+            style={{flex:2}}
+          />
+          <button
+            style={{flex:1}}
+            className='unselectable btn secondary'
+            onClick={submit}>
+            Create Image
+          </button>
+        </div>
+      </div>
+    </div>
+  </>
   );
 }
 
