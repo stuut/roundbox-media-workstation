@@ -3531,7 +3531,7 @@ const MediaList = ({
            temp.instagram_image_error = instagramImageCheck
            if (instagramImageCheck){
               errorArray.push(true)
-              showError('Instagram Image Size Error')
+              //showError('Instagram Image Size Error')
            }
            return temp;
          }))
@@ -3540,6 +3540,7 @@ const MediaList = ({
 
          if (errorArray.length > 0){
            setInstagramError(true)
+           showError('Instagram Image Size Error')
          }else{
            setInstagramError(false)
          }

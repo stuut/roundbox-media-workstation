@@ -2254,7 +2254,7 @@ async replaceImage(image){
     if (!ctx) return;
 
     const img = new Image();
-    = "anonymous";
+    img.crossOrigin = "anonymous";
 
     const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
     const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
@@ -2295,7 +2295,7 @@ async drawImageInit() {
     try{
 
       const img = new Image();
-      = "anonymous";
+      img.crossOrigin = "anonymous";
 
       const key = this.imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
       const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;

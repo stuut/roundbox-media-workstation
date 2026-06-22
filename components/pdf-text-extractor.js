@@ -563,11 +563,13 @@ const sendAreaData = async(selectionArea) => {
 
   const responseJson = await response.json()
 
+
   if (inputTypeRef.current === 'images'){
     const checkedImages = await checkInstagramImages([responseJson.image])
     setImages(prev => [...checkedImages, ...prev])
 
   }else{
+
 
     const {paragraphs, heading, captions} = detectArticle(responseJson)
 
@@ -1062,13 +1064,17 @@ useEffect(()=>{
 
   imagesRef.current = images
 
-  if (selectedFeedRef.current.CMSType === 'wordpress'){
-      setTinymceContent('')
-      addWordPressArticle(null, images)
-  }else if (selectedFeedRef.current.CMSType === 'contentful'){
-      handleMDEditorChange('')
-      addContentfulArticle(null, images)
+  if (inputTypeRef.current === 'articles'){
+    if (selectedFeedRef.current.CMSType === 'wordpress'){
+        setTinymceContent('')
+        addWordPressArticle(null, images)
+    }else if (selectedFeedRef.current.CMSType === 'contentful'){
+        handleMDEditorChange('')
+        addContentfulArticle(null, images)
+    }
+
   }
+
 
 },[images])
 

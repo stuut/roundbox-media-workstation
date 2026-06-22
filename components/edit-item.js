@@ -25,6 +25,7 @@ export default function EditFile() {
   const applyChanges = () => {
     setItem(newFile)
     setDisplayEditItem(false)
+    setNewFile(null)
   }
 
 return(
@@ -38,7 +39,6 @@ return(
                 <h4>MENU</h4>
                 {newFile&&
                   <button className='btn primary' onClick={applyChanges}>Apply Changes</button>
-
                 }
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}> Crop </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
@@ -108,61 +108,63 @@ const CropComponent = ({
 
   const colorPickerRef = useRef(null);
 
-    const loadImageAsBlobURL = async (src) => {
-
-      const key = src.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-      const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
 
 
-      const res = await fetch(proxiedUrl, {
-        mode: 'cors',
-        credentials: 'omit',
-      });
+  const getCroppedImg = async (imageSrc, croppedAreaPixels, canvas) => {
+    const ctx = canvas.getContext('2d');
 
-      if (!res.ok) throw new Error('Image fetch failed');
+    let blobUrl = null;
+    try {
+      // Build the proxy URL based on the image source
+      let proxiedUrl;
+      if (imageSrc.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
+        const key = imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+      } else {
+        // For Contentful or any other origin, proxy the full URL
+        proxiedUrl = imageSrc;
+      }
+
+      const res = await fetch(proxiedUrl, { mode: 'cors', credentials: 'omit' });
+      if (!res.ok) throw new Error(`Proxy fetch failed: ${res.status} ${res.statusText}`);
 
       const blob = await res.blob();
-      return URL.createObjectURL(blob);
-    };
+      if (blob.size === 0) throw new Error('Proxy returned empty blob');
+      if (!blob.type.startsWith('image/')) {
+        // Read the body to see the actual error message
+        const text = await blob.text();
+        throw new Error(`Unexpected blob type: ${blob.type}. Body: ${text.slice(0, 200)}`);
+      }
 
+      blobUrl = URL.createObjectURL(blob);
 
-
-    const getCroppedImg = async (imageSrc, croppedAreaPixels, canvas) => {
-      const ctx = canvas.getContext('2d');
-
-      const blobUrl = await loadImageAsBlobURL(imageSrc);
-
-      const image = new Image();
-       image.src = blobUrl;
-
-       await new Promise((resolve, reject) => {
-         image.onload = resolve;
-         image.onerror = reject;
-       });
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error(`Image failed to load from blob URL. type=${blob.type} size=${blob.size}`));
+        image.src = blobUrl;
+      });
 
       canvas.width = croppedAreaPixels.width;
       canvas.height = croppedAreaPixels.height;
-
-      // Draw the background (you can customize this to fit your needs)
-      ctx.fillStyle = color; // Same as the background div
+      ctx.fillStyle = color;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
       ctx.drawImage(
-        image,
-        croppedAreaPixels.x,
-        croppedAreaPixels.y,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height,
-        0,
-        0,
-        canvas.width,
-        canvas.height
+        img,
+        croppedAreaPixels.x, croppedAreaPixels.y,
+        croppedAreaPixels.width, croppedAreaPixels.height,
+        0, 0,
+        canvas.width, canvas.height
       );
 
-      return new Promise((resolve) => {
+      return await new Promise((resolve) => {
         canvas.toBlob(resolve, 'image/jpeg', 0.95);
       });
-    };
+
+    } finally {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    }
+  };
 
    const createCroppedImage = async () => {
 
@@ -226,7 +228,6 @@ const CropComponent = ({
              id: fileinfo.id,
              user_id: user.id
            })
-
 
          } else {
            showError(result.error)
