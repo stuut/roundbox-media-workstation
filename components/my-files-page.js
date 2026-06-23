@@ -30,13 +30,14 @@ const documentTypes = ['application/pdf']
 export default function MyFilesPageComponent() {
   const pathname = usePathname();
   const { user } = useUserContext();
-  const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles, filePicker} = useFilesContext();
   const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
   const [userId, setUserId] = useState(null)
   const [filesDisplay, setFilesDisplay] = useState('My Files')
   const [uploading, setUploading] = useState(false)
   const [fileFilters, setFileFilters] = useState([])
   const [imageSearch, setImageSearch] = useState('')
+  const [selectedFiles, setSelectedFiles] = useState([])
+  const [files, setFiles] = useState([])
 
   const editMedia = (media) => {
     setDisplayEditItem(true)
@@ -44,8 +45,14 @@ export default function MyFilesPageComponent() {
   }
 
   useEffect(() => {
-    if (!displayEditItem && item) {
+    return () => {
+      console.log('unmounting') // should fire on navigate away
+      setSelectedFiles([])
+    }
+  }, []);
 
+  useEffect(() => {
+    if (!displayEditItem && item) {
         setItem(null)
         getData()
     }

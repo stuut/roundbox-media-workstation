@@ -726,6 +726,10 @@ h2{
   margin: 10px 0;
 }
 
+.btn.pill{
+  margin:0px 0px 5px 5px
+}
+
 .video_thumb{
   width: 100%;
     min-width: 200px;
@@ -745,7 +749,8 @@ h2{
   padding:var(--tab-padding);
   border-radius: var(--border-radius);
   margin: 10px 0;
-  transition: all .5s ease
+  transition: all .5s ease;
+  cursor:pointer
 }
 
 .transition{
@@ -1716,6 +1721,7 @@ input.form-input.column-name:disabled{
     text-decoration: none;
     vertical-align: middle;
     -webkit-appearance: button;
+    background: var(--md-sys-color-surface-dim);
     cursor: pointer;
     -webkit-user-select: none;
     -moz-user-select: none;

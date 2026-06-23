@@ -436,7 +436,7 @@ const CaptionComponent = ({
   return(
     <div>
         <div style={{marginTop:'25px'}}>
-          <img style={{maxWidth:'400px', borderRadius:'10px'}} src={image.file_url} />
+          <img style={{maxWidth:'400px'}} src={image.file_url} />
           <p className='font-label'>Caption</p>
           <textarea
               rows="4"
@@ -475,6 +475,8 @@ const OutPaint = ({
     scaleX:0,
     scaleY:0
   });
+  const [constrainRatio, setConstrainRatio] = useState(null)
+
 
   const [box, setBox] = useState({
     left:0,
@@ -491,6 +493,16 @@ const OutPaint = ({
     y: 0
   });
   const imgRectRef = useRef(null);
+  const imgContainerRef = useRef(null);
+
+  const applyConstraint = (width, height, ratio) => {
+    if (!ratio) return { width, height };
+    // Grow whichever dimension satisfies the ratio without shrinking the other
+    const fromWidth = { width, height: width / ratio };
+    const fromHeight = { width: height * ratio, height };
+    // Pick the larger canvas so the image always fits
+    return fromWidth.height >= height ? fromWidth : fromHeight;
+  };
 
 
 
@@ -524,6 +536,8 @@ const OutPaint = ({
 
 
     imgRectRef.current = imageRef.current.getBoundingClientRect();
+    imgContainerRef.current = containerRef.current.getBoundingClientRect();
+
 
 
     const scaleX = img.naturalWidth / imageRect.width
@@ -545,78 +559,6 @@ const OutPaint = ({
 
   };
 
-/*
-  useEffect(()=>{
-    getImageSize()
-  },[image])
-  */
-
-
-  useEffect(()=>{
-    /*
-    setBox( prev => {
-      x:prev.x,
-      y:prev.y,
-      width: displayedImageDimension.width,
-      height: displayedImageDimension.height,
-    })*/
-
-  },[displayedImageDimension])
-
-
-
-
-
-  // -----------------------------
-  // DRAG BOX
-  // -----------------------------
-  /*
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-
-    let dragging = false;
-
-    let offsetX = 0;
-    let offsetY = 0;
-
-    const onMouseDown = (e) => {
-      dragging = true;
-
-      const rect = el.getBoundingClientRect();
-
-      // IMPORTANT: store click offset INSIDE the box
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
-    };
-
-    const onMouseMove = (e) => {
-      if (!dragging) return;
-
-      const container = containerRef.current;
-      const containerRect = container.getBoundingClientRect();
-
-      setBox((prev) => ({
-        ...prev,
-        x: e.clientX - containerRect.left - offsetX,
-        y: e.clientY - containerRect.top - offsetY,
-      }));
-    };
-
-    const onMouseUp = () => {
-      dragging = false;
-    };
-
-    el.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    return () => {
-      el.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, []);*/
 
   // -----------------------------
   // RESIZE HANDLER (bottom-right)
@@ -655,7 +597,11 @@ const OutPaint = ({
 
         const newWidth = Math.max(minWidth, proposedWidth);
         const newHeight = Math.max(minHeight, proposedHeight);
-
+        /*
+        // Apply ratio constraint
+        if(constrainRatio){
+          ({ width: newWidth, height: newHeight } = applyConstraint(newWidth, newHeight, constrainRatio));
+        }*/
 
         return{
           ...prev,
@@ -681,7 +627,7 @@ const OutPaint = ({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []);
+  }, [constrainRatio]);
 
   // -----------------------------
   // RESIZE HANDLER (bottom-left)
@@ -1330,6 +1276,40 @@ const OutPaint = ({
     setDisplayEditItem(false)
   }
 
+  const handleSetRatio = (r) => {
+    setConstrainRatio(r);
+    if (r) {
+      setBox((prev) => {
+
+        const img = imgRectRef.current;
+        const containerRect = imgContainerRef.current;
+
+        const x = img.left - containerRect.left;
+        const y = img.top - containerRect.top;
+
+
+        // Find the current center of the image
+        const centerX = x + img.width / 2;
+        const centerY = y + img.height / 2;
+
+
+
+        // Grow dimensions to fit the ratio
+        const { width, height } = applyConstraint(img.width, img.height, r);
+
+        // Re-derive x/y so the center stays fixed
+        return {
+          ...prev,
+          width,
+          height,
+          x: centerX - width / 2,
+          y: centerY - height / 2,
+        };
+      });
+    }
+  };
+
+
   return (
     <>
     <div
@@ -1376,8 +1356,6 @@ const OutPaint = ({
           getImageSize();
         }}
       />
-
-
 
 
       {/* EXPAND BOX */}
@@ -1519,13 +1497,25 @@ const OutPaint = ({
             onChange={(e) => setPrompt(e.target.value)}
             className={'form-input'}
             placeholder='Image Fill Prompt'
-            style={{flex:2}}
+            style={{flex:4}}
           />
           <button
-            style={{flex:1}}
+            style={{flex:2}}
             className='unselectable btn secondary'
             onClick={submit}>
             Create Image
+          </button>
+          <Square onClick={()=> handleSetRatio(1/1)} size={35} className={`cropped-image ${constrainRatio===1/1?'active':''}`} alt="crop ratio 1/1" />
+          <RectangleVertical onClick={()=> handleSetRatio(4/5)} size={35}  className={`cropped-image ${constrainRatio===4/5?'active':''}`} alt="crop ratio 4/5" />
+          <RectangleHorizontal onClick={()=> handleSetRatio(1.91/1)} size={35}  className={`cropped-image ${constrainRatio===1.91/1?'active':''}`}  alt="crop ratio 1.91/1" />
+          <button
+            style={{flex:.5}}
+            className='unselectable btn secondary btn-sm'
+            onClick={() => {
+              handleSetRatio(null)
+              getImageSize()
+            }}>
+            Unset
           </button>
         </div>
       </div>

@@ -167,7 +167,7 @@ const tinymceAPIkey = 'p3buqczwwii4scekdj4yuqpuwif3v2w63nbm6krta5jdnazt'
 
 export default function PdfTextExtractor({user}) {
   const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
-  const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
+  const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker, fileLimit, setFileLimit } = useFilesContext();
   const [pageNumber, setPageNumber] = useState(1)
   const pageNumberRef = useRef(null);
   const [tinymceContent, setTinymceContent] = useState("");
@@ -199,16 +199,23 @@ export default function PdfTextExtractor({user}) {
   const editImageData = useRef(null)
   const evtSourceRef = useRef(null);
   const [loader, setLoader] = useState(false)
+  const [contentfulFilter, setContentfulFilter] = useState('authors');
   const [contentfulAuthorsList, setContentfulAuthorsList] = useState([]);
   const [contentfulCategoriesList, setContentfulCategoriesList] = useState([]);
   const [contentfulTagsList, setContentfulTagsList] = useState([]);
+  const [author, setAuthor] = useState(null);
+  const [selectedContentfulCategories, setSelectedContentfulCategories] = useState([]);
+  const [selectedContentfulTags, setSelectedContentfulTags] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
+  const [categoriesState, setCategoriesState] = useState(false);
   const [categoriesNested, setCategoriesNested] = useState([]);
   const [showMedia, setShowMedia] = useState(false);
   const [searchMedia, setSearchMedia] = useState('');
   const [mediaList, setMediaList] = useState([]);
   const [imagesDragOver, setImagesDragOver] = useState(false);
-
+  const hasMounted = useRef(false)
+  const [guestAuthor, setGuestAuthor] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const createWPAPI = () => {
     let wpapiUrl
     if (!selectedFeed.website.endsWith("/")){
@@ -223,6 +230,11 @@ export default function PdfTextExtractor({user}) {
     });
     return wp
 
+  }
+
+
+  function isInArray(value, array) {
+    return array.indexOf(value) > -1;
   }
 
   const checkFunction = (number, checkbox) => {
@@ -270,6 +282,7 @@ export default function PdfTextExtractor({user}) {
     var wp = createWPAPI()
     wp.categories().perPage(100).get().then(function(response) {
         let nestedList = buildNestedCheckboxes(response)
+        setCategoriesState(prev => !prev)
         setCategoriesNested(nestedList)
     })
   }
@@ -498,6 +511,7 @@ async function downloadImage(image) {
       setpdfUrl(file.file_url)
     }else if (file.file_type === 'image/png' || file.file_type === 'image/jpeg'){
       const checkedImages = await checkInstagramImages(files)
+      console.log('setImages')
       setImages(images => [...checkedImages, ...images])
     }
     setSelectedFiles([])
@@ -505,10 +519,18 @@ async function downloadImage(image) {
 
 
   useEffect(() => {
+
+    if (!hasMounted.current) {
+      hasMounted.current = true
+      return
+    }
+
     if (!showFiles && selectedFiles.length > 0) {
       addNewFile(selectedFiles)
     }
-  }, [showFiles, selectedFiles]);
+
+  }, [showFiles, selectedFiles])
+
 
 
   const onMouseDown = (event) => {
@@ -615,6 +637,7 @@ const sendAreaData = async(selectionArea) => {
 
   if (inputTypeRef.current === 'images'){
     const checkedImages = await checkInstagramImages([responseJson.image])
+    console.log('setImages')
     setImages(prev => [...checkedImages, ...prev])
 
   }else{
@@ -644,7 +667,7 @@ const sendAreaData = async(selectionArea) => {
       const checkedImages = await checkInstagramImages(imagesWithCaptions)
 
       newImages = [...checkedImages, ...imagesRef.current]
-
+      console.log('setImages')
       setImages(prev => [...checkedImages, ...prev])
 
     }
@@ -1305,6 +1328,7 @@ const handleMDEditorChange = (newValue) => {
 
 
 const removeArticleImage = (id) => {
+  console.log('setImages')
   setImages(prev => prev.filter((image)=>image.id !== id))
 
 
@@ -1329,9 +1353,6 @@ const handleDrop = (e, id) => {
   const draggedId = e.dataTransfer.getData('id');
   const draggedType = e.dataTransfer.getData('type');
 
-  console.log('id', id)
-
-  console.log('draggedId', draggedId)
 
   if (id && draggedId !== id) {
     const updatedItems = [...images];
@@ -1384,7 +1405,7 @@ const handleDrop = (e, id) => {
         const [draggedItem] = updatedItems.splice(draggedItemIndex, 1);
         updatedItems.splice(targetItemIndex, 0, draggedItem);
       }
-
+      console.log('setImages')
       setImages(updatedItems);
     }
   }else{
@@ -1407,6 +1428,7 @@ const handleDrop = (e, id) => {
     console.log('newImage', newImage)
 
     if (newImage){
+      console.log('setImages')
       setImages(prev => [ newImage, ...prev]);
     }
 
@@ -1427,6 +1449,7 @@ const getEditorContent = () => {
 };
 
 const updateCaption = (value, id) => {
+  console.log('setImages')
   setImages(prev =>
     prev.map(image =>
       image.id === id
@@ -1447,7 +1470,7 @@ const handleEditReplace = async(index, newItem) => {
 
   const checkedImages = await checkInstagramImages([newItem])
 
-
+  console.log('handleEditReplace')
   setImages(prevItems =>
     prevItems.map((item, i) => i === index ? checkedImages[0] : item)
   );
@@ -1457,10 +1480,20 @@ const handleEditReplace = async(index, newItem) => {
 
 useEffect(() => {
 
-  if (!displayEditItem && item) {
+  if (!hasMounted.current) {
+    hasMounted.current = true
+    return
+  }
 
+
+  if (!displayEditItem && item) {
+      console.log('handleEditReplace')
       handleEditReplace(editingIndex.current, item)
       setItem(null)
+  }
+
+  return () => {
+    hasMounted.current = false  // reset so Strict Mode's remount works correctly
   }
 
 }, [displayEditItem, item]);
@@ -1543,7 +1576,7 @@ const startSSE = () => {
             file_description:editImageData.current.caption??null
           })
 
-
+          console.log('setImages')
           setImages(prevItems =>
             prevItems.map((item, i) => item.id === editImageData.current.id ? fileInfo : item)
           );
@@ -1587,6 +1620,55 @@ if (data.publicUrl) {
   }
 }
 
+const clear = () => {
+  setTinymceContent('')
+  setHeading('')
+  setImages([])
+  setCategoriesList([])
+  setTinymceContent('')
+  handleMDEditorChange('')
+  setGuestAuthor('')
+  setAuthor(null)
+  setSelectedContentfulCategories([])
+  setSelectedContentfulTags([])
+
+}
+
+const handleContentfulTagsList = (data) => {
+  if (isInArray(data, selectedContentfulTags)){
+    const removed = selectedContentfulTags.filter(remove => {
+      return remove !== data
+    });
+    setSelectedContentfulTags(removed);
+  }else{
+    setSelectedContentfulTags(selectedContentfulTags => [...selectedContentfulTags, data])
+  }
+}
+
+
+
+
+const handleContentfulCategoriesList = (data) => {
+
+  if (isInArray(data, selectedContentfulCategories)){
+    const removed = selectedContentfulCategories.filter(remove => {
+      return remove !== data
+    });
+
+    setSelectedContentfulCategories(removed);
+
+  }else{
+    setSelectedContentfulCategories(selectedContentfulCategories => [...selectedContentfulCategories, data])
+  }
+
+}
+
+const createPost = () => {
+
+}
+
+
+
 
 
 
@@ -1603,6 +1685,7 @@ if (data.publicUrl) {
         </select>
         {selectedFeed &&
           <button style={{margin: '0px'}} className="btn secondary btn-sm" onClick={() => {
+            setFileLimit(1)
             setSelectedFiles([])
             setFilePicker(true)
             setShowFiles(prevState => !prevState)
@@ -1610,14 +1693,13 @@ if (data.publicUrl) {
         }
 
       </div>
-
-
       {pdfUrl &&
         <>
           <div>
-            <button style={{marginLeft:'10px'}} className={`btn ${inputType === 'articles'? 'primary' : 'secondary'}  btn-sm`} onClick={() => setInputType('articles')}>Extract Articles</button>
-            <button style={{marginLeft:'10px'}} className={`btn ${inputType === 'images'? 'primary' : 'secondary'}  btn-sm`} onClick={() => setInputType('images')}>Extract Image</button>
-          </div>
+            <button style={{marginLeft:'10px'}} className={`btn ${inputType === 'articles'? 'primary' : ''}  btn-sm`} onClick={() => setInputType('articles')}>Extract Articles</button>
+            <button style={{marginLeft:'10px'}} className={`btn ${inputType === 'images'? 'primary' : ''}  btn-sm`} onClick={() => setInputType('images')}>Extract Images</button>
+            <button style={{marginLeft:'10px'}} className={`btn primary btn-sm`} onClick={clear}>Clear</button>
+        </div>
           {inputType === 'images'&&
         <div className="form-check properties-container"
           style={{
@@ -1748,6 +1830,22 @@ if (data.publicUrl) {
           </div>
         </div>
         <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
+          <button style={{margin:'15px 15px 0px 0px'}} className="btn primary" onClick={() => createPost()} disabled={(pdfUrl || loader)?false:true}><strong>Upload Post</strong></button>
+              {selectedFeed.CMSType === 'wordpress' &&
+                <div>
+                  <input style={{
+                    width:"100%",
+                    margin:'15px 0px',
+                  }}
+                    id='guest-author'
+                    type="text"
+                    className="form-input"
+                    value={guestAuthor}
+                    onChange={(e) => setGuestAuthor(e.target.value)}
+                    placeholder="Guest Author..."
+                  />
+                </div>
+              }
             <p style={{marginBottom:'0px'}} className="label" >Schedule Date</p>
               <DatePicker
                 minDate={moment().toDate()}
@@ -1880,18 +1978,18 @@ if (data.publicUrl) {
         {inputType === 'articles'&&
           <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
             {(selectedFeed.CMSType === 'wordpress' && categoriesNested.length > 0) &&
-              <div>
+              <div className='properties-container'>
                 {
                   categoriesNested.map((category, index) => {
                     return (
-                      <div key={index}>
-                        <CheckBox key={index} category={category} checkFunction={checkFunction}/>
+                      <div key={index} style={{marginLeft:'20px', marginTop:'5px', marginBottom:'5px'}}>
+                        <CheckBox key={index} category={category} checkFunction={checkFunction} state={categoriesState} style={{fontWeight:'bold'}}/>
                         {category.children.length > 0 &&
                           <>
                            {category.children.map((catChild, i) => {
                              return (
                                <div key={i} style={{paddingLeft:'20px'}}>
-                                  <CheckBox key={i} category={catChild} checkFunction={checkFunction}/>
+                                  <CheckBox key={i} category={catChild} checkFunction={checkFunction} state={categoriesState} style={{fontSize:'.9em'}}/>
                                </div>
                              )
                            })
@@ -1906,8 +2004,142 @@ if (data.publicUrl) {
               </div>
             }
             {selectedFeed.CMSType === 'contentful'&&
-              <div>
-              </div>
+                <div style={{position:'relative'}} className="properties-container">
+                    <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
+                      <button className={`${'btn btn-sm'} ${contentfulFilter === 'authors'? 'primary' : ''}`} onClick={() => setContentfulFilter('authors')}>Authors</button>
+                      <button className={`${'btn btn-sm'} ${contentfulFilter === 'categories'? 'primary' : ''}`} onClick={() => setContentfulFilter('categories')}>Categories</button>
+                      <button className={`${'btn btn-sm'} ${contentfulFilter === 'tags'? 'primary' : ''}`} onClick={() => setContentfulFilter('tags')}>Tags</button>
+                    </div>
+                    <div>
+                      <input style={{
+                        width:"100%",
+                        margin:'15px 0px',
+                      }}
+                        id='search-term'
+                        type="text"
+                        className="form-input"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Filter..."
+                      />
+                    </div>
+                    <div>
+                    <button style={{marginBottom:'15px'}} className={`${'btn btn-sm'} ${'secondary'}`} onClick={() => clearSelection(contentfulFilter)}>Clear Selection</button>
+                    </div>
+                        {contentfulFilter === 'authors'&&
+                          <>
+                            {contentfulAuthorsList.length>0&&
+                              <div style={{borderColor: '#EBEBEC', flexGrow: 2, height:'700px', overflowY:'scroll'}} className="">
+                              {
+                                contentfulAuthorsList.filter((node) => {
+                                    if (searchTerm){
+                                      return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
+                                    }else{
+                                      return node;
+                                    }
+
+                                }).map((ele, index) => {
+                                  return(
+                                    <div key={index} onClick={() => setAuthor(ele.sys.id)} className={`${'select-tab'} ${author === ele.sys.id?'active': ''}`}>
+                                    {ele.fields.title}
+                                    </div>
+                                  )
+                                })
+                              }
+                              </div>
+                            }
+                          </>
+                        }
+                        {contentfulFilter === 'categories'&&
+                          <>
+                            {contentfulCategoriesList.length>0&&
+                              <div style={{flexGrow: 2, height:'700px', overflowY:'scroll'}}>
+
+                              {selectedContentfulCategories.length>0&&
+                                <div style={{marginBottom:'15px'}}>
+                                  {contentfulCategoriesList.map((ele, index) => {
+                                    if (isInArray(ele.sys.id, selectedContentfulCategories)){
+                                      return(
+                                        <span
+                                          key={index} className="btn btn-sm pill">
+                                        {ele.fields.title}
+                                        </span>
+                                      )
+                                    }else{
+                                      return null
+                                    }
+
+                                  })
+                                  }
+                                </div>
+                              }
+
+                              {
+                                contentfulCategoriesList.filter((node) => {
+                                    if (searchTerm){
+                                      return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
+                                    }else{
+                                      return node;
+                                    }
+
+                                }).map((ele, index) => {
+                                  return(
+                                    <div key={index} onClick={() => handleContentfulCategoriesList(ele.sys.id)} className={`${'select-tab'} ${isInArray(ele.sys.id, selectedContentfulCategories)?'active': ''}`}>
+                                    {ele.fields.title}
+                                    </div>
+                                  )
+                                })
+                              }
+                              </div>
+                            }
+                          </>
+                        }
+                        {contentfulFilter === 'tags'&&
+                          <>
+                            {contentfulTagsList.length>0&&
+                              <div style={{flexGrow: 2, height:'700px', overflowY:'scroll'}} >
+
+                                {selectedContentfulTags.length>0&&
+                                  <div style={{marginBottom:'15px'}}>
+                                    {contentfulTagsList.map((ele, index) => {
+                                      if (isInArray(ele.sys.id, selectedContentfulTags)){
+                                        return(
+                                          <span
+                                            key={index} className="btn btn-sm pill">
+                                          {ele.fields.title}
+                                          </span>
+                                        )
+                                      }else{
+                                        return null
+                                      }
+
+                                    })
+                                    }
+                                  </div>
+                                }
+
+
+                              {
+                                contentfulTagsList.filter((node) => {
+                                    if (searchTerm){
+                                      return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
+                                    }else{
+                                      return node;
+                                    }
+
+                                }).map((ele, index) => {
+                                  return(
+                                    <div key={index} onClick={() => handleContentfulTagsList(ele.sys.id)} className={`${'select-tab'} ${isInArray(ele.sys.id, selectedContentfulTags)?'active': ''}`}>
+                                    {ele.fields.title}
+                                    </div>
+                                  )
+                                })
+                              }
+                              </div>
+                            }
+                          </>
+                        }
+                </div>
             }
           </div>
         }
@@ -2086,7 +2318,7 @@ const MediaPanel = ({
   )
 }
 
-const CheckBox = ({checkFunction, category, state}) => {
+const CheckBox = ({checkFunction, category, state, style}) => {
     const [checkbox, setCheckbox] = useState(false);
     const checkBoxFunction = (data, name, number) => {
         checkFunction(number, !checkbox)
@@ -2094,13 +2326,12 @@ const CheckBox = ({checkFunction, category, state}) => {
     }
 
     useEffect(() => {
-      console.log('checkbox render useEffect')
       setCheckbox(false)
     },[state])
 
-
+    console.log('render checkbox')
   return(
-    <div className="form-check">
+    <div className="form-check" style={{display:'flex', alignItems:'center', gap:'5px'}}>
        <input
         className="form-check-input"
          name="check"
@@ -2108,7 +2339,7 @@ const CheckBox = ({checkFunction, category, state}) => {
          checked={checkbox}
          onChange={(e) => checkBoxFunction(e.target, category.name, category.id)}
          />
-         <label className="form-check-label"> {category.name}</label>
+         <label style={style} className="form-check-label"> {category.name}</label>
     </div>
 
   )

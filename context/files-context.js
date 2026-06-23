@@ -9,6 +9,8 @@ export function FilesProvider({children}) {
   const [files, setFiles] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [filePicker, setFilePicker] = useState(true)
+  const [fileLimit, setFileLimit] = useState(0)
+
 
  return (
     <FilesContext.Provider value={{
@@ -19,7 +21,9 @@ export function FilesProvider({children}) {
       selectedFiles,
       setSelectedFiles,
       filePicker,
-      setFilePicker
+      setFilePicker,
+      fileLimit,
+      setFileLimit
     }}>
         {children}
     </FilesContext.Provider>

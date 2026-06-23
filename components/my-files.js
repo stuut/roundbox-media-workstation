@@ -30,7 +30,7 @@ const documentTypes = ['application/pdf']
 export default function MyFiles() {
   const pathname = usePathname();
   const { user } = useUserContext();
-  const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles, filePicker} = useFilesContext();
+  const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles, filePicker, fileLimit, setFileLimit} = useFilesContext();
   const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
   const [userId, setUserId] = useState(null)
   const [filesDisplay, setFilesDisplay] = useState('My Files')
@@ -46,6 +46,8 @@ export default function MyFiles() {
 
   useEffect(() => {
     if (!displayEditItem && item) {
+
+      console.log('displayEditItem', item)
 
         setItem(null)
         getData()
@@ -148,12 +150,18 @@ useEffect(()=>{
 
 const selectFileFunction = (data) => {
 
-  if (isObjectInArray(data, selectedFiles)){
-    setSelectedFiles(prev => prev.filter(remove => remove.id !== data.id));
+  if (fileLimit === 0){
+    if (isObjectInArray(data, selectedFiles)){
+      setSelectedFiles(prev => prev.filter(remove => remove.id !== data.id));
 
+    }else{
+      setSelectedFiles(selectedFiles => [...selectedFiles, data])
+    }
   }else{
-    setSelectedFiles(selectedFiles => [...selectedFiles, data])
+    setSelectedFiles([data])
   }
+
+
 
 }
 
