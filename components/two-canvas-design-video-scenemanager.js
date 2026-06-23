@@ -50,6 +50,7 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   ArrowLeft,
   ZoomIn,
   ZoomOut,
+  Frame
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
 import { updateFileDescriptionValue } from "@/lib/supabase";
@@ -520,7 +521,9 @@ export const Danva = (({postData, user}, ref) => {
   const [strokeColour, setStrokeColour] = useState('rgba(0,0,0,1)');
   const [strokeWeight, setStrokeWeight] = useState(0);
   const isPaintingRef = useState(null);
-  const isErasingRef = useState(null);
+  const isErasingRef = useRef(false);
+  const isErasingObjectRef = useRef(null);
+
 
   // Resize effect
   const [brushSize, setBrushSize] = useState(200)
@@ -1275,12 +1278,14 @@ const moveBackwards = () => {
 const changeTime = (time) => {
 
   if (time === null) return
+
+  console.log('changeTime')
   setCurrentTime(time)
   currentTimeRef.current = time
 
-  drawLower()
-  drawArtboard()
-  drawUpper()
+  //drawLower()
+  //drawArtboard()
+  //drawUpper()
 }
 
 
@@ -2077,8 +2082,15 @@ async drawVideoInit(ctx) {
 
     videoEl.crossOrigin = 'anonymous';
 
-    const key = this.videoSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-    const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+      let proxiedUrl;
+      if (this.videoSrc.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
+        const key = this.videoSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+      } else {
+        // For Contentful or any other origin, proxy the full URL
+        proxiedUrl = this.videoSrc
+      }
 
     videoEl.src = proxiedUrl;
 
@@ -2107,8 +2119,6 @@ async drawVideoInit(ctx) {
         );
 
       });
-
-      //this.captureFrames()
 
       videoRegistryRef.current.set(this.id, this.video);
       await this.generateThumbnails()
@@ -2218,8 +2228,16 @@ async updateImage(image){
     const img = new Image();
     img.crossOrigin = "anonymous";
 
-    const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-    const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+
+      let proxiedUrl;
+      if (image.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
+        const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+      } else {
+        // For Contentful or any other origin, proxy the full URL
+        proxiedUrl = image;
+      }
 
 
 
@@ -2256,8 +2274,15 @@ async replaceImage(image){
     const img = new Image();
     img.crossOrigin = "anonymous";
 
-    const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-    const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+     let proxiedUrl;
+      if (image.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
+        const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+      } else {
+        // For Contentful or any other origin, proxy the full URL
+        proxiedUrl = image
+      }
 
 
 
@@ -2297,8 +2322,18 @@ async drawImageInit() {
       const img = new Image();
       img.crossOrigin = "anonymous";
 
-      const key = this.imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-      const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+      let proxiedUrl;
+      if (this.imageSrc.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
+        const key = this.imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
+        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+      } else {
+        // For Contentful or any other origin, proxy the full URL
+        proxiedUrl = this.imageSrc;
+      }
+
+
+
 
       img.src = proxiedUrl;
 
@@ -2553,11 +2588,10 @@ drawTextChars(ctx, animationProps, editingText=false, scale=1) {
 
       if (hasTextAnim && editingText===false) {
         // Get animation for this character (handles lines or chars automatically)
-        // perline
         const animProps = this.getTextAnimatedProps(lineIndex, charCounter, lines.length);
         //const animProps = this.getTextAnimatedProps(lineIndex, charCounter, lines.length);
-        drawX += animProps.x;
-        drawY += animProps.y;
+        drawX += animProps.x * scale;
+        drawY += animProps.y * scale;
         alpha = animationProps?.opacity? animationProps?.opacity * animProps.opacity:1;
       }else{
         alpha = animationProps?.opacity ?? 1
@@ -2859,6 +2893,8 @@ handleDelete() {
 
   hitObject(obj, mx, my) {
 
+    if (obj.type === eraser) return false
+
     const dx = mx - obj.cx;
     const dy = my - obj.cy;
 
@@ -2955,7 +2991,7 @@ const addVideo = async (video) => {
       cy:lowerRef.current.height/2,
       videoSrc : video.file_url,
       type:'video',
-      mediaCaption:image.file_description??''
+      mediaCaption:video.file_description??''
     })
     await newObj.drawVideoInit(ctx)
 
@@ -3645,23 +3681,23 @@ const redrawAll = () => {
 }
 
 const renderSceneWorker = async (time) => {
+
   const newObjects = [];
-
-
 
   const scene = sceneManagerRef.current.getSceneAtTime(time);
   if (!scene) return
 
   const localTime = time - scene.start;
 
-
 // replace html element with bitmaps
-  for (const object of scene.objects) {
+  for (const object of scene.elements) {
     const newObject = { ...object };
     if (object.type === 'video') {
       newObject.video = await createImageBitmap(object.video); // HTMLVideoElement → ImageBitmap
     }else if (object.type === 'air brush'){
       newObject.airbrushBuffer = object.airbrushBufferBitmap
+    }else if (object.type === 'eraser'){
+          newObject.eraserBuffer = object.eraserBufferBitmap
     }else if (object.type === 'image'){
       newObject.img = object.imageBitmap
     }
@@ -3681,38 +3717,47 @@ const renderSceneWorker = async (time) => {
 
 
 const updateVideosWorker = (time) => {
-
   let pending = videoRegistryRef.current.size;
 
-  videoRegistryRef.current.forEach((video, key) => {
+  if (pending === 0) {
+    renderSceneWorker(time);
+    return;
+  }
 
+  videoRegistryRef.current.forEach((video, key) => {
     if (!video || !isFinite(video.duration)) {
       pending--;
+      if (pending === 0) renderSceneWorker(time);
       return;
     }
 
-    const seekTime = Math.min(
-      Math.max(time, 0),
-      video.duration - 0.001
-    );
+    const seekTime = Math.min(Math.max(time, 0), video.duration - 0.001);
+    if (!video.paused) video.pause();
 
-    if (!video.paused) {
-      video.pause();
-    }
+    let settled = false;
 
-      video.requestVideoFrameCallback((_, metadata) => {
+    const onFrame = () => {
+      if (settled) return;
+      settled = true;
+      pending--;
+      if (pending === 0) renderSceneWorker(time);
+    };
 
-        pending--;
+    const onSeeked = () => {
+      if (settled) return;
+      settled = true;
+      video.removeEventListener('seeked', onSeeked);
+      pending--;
+      if (pending === 0) renderSceneWorker(time);
+    };
+    video.addEventListener('seeked', onSeeked);
+    video.currentTime = seekTime;
+    video.requestVideoFrameCallback(onFrame);
 
-        if (pending === 0) {
-        renderSceneWorker(time);
-        }
-
-      });
-
-      video.currentTime = seekTime;
+    // Fallback: if rvfcb never fires (same frame / browser quirk), unblock after 100ms
+    setTimeout(() => onFrame(), 100);
   });
-}
+};
 
 
 
@@ -3731,7 +3776,8 @@ useEffect(() => {
 
   if (isTrackingRef.current){
     if (videoRegistryRef.current.size > 0){
-      //updateVideosBuffer(currentTime)
+
+      console.log('updateVideosWorker', videoRegistryRef.current.size)
       updateVideosWorker(currentTime)
 
     }else{
@@ -3846,6 +3892,7 @@ useEffect(() => {
 useEffect(()=>{
 
   if (isPlaying){
+    console.log('isPlaying', isPlaying)
     drawLower()
     drawArtboard()
   }
@@ -4584,8 +4631,6 @@ const pasteTextCallBack = useCallback((e) => {
 
       }else if (object.type === "image"){
 
-
-
         if (object.clippingPath){
 
           const clipCx = (object.clippingPath.left + object.clippingPath.right)/2
@@ -4662,6 +4707,10 @@ const pasteTextCallBack = useCallback((e) => {
           object.h * scaleRef.current
         );
       }
+
+
+
+
 
       if (object.type !== "pen" && object.type !== "image"){
         ctx.fillStyle = object.fill || "lightgray";
@@ -5007,7 +5056,7 @@ const checkActiveScene = (scene) => {
 
   // Draw lower canvas (full resolution)
   const drawLower = (exportVideo = false) => {
-
+    console.log('drawLower')
     const scene = sceneManagerRef.current.getSceneAtTime(currentTimeRef.current);
 
     if (!scene) return
@@ -5079,7 +5128,6 @@ const checkActiveScene = (scene) => {
 
 
       ctx.globalAlpha = animationProps.opacity;
-      ctx.beginPath(); // 🟢 Always begin a new path for each object
 
       if (object.effects.length > 0){
         object.effects.forEach(effect => {
@@ -5095,11 +5143,11 @@ const checkActiveScene = (scene) => {
 
         ctx.ellipse(0, 0, object.width/ 2, object.h / 2, 0, 0, Math.PI * 2);
       } else if (object.type === "triangle"){
-
+        ctx.beginPath(); // 🟢 Always begin a new path for each object
         ctx.moveTo(0, -object.h / 2);
         ctx.lineTo(-object.width/2, object.h / 2);
         ctx.lineTo(object.width/2, object.h / 2);
-
+        ctx.closePath();
       }else if (object.type === "text"){
 
         if (object.hasTexthilight()){
@@ -5180,6 +5228,16 @@ const checkActiveScene = (scene) => {
               ctx.globalAlpha = 1;
               ctx.restore();
             }
+      }else if (object.type === 'eraser'){
+        if (object.eraserBuffer){
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.globalCompositeOperation = "destination-out";
+          //ctx.globalAlpha = object.eraserOpacity/100;
+          ctx.drawImage(object.eraserBuffer, 0, 0);
+          //ctx.globalAlpha = 1;
+          ctx.restore();
+        }
       }
 
       // Fill first
@@ -5203,7 +5261,7 @@ const checkActiveScene = (scene) => {
         );
       }
 
-      ctx.closePath();
+
 
       ctx.restore(); // ✅ always restore exactly once per object
 
@@ -5731,6 +5789,7 @@ function hitPolygon(px, py, polygon) {
           brushSize:brushSize
         })
         objectsRef.current.push(newObj);
+        addElement(newObj)
         selectedIndexRef.current = objectsRef.current.length - 1
         setActiveElementId(objectsRef.current.length - 1)
         newObj.points = [{ x: pos.x, y: pos.y, pressure: e.pressure || 1 }]
@@ -5750,6 +5809,7 @@ function hitPolygon(px, py, polygon) {
           brushSize:brushSize
         })
         objectsRef.current.push(newObj);
+        addElement(newObj)
         selectedIndexRef.current = objectsRef.current.length - 1
         setActiveElementId(objectsRef.current.length - 1)
 
@@ -5758,7 +5818,7 @@ function hitPolygon(px, py, polygon) {
         bufferCtxRef.current.clearRect(0,0,bufferRef.current.width,bufferRef.current.height);
 
         // draw first stamp into buffer (full alpha inside texture)
-        stampToBuffer(pos.x, pos.y);
+        paintAt(pos.x, pos.y);
         renderOverlay();
 
       //  applyPaint(pos.x, pos.y, ctx);
@@ -5767,13 +5827,27 @@ function hitPolygon(px, py, polygon) {
       const pos = getMousePos(e);
       isErasingRef.current = true
 
+      const newObj =  new Element({
+        id:generateUniqueId(),
+        x:pos.x,
+        y:pos.y,
+        type:'eraser',
+        brushOpacity:brushOpacity,
+        brushHardness:brushHardness,
+        brushSize:brushSize
+      })
+      objectsRef.current.push(newObj);
+      addElement(newObj)
       lastPointRef.current = {x:pos.x, y:pos.y}
+      newObj.points = [{ x: pos.x, y: pos.y, pressure: e.pressure || 1 }]
 
 
       bufferCtxRef.current.clearRect(0,0,bufferRef.current.width,bufferRef.current.height);
-      //bufferCtxRef.current.globalCompositeOperation = 'source-over';
 
       eraseAt(pos.x, pos.y);
+      //renderOverlay();
+
+      isErasingObjectRef.current = newObj
 
     //applyEraseBuffer();
 
@@ -6307,8 +6381,16 @@ function hitPolygon(px, py, polygon) {
 
     }else if (activeToolRef.current === 'eraser'){
       if (!isErasingRef.current) return;
-        drawEraserBuffer(lastPointRef.current.x, lastPointRef.current.y, pos.x, pos.y)
+      if (!isErasingObjectRef.current) return;
+
+        drawEraserPreview(lastPointRef.current.x, lastPointRef.current.y, pos.x, pos.y)
         lastPointRef.current = {x:pos.x, y:pos.y}
+
+        isErasingObjectRef.current.points.push({
+          x: pos.x,
+          y: pos.y,
+          pressure: e.pressure || 1,
+        });
 
 
     }else if (activeToolRef.current === 'cropping'){
@@ -6395,177 +6477,7 @@ function hitPolygon(px, py, polygon) {
         return;
       }
 
-      // resizing element proptionally
-      /*
-      if (resizing) {
 
-        const { index, corner } = resizing;
-        const obj = getActiveElement();
-        const animated = getAnimatedProps(obj);
-
-        const keepRatio = e.shiftKey;
-
-        const aspect = obj.width/ obj.h;
-
-        console.log('pos.x cropping', pos.x)
-        console.log('pos.y cropping', pos.y)
-
-        // Mouse position relative to center, rotated into object space
-        const dx = pos.x - obj.cx;
-        const dy = pos.y - obj.cy;
-        const cos = Math.cos(-animated.angle);
-        const sin = Math.sin(-animated.angle);
-        const localX = (dx * cos - dy * sin) / animated.scale;
-        const localY = (dx * sin + dy * cos) / animated.scale;
-
-        // Compute half-width/half-height based on dragged corner
-        let halfW = Math.abs(localX);
-        let halfH = Math.abs(localY);
-
-        if (!keepRatio) {
-          const newAspect = halfW / halfH;
-          if (newAspect > aspect) halfW = halfH * aspect;
-          else halfH = halfW / aspect;
-        }
-
-        const clippingObject = {
-          left:   -halfW,
-          right:   halfW,
-          top:    -halfH,
-          bottom:  halfH,
-        }
-
-
-        clippingObject.cx = obj.cx
-        clippingObject.cy = obj.cy
-        clippingObject.width = clippingObject.right - clippingObject.left
-        clippingObject.height = clippingObject.bottom - clippingObject.top
-
-        obj.clippingPath = clippingObject
-
-
-        console.log('clippingObject', clippingObject)
-
-        console.log('obj', obj)
-
-        drawLower();
-        drawUpper();
-        drawArtboard();
-        return;
-      }
-
-      // resize Side
-      if (resizingSide) {
-
-
-        const { index, side } = resizingSide; // side = 0: top, 1: right, 2: bottom, 3: left
-        const obj = getActiveElement()
-
-        const animated = getAnimatedProps(obj);
-
-        // Transform mouse → local object space
-        const dx = pos.x - obj.cx;
-        const dy = pos.y - obj.cy;
-
-        //inverse of the object’s rotation Now we can treat it like a plain rectangle without worrying about rotation
-        const cos = Math.cos(-animated.angle);
-        const sin = Math.sin(-animated.angle);
-        const localX = (dx * cos - dy * sin) / animated.scale;
-        const localY = (dx * sin + dy * cos) / animated.scale;
-
-        // Current local bounds (centered at 0,0)
-        let left   = -obj.width/ 2;
-        let right  =  obj.width/ 2;
-        let top    = -obj.h / 2;
-        let bottom =  obj.h / 2;
-
-        // Move just the selected side
-        switch (side) {
-          case 2: // top
-            top = localY;
-            break;
-          case 1: // right
-            right = localX;
-            break;
-          case 3: // bottom
-            bottom = localY;
-            break;
-          case 0: // left
-            left = localX;
-            break;
-        }
-
-
-          const clip = obj.clippingPath ?? {
-            left: -obj.width/2,
-            right: obj.width/2,
-            top: -obj.h/2,
-            bottom: obj.h/2,
-          };
-
-          switch (side) {
-            case 0: // left
-              clip.left = localX;
-              break;
-
-            case 1: // right
-              clip.right = localX;
-              break;
-
-            case 2: // top
-              clip.top = localY;
-              break;
-
-            case 3: // bottom
-              clip.bottom = localY;
-              break;
-          }
-
-
-          if (!obj.clippingPath?.cx){
-            clip.cx = obj.cx
-          }
-
-          if (!obj.clippingPath?.cy){
-            clip.cy = obj.cy
-          }
-
-
-          // Compute new width/height
-          const newW = clip.right - clip.left;
-          const newH = clip.bottom - clip.top;
-
-
-          // Compute new local center (midpoint of bounds) cx and cy
-          const newLocalCx = (clip.left + clip.right) / 2;
-          const newLocalCy = (clip.top + clip.bottom ) / 2;
-
-
-          // Rotate local center shift back to world space
-          const worldDx =
-            newLocalCx * Math.cos(animated.angle) -
-            newLocalCy * Math.sin(animated.angle);
-
-          const worldDy =
-            newLocalCx * Math.sin(animated.angle) +
-            newLocalCy * Math.cos(animated.angle);
-
-
-          clip.cx += worldDx;
-          clip.cy += worldDy;
-          clip.width = newW
-          clip.height = newH
-
-
-          obj.clippingPath = clip;
-
-        drawLower();
-        drawUpper();
-        drawArtboard();
-        return;
-      }
-
-      */
     }
   };
 
@@ -6609,11 +6521,11 @@ const getClippingValues = (obj) => {
 
   useEffect(()=> {
       brushTextureRef.current = createBrushTexture();
-  },[brushSize, brushHardness, fillColour])
+  },[brushSize, brushHardness, brushOpacity, fillColour])
 
   useEffect(()=> {
       eraserTextureRef.current = createEraserTexture();
-  },[eraserSize, eraserHardness])
+  },[eraserSize, eraserOpacity, eraserHardness])
 
   function createEraserTexture() {
     // brushColor fixed to black here; change if you need color
@@ -6631,7 +6543,7 @@ const getClippingValues = (obj) => {
 
     const hard = Math.max(0, Math.min(1, eraserHardness / 100));
 
-    //const alpha = (brushOpacity * brushFlow) / 10000; // Combined opacity and flow
+    const alpha = (eraserOpacity * brushFlow) / 10000; // Combined opacity and flow
 
 
     if (hard >= 0.999) {
@@ -6656,7 +6568,9 @@ const getClippingValues = (obj) => {
         const stop = i / steps;
         // t goes 0..1 across radius; easedAlpha goes from 1 down to 0
         const eased = 1 - easeInOut(stop);
-        const easedAlpha = eased * (1 - easeInOut(stop));
+        //const easedAlpha = eased * (1 - easeInOut(stop));
+        const easedAlpha = alpha * (1 - easeInOut(stop));
+
 
         gradient.addColorStop(stop, `rgba(${0},${0},${0},${easedAlpha})`);
       }
@@ -6732,30 +6646,19 @@ const getClippingValues = (obj) => {
   }
 
 
-  function eraserToBuffer(x, y) {
-    const d = eraserTextureRef.current.width;
-    bufferCtxRef.current.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
 
-  }
-
-
-
-  function stampToBuffer(x, y) {
-    // Draw brush texture onto the buffer. NOTE: draw with full alpha (we rely on buffer being composited once)
+  function paintAt(x, y) {
     const d = brushTextureRef.current.width;
     bufferCtxRef.current.drawImage(brushTextureRef.current, x - d/2, y - d/2);
   }
 
 
   function renderOverlay() {
-    // Clear overlay and draw buffer onto it once with globalAlpha = brushOpacity
     overlayCtxRef.current.clearRect(0,0,overlayRef.current.width,overlayRef.current.height);
     overlayCtxRef.current.globalAlpha = brushOpacity/100;
     overlayCtxRef.current.drawImage(bufferRef.current, 0, 0);
     overlayCtxRef.current.globalAlpha = 1;
   }
-
-
 
 
   function applyEraseBuffer() {
@@ -6771,8 +6674,6 @@ const getClippingValues = (obj) => {
         bufCtx.drawImage(bufferRef.current, 0, 0);
         bufCtx.restore();
     }
-
-
 
     const lower = lowerRef.current;
     const lowerCtx = lower.getContext("2d");
@@ -6866,8 +6767,7 @@ const getClippingValues = (obj) => {
       obj = getActiveElement()
       if (!obj) return
 
-      drawBuffer(obj, bufferRef.current)
-
+      drawAirbrushBuffer(obj, bufferRef.current)
 
       // ✅ Create a new offscreen canvas
       const clonedCanvas = document.createElement('canvas');
@@ -6884,6 +6784,28 @@ const getClippingValues = (obj) => {
       obj.airbrushBufferBitmap = await createImageBitmap(obj.airbrushBuffer)
 
       overlayCtxRef.current.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+      bufferCtxRef.current.clearRect(0, 0, bufferRef.current.width, bufferRef.current.height);
+
+    }
+
+    if (isErasingRef.current){
+
+      obj = isErasingObjectRef.current
+
+      const clonedCanvas = document.createElement('canvas');
+      clonedCanvas.width = bufferRef.current.width;
+      clonedCanvas.height = bufferRef.current.height;
+      const clonedCtx = clonedCanvas.getContext('2d');
+
+      // Copy the current buffer pixels into it
+      clonedCtx.drawImage(bufferRef.current, 0, 0);
+
+      // Store the copy, not the original reference
+      obj.eraserBuffer = clonedCanvas;
+      obj.eraserOpacity = eraserOpacity;
+      obj.eraserBufferBitmap = await createImageBitmap(obj.eraserBuffer)
+
+    //  overlayCtxRef.current.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
       bufferCtxRef.current.clearRect(0, 0, bufferRef.current.width, bufferRef.current.height);
 
     }
@@ -6910,6 +6832,7 @@ const getClippingValues = (obj) => {
     lastPointRef.current = null
     isPaintingRef.current = false;
     isErasingRef.current = false;
+    isErasingObjectRef.current = null
 
     if (selectedIndexRef.current !== null){
       const index = selectedIndexRef.current;
@@ -6967,9 +6890,11 @@ function drawLineBuffer(x1, y1, x2, y2) {
     const t = steps === 0 ? 0 : i / steps;
     const x = x1 + dx * t;
     const y = y1 + dy * t;
-    stampToBuffer(x, y);
+    paintAt(x, y);
   }
 }
+
+
 
 
 const eraseAt = (x, y) => {
@@ -6985,38 +6910,28 @@ const eraseAt = (x, y) => {
       bufCtx.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
       bufCtx.restore();
   }
-
-
+  const d = eraserTextureRef.current.width;
 
 
   const lower = lowerRef.current;
   const lowerCtx = lower.getContext("2d");
 
-  const d = eraserTextureRef.current.width;
   lowerCtx.save();
 
   lowerCtx.globalCompositeOperation = "destination-out";
   lowerCtx.globalAlpha = eraserOpacity/100;
 
   lowerCtx.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
-   lowerCtx.restore();
+  lowerCtx.restore();
+
+
+  bufferCtxRef.current.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
 
 }
 
-function eraserStampToMain(x, y) {
-  const mainCtx = lowerCtx; // or mainCtxRef.current
-  const d = eraserTextureRef.current.width;
-
-  mainCtx.save();
-  mainCtx.globalCompositeOperation = 'destination-out';
-  // Use globalAlpha to control the erase strength per stamp (0..1)
-  mainCtx.globalAlpha = eraseStrength; // e.g. your eraser opacity (0..1)
-  mainCtx.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
-  mainCtx.restore();
-}
 
 
-const drawBuffer = (obj, buffer) => {
+const drawAirbrushBuffer = (obj, buffer) => {
   const lower = lowerRef.current;
   const lowerCtx = lower.getContext("2d");
 
@@ -7025,7 +6940,21 @@ const drawBuffer = (obj, buffer) => {
   lowerCtx.globalAlpha = 1;
 }
 
-function drawEraserBuffer(x1, y1, x2, y2) {
+const drawEraserBuffer = (obj, buffer) => {
+  const lower = lowerRef.current;
+  const lowerCtx = lower.getContext("2d");
+
+  lowerCtx.save();
+
+  lowerCtx.globalCompositeOperation = "destination-out";
+  lowerCtx.globalAlpha = 1;
+  lowerCtx.drawImage(buffer, 0, 0);
+  lowerCtx.restore();
+}
+
+
+
+function drawEraserPreview(x1, y1, x2, y2) {
 
   const dx = x2 - x1, dy = y2 - y1;
   const dist = Math.hypot(dx, dy);
@@ -7038,7 +6967,6 @@ function drawEraserBuffer(x1, y1, x2, y2) {
     const t = steps === 0 ? 0 : i / steps;
     const x = x1 + dx * t;
     const y = y1 + dy * t;
-    //eraserToBuffer(x, y);
     eraseAt(x, y)
   }
 
@@ -7047,7 +6975,6 @@ function drawEraserBuffer(x1, y1, x2, y2) {
 
 
 function drawPen(ctx, points, colour = "rgba(0,0,0,1)", brushSize = 50) {
-
 
   if (!points || points.length < 2) return;
 
@@ -9254,7 +9181,7 @@ useEffect(() => {
                 borderColour = 'var(--md-sys-color-secondary-container)'
               }
 
-              if (!element) return null
+              if (!element || element.type==='eraser') return null
 
               return(
                   <div key={index} className='no-highlight timeline-bar'
@@ -9600,7 +9527,7 @@ useEffect(() => {
               <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'5px'}} alt='Fit Page'/>
               <div style={{width:'35px', height:'35px', marginRight:'5px'}} className='tool-tip-crop'>
                 <ToolSVG
-                  icon={Crop}
+                  icon={Frame}
                   callBack={toolCallback}
                   tool='cropping'
                   label='Cropping'
@@ -11037,7 +10964,7 @@ useEffect(() => {
                       borderColour = 'var(--md-sys-color-secondary-container)'
                     }
 
-                    if (!element) return null
+                    if (!element || element.type === 'eraser') return null
 
                     return(
                       <div key={index}>

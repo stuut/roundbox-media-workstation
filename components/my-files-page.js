@@ -310,7 +310,7 @@ async function downloadAndZip() {
   return (
     <>
 
-            <div className="card">
+            <div>
               <div style={{display:'flex', padding:'15px'}}>
                 <div style={{flex:1, flexDirection:'column', display:'flex'}}>
                   <button onClick={() => setFilesDisplay('My Files')} className={`${'btn'} ${filesDisplay ==='My Files'?'primary':'secondary'}`}>My files</button>

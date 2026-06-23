@@ -63,7 +63,7 @@ const setAlertFunction = (data) => {
   return (
     <div style={{
       position:'fixed',
-      right:'5px',
+      left:'5px',
       bottom:'5px',
       zIndex:1,
     }}>

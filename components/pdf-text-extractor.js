@@ -225,6 +225,55 @@ export default function PdfTextExtractor({user}) {
 
   }
 
+  const checkFunction = (number, checkbox) => {
+
+    if (checkbox){
+      setCategoriesList(categoriesList => [...categoriesList, number])
+    }else{
+      let removeCategoriesList = categoriesList.filter((cat) => number !== cat);
+      setCategoriesList(removeCategoriesList)
+    }
+  }
+
+  function buildNestedCheckboxes(checkboxes) {
+    const map = {}; // To store all items by their id
+    const roots = []; // To store root items (parent === null)
+
+    // Initialize the map with all items and an empty children array
+    checkboxes.forEach(item => {
+      item.children = []; // Initialize the children array for each item
+      map[item.id] = item; // Add the item to the map by its id
+    });
+
+    // Populate the children arrays and roots
+    checkboxes.forEach(item => {
+      if (item.parent === 0) {
+        // If the item has no parent, it is a root item
+        roots.push(item);
+      } else {
+        // If the item has a parent, add it to the parent's children array
+        if (map[item.parent]) {
+          map[item.parent].children.push(item);
+        } else {
+          // Handle the case where parent is not yet in the map
+          map[item.parent] = { children: [item] };
+        }
+      }
+    });
+
+    return roots;
+  }
+
+
+
+  const getWPCategories = () =>{
+    var wp = createWPAPI()
+    wp.categories().perPage(100).get().then(function(response) {
+        let nestedList = buildNestedCheckboxes(response)
+        setCategoriesNested(nestedList)
+    })
+  }
+
 
   const getMedia = async (e) => {
     e.preventDefault();
@@ -1078,10 +1127,28 @@ useEffect(()=>{
 
 },[images])
 
+const getCategories = async(feed) => {
 
+  if (selectedFeedRef.current.CMSType === 'wordpress'){
+      getWPCategories()
+
+    }else if (selectedFeedRef.current.CMSType === 'contentful'){
+      const categories = await getContentfulData(feed, 'category')
+      setContentfulCategoriesList(categories)
+
+      const authors = await getContentfulData(feed, 'author')
+      setContentfulAuthorsList(authors)
+
+      const tags = await getContentfulData(feed, 'tag')
+      setContentfulTagsList(tags)
+
+    }
+
+}
 
 
 useEffect(()=>{
+  setCategoriesList([])
 
   selectedFeedRef.current = selectedFeed
 
@@ -1092,15 +1159,14 @@ useEffect(()=>{
             addWordPressArticle(paragraphsState, images)
           }
 
-        //
     }else if (selectedFeedRef.current.CMSType === 'contentful'){
 
         if (!mdValue){
           addContentfulArticle(paragraphsState, images)
-
         }
     }
 
+    getCategories(selectedFeed)
 
 },[selectedFeed])
 
@@ -1113,21 +1179,12 @@ const onFeedChange = async(value) => {
   if (feed.CMSType === 'wordpress'){
 
 
+
+
   }
 
   if (feed.CMSType === 'contentful'){
 
-    const categories = await getContentfulData(feed, 'category')
-
-    setContentfulCategoriesList(categories)
-
-    const authors = await getContentfulData(feed, 'author')
-
-    setContentfulAuthorsList(authors)
-
-    const tags = await getContentfulData(feed, 'tag')
-
-    setContentfulTagsList(tags)
 
   }
 
@@ -1690,9 +1747,7 @@ if (data.publicUrl) {
             }
           </div>
         </div>
-
         <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
-
             <p style={{marginBottom:'0px'}} className="label" >Schedule Date</p>
               <DatePicker
                 minDate={moment().toDate()}
@@ -1821,8 +1876,41 @@ if (data.publicUrl) {
                 }
               </>
             }
-
         </div>
+        {inputType === 'articles'&&
+          <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
+            {(selectedFeed.CMSType === 'wordpress' && categoriesNested.length > 0) &&
+              <div>
+                {
+                  categoriesNested.map((category, index) => {
+                    return (
+                      <div key={index}>
+                        <CheckBox key={index} category={category} checkFunction={checkFunction}/>
+                        {category.children.length > 0 &&
+                          <>
+                           {category.children.map((catChild, i) => {
+                             return (
+                               <div key={i} style={{paddingLeft:'20px'}}>
+                                  <CheckBox key={i} category={catChild} checkFunction={checkFunction}/>
+                               </div>
+                             )
+                           })
+                           }
+                          </>
+                        }
+                      </div>
+                    )
+
+                  })
+                }
+              </div>
+            }
+            {selectedFeed.CMSType === 'contentful'&&
+              <div>
+              </div>
+            }
+          </div>
+        }
       </div>
       }
     </div>
@@ -1995,5 +2083,33 @@ const MediaPanel = ({
         }
       </div>
     </div>
+  )
+}
+
+const CheckBox = ({checkFunction, category, state}) => {
+    const [checkbox, setCheckbox] = useState(false);
+    const checkBoxFunction = (data, name, number) => {
+        checkFunction(number, !checkbox)
+        setCheckbox(!checkbox)
+    }
+
+    useEffect(() => {
+      console.log('checkbox render useEffect')
+      setCheckbox(false)
+    },[state])
+
+
+  return(
+    <div className="form-check">
+       <input
+        className="form-check-input"
+         name="check"
+         type="checkbox"
+         checked={checkbox}
+         onChange={(e) => checkBoxFunction(e.target, category.name, category.id)}
+         />
+         <label className="form-check-label"> {category.name}</label>
+    </div>
+
   )
 }

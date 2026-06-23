@@ -31,7 +31,11 @@ export default function EditFile() {
 return(
   <>
     {displayEditItem&&
-      <div className='overlay' onClick={(e) => setDisplayEditItem(false)}>
+      <div className='overlay' onClick={(e) => {
+        setDisplayEditItem(false)
+        setNewFile(null)
+        setItem(null)
+      }}>
         <div className='center-absolute' style={{width:'100%', maxWidth:'1200px', height:'800px'}}>
           <div className="card" onClick={(e) => e.stopPropagation()} style={{margin:0, height:'100%'}}>
             <div style={{display:'flex', height:'100%'}}>
@@ -290,7 +294,13 @@ const CropComponent = ({
       <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
           <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
       </div>
-      <div style={{height:'700px'}}>
+      <div style={{
+        height: '600px',
+        width: '100%',
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)'
+      }}>
         <div className="crop-container">
           <div className="reactEasyCrop_CropArea" ref={cropperRef} style={{
             width: `${cropAreaSize.width}px`,
@@ -312,70 +322,70 @@ const CropComponent = ({
             classes={'social-crop'}
           />
         </div>
-        <div className="controls" style={{bottom: '10px', width: '600px'}}>
-          <div style={{alignItems: 'center', display:'flex', marginLeft:'10px', gap:'10px'}}>
-            {showColourPicker&&
-               <div
-                 ref={colorPickerRef}
-                 className='dropshadow'
-                 style={{
-                   position: 'absolute',
-                   bottom: '50px',
-                   background:'#ffffff',
-                   borderRadius:'var(--input-border-radius)',
-                   padding:'10px',
-                   left: 'calc(100% - 250px)'
-                 }}>
-                 <ColorPicker
-                 color={color}
-                 onChange={color => setColor(color.hex)}
-                 theme={{
-                    boxShadow: 'none',
-                    border: '0px solid transparent',
-                    borderColor: 'white',
-                  }}
-                />
-                 <EyeDropperButton setColor={setColor}/>
-               </div>
-             }
-            <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'5px'}}>
-              <p className='label'> Scale</p>
-              <Slider
-              value={zoom}
-              min={0}
-              max={4}
-              step={0.005}
-              defaultValue={1}
-              aria-label="Default"
-              valueLabelDisplay="auto"
-              onChange={(e, zoom) => setZoom(zoom)}
+      </div>
+      <div className="controls" style={{bottom: '10px', width: '700px'}}>
+        <div style={{alignItems: 'center', display:'flex', marginLeft:'10px', gap:'10px'}}>
+          {showColourPicker&&
+             <div
+               ref={colorPickerRef}
+               className='dropshadow'
+               style={{
+                 position: 'absolute',
+                 bottom: '50px',
+                 background:'#ffffff',
+                 borderRadius:'var(--input-border-radius)',
+                 padding:'10px',
+                 left: 'calc(100% - 250px)'
+               }}>
+               <ColorPicker
+               color={color}
+               onChange={color => setColor(color.hex)}
+               theme={{
+                  boxShadow: 'none',
+                  border: '0px solid transparent',
+                  borderColor: 'white',
+                }}
               />
-            </div>
-            <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'15px'}}>
-              <p className='label'> Rotate</p>
-              <Slider
-              value={rotation}
-              min={0}
-              max={360}
-              step={1}
-              defaultValue={1}
-              aria-label="Default"
-              valueLabelDisplay="auto"
-              onChange={(e, zoom) => setRotation(zoom)}
-              />
-            </div>
-            <Square onClick={()=> setRatio(1/1)} size={35} className={`cropped-image ${ratio===1/1?'active':''}`} alt="crop ratio 1/1" />
-            <RectangleVertical onClick={()=> setRatio(4/5)} size={35}  className={`cropped-image ${ratio===4/5?'active':''}`} alt="crop ratio 4/5" />
-            <RectangleHorizontal onClick={()=> setRatio(1.91/1)} size={35}  className={`cropped-image ${ratio===1.91/1?'active':''}`}  alt="crop ratio 1.91/1" />
-            <Palette onClick={()=> setShowColourPicker(prevState => !prevState)} size={35} className={`cropped-image ${showColourPicker?'active':''}`} alt="show colour picker" />
-           <button
-           style={{height:'40px', marginLeft:'10px'}}
-              onClick={cropImage}
-              className="btn primary"
-            >
-              Crop
-            </button>
+               <EyeDropperButton setColor={setColor}/>
+             </div>
+           }
+          <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'5px'}}>
+            <p className='label'> Scale</p>
+            <Slider
+            value={zoom}
+            min={0}
+            max={4}
+            step={0.005}
+            defaultValue={1}
+            aria-label="Default"
+            valueLabelDisplay="auto"
+            onChange={(e, zoom) => setZoom(zoom)}
+            />
           </div>
+          <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'15px'}}>
+            <p className='label'> Rotate</p>
+            <Slider
+            value={rotation}
+            min={0}
+            max={360}
+            step={1}
+            defaultValue={1}
+            aria-label="Default"
+            valueLabelDisplay="auto"
+            onChange={(e, zoom) => setRotation(zoom)}
+            />
+          </div>
+          <Square onClick={()=> setRatio(1/1)} size={35} className={`cropped-image ${ratio===1/1?'active':''}`} alt="crop ratio 1/1" />
+          <RectangleVertical onClick={()=> setRatio(4/5)} size={35}  className={`cropped-image ${ratio===4/5?'active':''}`} alt="crop ratio 4/5" />
+          <RectangleHorizontal onClick={()=> setRatio(1.91/1)} size={35}  className={`cropped-image ${ratio===1.91/1?'active':''}`}  alt="crop ratio 1.91/1" />
+          <Palette onClick={()=> setShowColourPicker(prevState => !prevState)} size={35} className={`cropped-image ${showColourPicker?'active':''}`} alt="show colour picker" />
+         <button
+         style={{height:'40px', marginLeft:'10px'}}
+            onClick={cropImage}
+            className="btn primary"
+          >
+            Crop
+          </button>
         </div>
       </div>
       <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
@@ -1331,6 +1341,24 @@ const OutPaint = ({
         overflow: "hidden",
       }}
     >
+
+      {/* BACKGROUND BOX */}
+      <div
+        style={{
+          position: "absolute",
+          left: box.x,
+          top: box.y,
+          width: box.width,
+          height: box.height,
+          background: "rgba(54, 94, 157, 0.2)",
+          cursor: "move",
+          zIndex: 1,
+        }}
+      >
+      </div>
+
+
+
       {/* ORIGINAL IMAGE */}
 
       <img
@@ -1350,6 +1378,8 @@ const OutPaint = ({
       />
 
 
+
+
       {/* EXPAND BOX */}
       <div
         ref={boxRef}
@@ -1359,8 +1389,7 @@ const OutPaint = ({
           top: box.y,
           width: box.width,
           height: box.height,
-          border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
-          background: "rgba(242, 176, 245, 0.2)",
+          border: "2px solid var(--md-sys-color-primary)",
           cursor: "move",
           zIndex: 2,
         }}
@@ -1375,7 +1404,7 @@ const OutPaint = ({
               top: -8,
               width: 40,
               height: 14,
-              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              border: "2px solid var(--md-sys-color-primary)",
               background: "var(--md-sys-color-surface)",
               cursor: "ns-resize",
             }}
@@ -1389,7 +1418,7 @@ const OutPaint = ({
               bottom: -8,
               width: 40,
               height: 14,
-              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              border: "2px solid var(--md-sys-color-primary)",
               background: "var(--md-sys-color-surface)",
               cursor: "ns-resize",
             }}
@@ -1403,7 +1432,7 @@ const OutPaint = ({
               top: '50%',
               width: 14,
               height: 40,
-              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              border: "2px solid var(--md-sys-color-primary)",
               background: "var(--md-sys-color-surface)",
               cursor: "ew-resize",
             }}
@@ -1417,7 +1446,7 @@ const OutPaint = ({
               top: '50%',
               width: 14,
               height: 40,
-              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              border: "2px solid var(--md-sys-color-primary)",
               background: "var(--md-sys-color-surface)",
               cursor: "ew-resize",
             }}
@@ -1430,7 +1459,7 @@ const OutPaint = ({
               bottom: -6,
               width: 14,
               height: 14,
-              border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+              border: "2px solid var(--md-sys-color-primary)",
               background: "var(--md-sys-color-surface)",
               cursor: "nwse-resize",
             }}
@@ -1443,7 +1472,7 @@ const OutPaint = ({
                 bottom: -6,
                 width: 14,
                 height: 14,
-                border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "2px solid var(--md-sys-color-primary)",
                 background: "var(--md-sys-color-surface)",
                 cursor: "nesw-resize",
               }}
@@ -1456,7 +1485,7 @@ const OutPaint = ({
                 top: -6,
                 width: 14,
                 height: 14,
-                border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "2px solid var(--md-sys-color-primary)",
                 background: "var(--md-sys-color-surface)",
                 cursor: "nwse-resize",
               }}
@@ -1469,7 +1498,7 @@ const OutPaint = ({
                 top: -6,
                 width: 14,
                 height: 14,
-                border: "2px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "2px solid var(--md-sys-color-primary)",
                 background: "var(--md-sys-color-surface)",
                 cursor: "nesw-resize",
               }}
@@ -1984,7 +2013,7 @@ const CustomCropper = ({
           top: box.y,
           width: box.width,
           height: box.height,
-          border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+          border: "1px solid var(--md-sys-color-primary)",
           background: "rgba(242, 176, 245, 0.2)",
           cursor: "move",
           zIndex: 2,
@@ -1999,7 +2028,7 @@ const CustomCropper = ({
               bottom: -6,
               width: 14,
               height: 14,
-              border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+              border: "1px solid var(--md-sys-color-primary)",
               background: "var(--md-sys-color-surface)",
               cursor: "nwse-resize",
             }}
@@ -2012,7 +2041,7 @@ const CustomCropper = ({
                 bottom: -6,
                 width: 14,
                 height: 14,
-                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "1px solid var(--md-sys-color-primary)",
                 background: "var(--md-sys-color-surface)",
                 cursor: "nwse-resize",
               }}
@@ -2025,7 +2054,7 @@ const CustomCropper = ({
                 top: -6,
                 width: 14,
                 height: 14,
-                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "1px solid var(--md-sys-color-primary)",
                 background: "var(--md-sys-color-surface)",
                 cursor: "nwse-resize",
               }}
@@ -2038,7 +2067,7 @@ const CustomCropper = ({
                 top: -6,
                 width: 14,
                 height: 14,
-                border: "1px solid var(--md-sys-color-tertiary-fixed-dim)",
+                border: "1px solid var(--md-sys-color-primary)",
                 background: "var(--md-sys-color-surface)",
                 cursor: "nwse-resize",
               }}

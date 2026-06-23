@@ -599,7 +599,7 @@ input::file-selector-button {
 }
 
 .editor-background.video{
-  height: 80%;
+  height: calc(100% - 230px);
 }
 
 
@@ -612,7 +612,7 @@ input::file-selector-button {
 }
 
 .timeline-container{
-height: 20%;
+height: 230px;
 padding: 10px;
 background: var(--md-sys-color-surface-container);
 color: var(--md-sys-color-on-surface);
