@@ -22,9 +22,15 @@ export async function POST(req) {
 
   const arrayBuffer = await file.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
-  let fileName = `${Date.now()}-${file.name}`
-  if (tag){
-    fileName = fileName+tag
+  const safeName = file.name
+  .normalize('NFKD')
+  .replace(/[^\w.-]+/g, '-')
+  .replace(/-+/g, '-')
+  .replace(/^-|-$/g, '');
+
+  let fileName = `${Date.now()}-${safeName}`
+  if (tag) {
+    fileName += `-${tag}`;
   }
 
 
@@ -39,7 +45,7 @@ export async function POST(req) {
   try {
     await s3.send(command)
 
-    const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`
+    const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${encodeURIComponent(fileName)}`
 
     return NextResponse.json({ url: fileUrl })
 

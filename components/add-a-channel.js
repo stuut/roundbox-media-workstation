@@ -85,7 +85,8 @@ async function pushChannelInfoDatabase() {
   }
 }
 
-const handleSubmit = () => {
+const handleSubmit = (e) => {
+   e.preventDefault();
   pushChannelInfoDatabase()
 }
 

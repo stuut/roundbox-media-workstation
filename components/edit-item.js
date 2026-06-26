@@ -16,6 +16,8 @@ import { showInfo } from '@/lib/toast';
 import { updateFileDescriptionValue } from "@/lib/supabase";
 import ColorPicker from 'react-pick-color';
 import { storeFileInfo } from "@/lib/supabase";
+import { Cropper as ReactCropper } from "react-cropper";
+import "cropperjs/dist/cropper.css";
 
 export default function EditFile() {
   const { user } = useUserContext();
@@ -42,11 +44,12 @@ return(
               <div style={{flex:1, zIndex: 1}}>
                 <h4>MENU</h4>
                 {newFile&&
-                  <button className='btn primary' onClick={applyChanges}>Apply Changes</button>
+                  <button className='btn primary btn-outline' onClick={applyChanges}>Apply Changes</button>
                 }
-                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}> Crop </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}>Quick Crop </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "out paint"? 'active':''}`}onClick={() => setActiveTool('out paint')}> Out Paint </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "cropper"? 'active':''}`}onClick={() => setActiveTool('cropper')}> Cropper </p>
 
               </div>
               <div style={{flex:4, position:'relative'}}>
@@ -79,6 +82,18 @@ return(
                  />
 
                 }
+
+                {activeTool === 'cropper' &&
+
+                  <NewCropper
+                    user={user}
+                    image={item}
+                    onCropChange={(data) => console.log(data)}
+                    newFile={newFile}
+                    setNewFile={setNewFile}
+                 />
+
+                }
               </div>
             </div>
           </div>
@@ -90,12 +105,16 @@ return(
 }
 
 
+
+
 const CropComponent = ({
   user,
   image,
   setNewFile,
   newFile
 }) => {
+
+  const [fileUrl, setFileUrl] = useState(image.file_url);
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
@@ -113,61 +132,31 @@ const CropComponent = ({
   const colorPickerRef = useRef(null);
 
 
-
   const getCroppedImg = async (imageSrc, croppedAreaPixels, canvas) => {
     const ctx = canvas.getContext('2d');
 
-    let blobUrl = null;
-    try {
-      // Build the proxy URL based on the image source
-      let proxiedUrl;
-      if (imageSrc.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
-        const key = imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
-      } else {
-        // For Contentful or any other origin, proxy the full URL
-        proxiedUrl = imageSrc;
-      }
+    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(imageSrc)}`;
 
-      const res = await fetch(proxiedUrl, { mode: 'cors', credentials: 'omit' });
-      if (!res.ok) throw new Error(`Proxy fetch failed: ${res.status} ${res.statusText}`);
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = proxiedUrl;
+    });
 
-      const blob = await res.blob();
-      if (blob.size === 0) throw new Error('Proxy returned empty blob');
-      if (!blob.type.startsWith('image/')) {
-        // Read the body to see the actual error message
-        const text = await blob.text();
-        throw new Error(`Unexpected blob type: ${blob.type}. Body: ${text.slice(0, 200)}`);
-      }
+    canvas.width = croppedAreaPixels.width;
+    canvas.height = croppedAreaPixels.height;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(
+      img,
+      croppedAreaPixels.x, croppedAreaPixels.y,
+      croppedAreaPixels.width, croppedAreaPixels.height,
+      0, 0,
+      canvas.width, canvas.height
+    );
 
-      blobUrl = URL.createObjectURL(blob);
-
-      const img = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error(`Image failed to load from blob URL. type=${blob.type} size=${blob.size}`));
-        image.src = blobUrl;
-      });
-
-      canvas.width = croppedAreaPixels.width;
-      canvas.height = croppedAreaPixels.height;
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(
-        img,
-        croppedAreaPixels.x, croppedAreaPixels.y,
-        croppedAreaPixels.width, croppedAreaPixels.height,
-        0, 0,
-        canvas.width, canvas.height
-      );
-
-      return await new Promise((resolve) => {
-        canvas.toBlob(resolve, 'image/jpeg', 0.95);
-      });
-
-    } finally {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
-    }
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
   };
 
    const createCroppedImage = async () => {
@@ -232,6 +221,8 @@ const CropComponent = ({
              id: fileinfo.id,
              user_id: user.id
            })
+
+           setFileUrl(fileData.file_url)
 
          } else {
            showError(result.error)
@@ -309,7 +300,7 @@ const CropComponent = ({
           }}>
          </div>
           <Cropper
-            image={image.file_url}
+            image={fileUrl}
             crop={crop}
             zoom={zoom}
             rotation={rotation} // Pass rotation state
@@ -2088,3 +2079,316 @@ const CustomCropper = ({
   );
 }
 */
+
+
+const NewCropper = ({
+  user,
+  image,
+  setItem,
+  setDisplayEditItem,
+  newFile,
+  setNewFile
+}) => {
+  const [fileUrl, setFileUrl] = useState(image.file_url);
+  const cropperRef = useRef(null)
+  const [ratio, setRatio] = useState(null)
+  const [scale, setScale] = useState(1);
+  const [rotation, setRotation] = useState(0)
+  const [color, setColor] = useState('rgb(249 249 255)');
+  const [showColourPicker, setShowColourPicker] = useState(false)
+  const colorPickerRef = useRef(null);
+  const [loader, setLoader] = useState(false)
+  const lastAngleRef = useRef(0);
+  const backgroundRef = useRef(null);
+  const canvasRef = useRef(null);
+
+
+  const cropImage = async() => {
+
+
+    setLoader(true)
+
+    const cropper = cropperRef.current?.cropper
+    const croppedCanvas = cropper.getCroppedCanvas();
+
+    const targetCanvas = canvasRef.current;
+    const ctx = targetCanvas.getContext('2d');
+
+    // Match target canvas dimensions to the cropped image
+    targetCanvas.width = croppedCanvas.width;
+    targetCanvas.height = croppedCanvas.height;
+
+
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+    ctx.drawImage(croppedCanvas, 0, 0);
+
+
+    const file = await new Promise((resolve) => {
+      targetCanvas.toBlob(resolve, 'image/jpeg', 0.95);
+    });
+
+    const formData = new FormData()
+      formData.append('file', file)
+      formData.append('tag', '.jpg');
+
+      try{
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const result = await res.json()
+
+        if (res.ok) {
+
+          const fileData={
+            ...image,
+            file_url:result.url
+          }
+
+          const fileinfo = await storeFileInfo({
+            user_id:user.id,
+            file_url: fileData.file_url,
+            file_type:fileData.file_type,
+            file_name:fileData.file_name,
+            file_description:fileData.file_description??null
+          })
+
+          setNewFile({
+            created_at: fileinfo.created_at,
+            file_type: fileData.file_type,
+            file_url: fileData.file_url,
+            file_name:fileData.file_name,
+            file_description:fileData.file_description??null,
+            id: fileinfo.id,
+            user_id: user.id
+          })
+
+          setFileUrl(fileData.file_url)
+
+        } else {
+          showError(result.error)
+        }
+      }catch(error){
+        console.log('file upload error', error)
+      }
+
+  setLoader(false)
+
+
+    /*
+    const image = await new Promise((resolve) => {
+      targetCanvas.toBlob(resolve, 'image/jpeg', 0.95);
+    });
+    */
+
+    /*
+    const dataUrl = targetCanvas.toDataURL('image/png');
+
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = 'filename.png';
+    link.style.display = 'none';
+
+    // Append, programmatically click, and immediately remove the element
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    */
+
+    // Clear memory by revoking the object URL
+    //URL.revokeObjectURL(blobUrl);
+
+
+  }
+
+
+  const onCrop = () => {
+
+
+    const cropBoxElement = document.querySelector('.cropper-crop-box');
+
+    if (cropBoxElement && backgroundRef?.current){
+      const inlineTransform = cropBoxElement.style.transform;
+      const inlineWidth = cropBoxElement.style.width;
+      const inlineHeight = cropBoxElement.style.height;
+      console.log("Inline Transform:", inlineTransform);
+      // Outputs something like: "matrix(1, 0, 0, 1, 145, 52)" or "translateX(145px) translateY(52px)"
+      //backgroundRef.current.style.cssText = cropBoxElement.style.cssText;
+
+
+      backgroundRef.current.style.cssText += `; ${cropBoxElement.style.cssText}`;
+
+
+      // Optional: Get the computed matrix if inline is empty
+      const computedTransform = window.getComputedStyle(cropBoxElement).transform;
+      console.log("Computed Transform (Matrix):", computedTransform);
+    }
+
+
+
+
+    //console.log(cropper.getData());
+
+  }
+
+
+
+  useEffect(() => {
+  const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+      cropper.setAspectRatio(ratio);
+    }
+  }, [ratio]);
+
+  useEffect(() => {
+  const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+      cropper.scale(parseFloat(scale));
+    }
+  }, [scale]);
+
+  useEffect(() => {
+  const cropper = cropperRef.current?.cropper;
+    if (cropper) {
+
+      const newAngle = Number(rotation);
+
+      const delta = newAngle - lastAngleRef.current;
+
+      cropper.rotate(delta);
+
+      lastAngleRef.current = newAngle;
+    }
+  }, [rotation]);
+
+  const onReset = () => {
+    const cropper = cropperRef.current.cropper;
+    cropper.reset();
+    //setZoom(1);
+  };
+
+
+  return (
+          <>
+            <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+            </div>
+          <div style={{
+            height: '600px',
+            width: '100%',
+          }}>
+            <div
+              style={{
+                bottom: 0,
+                left: 0,
+                position: 'absolute',
+                right: 0,
+                top: 0,
+                backgroundColor:color
+              }}
+              ref={backgroundRef}></div>
+          <ReactCropper
+            src={fileUrl}
+          //  dragMode={'move'}
+            viewMode={0} // IMPORTANT
+            //restore={true}
+            style={{ height: '100%', width: '100%' }}
+            //zoom={zoom}
+            rotation={rotation} // Pass rotation state
+            aspectRatio={ratio}
+          //  responsive={true}
+            //background={true}
+            autoCropArea={0.7}
+            //minContainerWidth={0}
+          //  minContainerHeight={0}
+            guides={false}
+            crop={onCrop}
+            ref={cropperRef}
+            ready={() => {
+              setTimeout(() => {
+                const cropper = cropperRef.current?.cropper;
+                // Zoom out to create space around the image
+                cropper.zoomTo(0.5);
+              }, 50);
+            }}
+
+          />
+          <div className="controls" style={{bottom: '10px', width: '700px'}}>
+            <div style={{alignItems: 'center', display:'flex', marginLeft:'10px', gap:'10px'}}>
+              {showColourPicker&&
+                 <div
+                   ref={colorPickerRef}
+                   className='dropshadow'
+                   style={{
+                     position: 'absolute',
+                     bottom: '50px',
+                     background:'#ffffff',
+                     borderRadius:'var(--input-border-radius)',
+                     padding:'10px',
+                     left: 'calc(100% - 250px)'
+                   }}>
+                   <ColorPicker
+                   color={color}
+                   onChange={color => setColor(color.hex)}
+                   theme={{
+                      boxShadow: 'none',
+                      border: '0px solid transparent',
+                      borderColor: 'white',
+                    }}
+                  />
+                   <EyeDropperButton setColor={setColor}/>
+                 </div>
+               }
+              <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'5px'}}>
+                <p className='label'> Scale</p>
+                <Slider
+                value={scale}
+                min={0}
+                max={2}
+                step={0.005}
+                defaultValue={1}
+                aria-label="Default"
+                valueLabelDisplay="auto"
+                onChange={(e, scale) => setScale(scale)}
+                />
+              </div>
+              <div style={{display:'flex', width:'200px', alignItems: 'center', gap:'15px'}}>
+                <p className='label'> Rotate</p>
+                <Slider
+                value={rotation}
+                min={-180}
+                max={180}
+                step={1}
+                defaultValue={1}
+                aria-label="Default"
+                valueLabelDisplay="auto"
+                onChange={(e, zoom) => setRotation(zoom)}
+                />
+              </div>
+              <Square onClick={()=> setRatio(1/1)} size={35} className={`cropped-image ${ratio===1/1?'active':''}`} alt="crop ratio 1/1" />
+              <RectangleVertical onClick={()=> setRatio(4/5)} size={35}  className={`cropped-image ${ratio===4/5?'active':''}`} alt="crop ratio 4/5" />
+              <RectangleHorizontal onClick={()=> setRatio(1.91/1)} size={35}  className={`cropped-image ${ratio===1.91/1?'active':''}`}  alt="crop ratio 1.91/1" />
+              <Palette onClick={()=> setShowColourPicker(prevState => !prevState)} size={35} className={`cropped-image ${showColourPicker?'active':''}`} alt="show colour picker" />
+              <button
+                style={{marginLeft:'10px'}}
+                 onClick={onReset}
+                 className="btn secondary btn-sm"
+               >
+                 Reset
+               </button>
+             <button
+             style={{height:'40px', marginLeft:'10px'}}
+                onClick={cropImage}
+                className="btn primary"
+              >
+                Crop
+              </button>
+            </div>
+          </div>
+          <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+        </div>
+      </>
+  )
+}

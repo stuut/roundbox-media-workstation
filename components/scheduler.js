@@ -41,7 +41,7 @@ import { uploadFile } from '@/lib/upload-file'
 import { deletePostFiles } from "@/lib/supabase";
 import { DateTime } from "luxon";
 import { updatePostFilesSortOrder } from "@/lib/supabase"
-
+import Checkbox from '@mui/material/Checkbox';
 import {
   X,
   ExternalLink,
@@ -761,8 +761,6 @@ const hasRun = useRef(false);
   const handleEventDrop = async (data) => {
 
 
-
-
     if (data.event.status === "published") return
 
     var scheduled = data.event.start
@@ -1194,6 +1192,7 @@ const FeedsPanel = ({
 
 
     const [noPosts, setNoPosts] = useState(false)
+    const [loader, setLoader] = useState(false)
 
       const importEvents = () => {
 
@@ -1268,7 +1267,7 @@ const FeedsPanel = ({
 
       if (!selectedFeed) return
 
-
+      setLoader(true)
       setNoPosts(false)
       setPosts([])
 
@@ -1309,6 +1308,7 @@ const FeedsPanel = ({
 
         if (filterPosts.length === 0){
           setNoPosts(true)
+          setLoader(false)
           return
         }
 
@@ -1424,6 +1424,7 @@ const FeedsPanel = ({
 
 
           if (response.length === 0){
+            setLoader(false)
             setNoPosts(true)
             return
           }
@@ -1498,14 +1499,16 @@ const FeedsPanel = ({
         const checkedPosts = checkCalendarEventsDuplicate(posts)
         setPosts(checkedPosts)
       }
+
+        setLoader(false)
     }
 
 
 
   return(
     <div>
-        <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
-            <div>
+        <div style={{display:'flex', alignItems:'end', gap:'5px', paddingRight:'10px'}}>
+            <div style={{flex:2}}>
               <label className='label'>Publication</label>
               <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
                 {FEEDS.map((feed, index)=>{
@@ -1514,7 +1517,9 @@ const FeedsPanel = ({
                 }
               </select>
             </div>
-            <RefreshCcw onClick={() => getFeed(selectedFeed, dateFilter)} style={{marginTop: '20px'}}/>
+            <button onClick={() => getFeed(selectedFeed, dateFilter)} className='btn btn-sm primary' style={{height: '36px', margin: '10px 0px'}}>
+              <RefreshCcw  style={{verticalAlign: 'middle', color:'white'}} size={20}/>
+            </button>
           </div>
 
         {selectedFeed.useDateFilter&&
@@ -1535,13 +1540,26 @@ const FeedsPanel = ({
       }
 
       <div style={{
+        position:'relative',
         display: 'flex',
         flexWrap: 'wrap',
         overflowY: 'scroll',
         overflowX: 'hidden',
         alignContent: 'flex-start',
-        gap: '2%'
+        gap: '2%',
       }}>
+        <div style={{
+
+          display: loader?'block':'none',
+          position: 'relative',
+          height: '100px',
+          width: '100%',
+          background:'none'
+        }}
+
+        className={'loader_screen'}>
+            <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+        </div>
         {noPosts &&
           <div className='alert alert-danger'>
             No Posts
@@ -1615,7 +1633,8 @@ const Share = ({
   const [scheduleDate, setScheduleDate] = useState(postData.schedule_date)
   const [publishedDate, setPublishedDate] = useState(postData?.published_at??'')
   const [addComment, setAddComment] = useState(postData?.add_comment??false)
-
+  const [addCaptionLink, setAddCaptionLink] = useState(true)
+  const [activeCaption, setActiveCaption] = useState(null)
   const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(postData?.link?? '')
@@ -1658,9 +1677,119 @@ const Share = ({
     const channelId = postData?.platform_account?.id
     const channel = postData?.platform_account
 
+
+const checkInstagramImages = async (images) => {
+  let hasMediaChanges = false;
+
+  const checkedImages = await Promise.all(
+    images.map(async (image) => {
+      const instagramImageCheck = await checkImageSize(image.file_url);
+
+      if (image.instagram_image_error !== instagramImageCheck) {
+        hasMediaChanges = true;
+      }
+
+      return {
+        ...image,
+        instagram_image_error: instagramImageCheck,
+      };
+    })
+  );
+
+  const hasInstagramErrors = checkedImages.some(
+    image => image.instagram_image_error
+  );
+
+  if (hasMediaChanges) {
+    setMedia(checkedImages);
+  }
+
+  setInstagramMediaError(hasInstagramErrors);
+
+};
+
     useEffect(()=>{
-        console.log('media', media)
-    }, [media])
+
+      if(instagramMediaError){
+        showError('Instagram Image Size Error')
+      }
+
+    },[instagramMediaError])
+
+    useEffect(() => {
+      const hasInstagram = channelPreviews.some(channel =>
+        channel.includes('instagram')
+      );
+
+      if (!hasInstagram || media.length === 0) return;
+
+      checkInstagramImages(media);
+    }, [media, channelPreviews]);
+
+
+
+
+    const checkPostType = (images) => {
+
+      if (!postType) return
+
+      let hasTypeChanges = false;
+
+      const checkedImages = images.map((file)=>{
+
+        if (!file?.file_type || !file?.file_url) return
+
+        const isImage = file?.file_type === "image/png" || file?.file_type === 'image/jpeg' || file?.file_url?.match(/\.(jpg|jpeg|png)$/i);
+        const isVideo = file?.file_type === "video/mp4" || file?.file_type === 'video/webm' || file?.file_url?.match(/\.(mp4|mov|m4v)$/i);
+
+        const postTypeCheck = (!isVideo && postType === 'video_reels') || (!isImage && postType === 'photos')
+
+        if (file.post_type_error !== postTypeCheck){
+          hasTypeChanges = true;
+        }
+
+        return {
+          ...file,
+          post_type_error: postTypeCheck,
+        };
+
+      })
+
+      const hasPostTypeErrors = checkedImages.some(
+        image => image.post_type_error
+      );
+
+
+      if (hasTypeChanges) {
+        setMedia(checkedImages);
+      }
+
+      setPostTypeError(hasPostTypeErrors);
+
+    }
+
+
+    useEffect(()=>{
+
+      if (media.length > 0 && postType){
+        checkPostType(media)
+      }
+
+    },[media, postType])
+
+
+
+    useEffect(()=>{
+
+      if (postTypeError){
+        showError('Post Type Error')
+      }
+
+
+    },[postTypeError])
+
+
+
 
   const getPostInfo = async () => {
 
@@ -1834,13 +1963,23 @@ const Share = ({
 
   const handlePostTypeChange = (event) => {
     setPostType(event.target.value)
+    if (event.target.value === 'photos'){
+      setAddComment(false)
+    }else if (event.target.value === 'link' && postData?.add_comment){
+      setAddComment(true)
+    }
   };
 
   useEffect(()=>{
 
     if (postData?.type){
-
       setPostType(postData?.type)
+
+      if (postData?.type === 'photos'){
+        setAddComment(false)
+      }else if (event.target.value === 'link' && postData?.add_comment){
+        setAddComment(true)
+      }
     }
 
   },[postData])
@@ -1863,10 +2002,7 @@ const Share = ({
 
   const channelSelectorCallback = (pages) => {
 
-
     setSelectedSocialPages(pages)
-
-    // get unique vales
 
     const uniqueChannels = [...new Set(pages.map(item => item.platform))];
 
@@ -1880,10 +2016,10 @@ const Share = ({
       setSelectedChannelPreview(uniqueChannels[0])
     }
 
-
-
-
   }
+
+
+
 
   const scheduleMultiple = async(status) => {
 
@@ -2041,9 +2177,6 @@ const Share = ({
              const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
 
              const savedPostPublicationsOneSignal = savedPostPublications.filter((publication)=>publication.platform === 'One Signal')
-
-
-             console.log('postState', postState)
 
 
              if (postState === 'PUBLISH'){
@@ -2689,6 +2822,13 @@ const addNewFiles = async(selectedFiles) => {
 
   }
 
+  const activeCaptionCallback = (data) => {
+
+    console.log('data', data)
+    setActiveCaption(data)
+
+  }
+
   return(
     <>
       <div className={'loader_screen'} style={{zIndex:3}} onClick={loader? null : () => close(null)}></div>
@@ -2805,7 +2945,10 @@ const addNewFiles = async(selectedFiles) => {
                 </div>
               </div>
 
-              {(postType === 'photos' || postType === 'video_reels' || selectedChannelPreview==='instagram')&&
+              {(postType === 'photos' ||
+                postType === 'video_reels' ||
+                selectedChannelPreview==='instagram' ||
+                activeCaption?.platform === 'instagram' )&&
 
                 <div
                   className={`properties-container ${(isInstagramPost || isOneSignalPost) && postData.status === 'published'?'disabled':''}`}
@@ -2824,12 +2967,10 @@ const addNewFiles = async(selectedFiles) => {
                     userId={userId}
                     media={media}
                     setMedia={setMedia}
-                    channelPreviews={channelPreviews}
-                    setInstagramError={setInstagramMediaError}
+                    instagramError={instagramMediaError}
                     setPostTypeError={setPostTypeError}
                     calendarEvents={calendarEvents}
                     setCalendarEvents={setCalendarEvents}
-
                   />
 
                 </div>
@@ -2870,6 +3011,7 @@ const addNewFiles = async(selectedFiles) => {
               calendarEvents={calendarEvents}
               setCalendarEvents={setCalendarEvents}
               postData={postData}
+              activeCaptionCallback={activeCaptionCallback}
             />
 
               <div className={`${(isInstagramPost || isOneSignalPost) && postData.status === 'published'?'disabled':''}`}>
@@ -3000,7 +3142,12 @@ const addNewFiles = async(selectedFiles) => {
                           url={postLink}
                           postData={postData}
                           caption={caption}
+                          customCaptions={customCaptions}
                           selectedSocialPages={selectedSocialPages}
+                          addComment={addComment}
+                          setAddComment={setAddComment}
+                          status={status}
+
                         />
                       </>
                     }
@@ -3018,9 +3165,14 @@ const addNewFiles = async(selectedFiles) => {
                     }
                     {postType === 'link' &&  selectedChannelPreview === 'instagram' &&
                       <>
-                        <InstagramLinkPreview
+                        <InstagramPhotosPreview
                           media={media}
                           caption={caption}
+                          customCaptions={customCaptions}
+                          selectedSocialPages={selectedSocialPages}
+                          addComment={addComment}
+                          setAddComment={setAddComment}
+                          status={status}
                         />
                       </>
                     }
@@ -3030,6 +3182,11 @@ const addNewFiles = async(selectedFiles) => {
                         <InstagramPhotosPreview
                           media={media}
                           caption={caption}
+                          customCaptions={customCaptions}
+                          selectedSocialPages={selectedSocialPages}
+                          addComment={addComment}
+                          setAddComment={setAddComment}
+                          status={status}
                         />
                       </>
                     }
@@ -3039,6 +3196,12 @@ const addNewFiles = async(selectedFiles) => {
 
                         <FacebookPhotosPreview
                           media={media}
+                          caption={caption}
+                          customCaptions={customCaptions}
+                          selectedSocialPages={selectedSocialPages}
+                          addComment={addComment}
+                          setAddComment={setAddComment}
+                          status={status}
                         />
                       </>
                     }
@@ -3057,12 +3220,30 @@ const FacebookLinkPreview = ({
   url,
   postData,
   caption,
-  selectedSocialPages
+  customCaptions,
+  selectedSocialPages,
+  addComment,
+  setAddComment,
+  status
 }) => {
   const [openGraph, setOpenGraph] = useState(null)
   const [openGraphError, setOpenGraphError] = useState(null)
   const [postUrl, setPostUrl] = useState(url)
+  const [captionText, setCaptionText] = useState(caption)
+
   const hasRun = useRef(false);
+
+
+  useEffect(() => {
+
+    if (customCaptions?.length>0){
+      const instagramCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
+      setCaptionText(instagramCaption.caption)
+    }else{
+      setCaptionText(caption)
+    }
+
+  },[caption, customCaptions])
 
 
 
@@ -3182,6 +3363,8 @@ const refreshShareAttachment = async () => {
     showSuccess('Attachment updated')
 }
 
+console.log('status', status)
+
 return(
     <div style={{marginTop:'25px'}}>
       <div
@@ -3193,17 +3376,42 @@ return(
           position:'relative'
         }}
       >
-
-        <div style={{position:'absolute', right:'10px'}}>
-          <ThreeDotMenu>
-            {(selectedSocialPages.length > 0 && url) &&
-              <button onClick={refreshShareAttachment} className='btn btn-sm clear'>Refresh Share Attachment</button>
-            }
-          </ThreeDotMenu>
+          <div style={{position:'absolute', right:'10px'}}>
+            <ThreeDotMenu>
+              {(selectedSocialPages?.length > 0 && url) &&
+                <>
+                  <button onClick={refreshShareAttachment} className='btn btn-sm clear'>Refresh Share Attachment</button>
+                </>
+              }
+              {status === 'unpublished'&&
+                <>
+                    <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
+                    <Checkbox
+                      id={'add-comment'}
+                      className="form-check-input"
+                      type="checkbox"
+                      onChange={() => setAddComment(prev => !prev)}
+                      checked={addComment}
+                      sx={{
+                        color: 'var(--md-sys-color-secondary)',
+                        '&.Mui-checked': {
+                          color: 'var(--md-sys-color-primary)',
+                        },
+                      }}
+                    />
+                    Add Link in Comment
+                  </label>
+                </>
+              }
+            </ThreeDotMenu>
+          </div>
+        <div style={{marginTop:'30px'}}>
+          {captionText&&
+            <ReadMore maxCharacterCount={50}>
+                {captionText}
+            </ReadMore>
+          }
         </div>
-        <ReadMore maxCharacterCount={50}>
-            {caption}
-        </ReadMore>
       </div>
         <div style={{background:'#ffffff', borderRadius:'8px'}}>
           {(openGraph?.ogImage)?(
@@ -3276,10 +3484,10 @@ const ThreeDotMenu = ({styles, children}) => {
             backgroundColor: '#ffffff',
             borderRadius:'var(--input-border-radius)',
             padding:'10px',
-            right: '100%',
+            right: 'calc(100% + -10px)',
             minWidth: '220px'
           }} className='dropshadow'>
-            <div onClick={()=>{setOpen(false)}}>
+            <div>
               {children}
             </div>
           </div>
@@ -3289,69 +3497,7 @@ const ThreeDotMenu = ({styles, children}) => {
 
 }
 
-const InstagramLinkPreview = ({
-  media,
-  caption
 
-})=>{
-
-  const [currentSlide, setCurrentSlide] = useState(0)
-
-  const onCarouselChange = (args) => {
-    //editCarouselImage(args)
-    setCurrentSlide(args)
-  };
-
-  const getConfigurableProps = () => ({
-    showArrows: true,
-    showStatus: false,
-    showIndicators: false,
-    infiniteLoop: true,
-    showThumbs: true,
-    useKeyboardArrows: true,
-    autoPlay: false,
-    stopOnHover: true,
-    swipeable: true,
-    dynamicHeight: true,
-    emulateTouch: true,
-    autoFocus: false,
-    selectedItem: 0,
-    interval: 2000,
-    transitionTime: 500,
-    swipeScrollTolerance: 5,
-    ariaLabel: 'ariaLabel',
-  });
-
-
-  return(
-    <div style={{background:'#ffffff'}}>
-      <Carousel infiniteLoop {...getConfigurableProps()}
-     //onClickItem={(e) => imageClick(e)}
-       onChange={(args) => onCarouselChange(args)}
-       showThumbs={false}
-       selectedItem={currentSlide}
-      >
-      {media.map((item, index) => {
-          return(
-            <div>
-              <img src={item.file_url} style={{width:'100%'}}/>
-            </div>
-          )
-         })
-      }
-      </Carousel>
-      {caption &&
-        <div style={{padding:'10px'}}>
-          <ReadMore maxCharacterCount={50}>
-            {caption}
-          </ReadMore>
-        </div>
-      }
-    </div>
-
-  )
-
-}
 
 
 const ReadMore = ({ children, maxCharacterCount = 100 }) => {
@@ -3396,13 +3542,11 @@ const MediaList = ({
   userId,
   media,
   setMedia,
-  channelPreviews,
-  setInstagramError,
-  setPostTypeError,
+  instagramError,
   calendarEvents,
   setCalendarEvents
 }) => {
-  const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
+    const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
 
     const [files, setFiles] = useState(media)
     const editingIndex = useRef(null)
@@ -3411,12 +3555,12 @@ const MediaList = ({
     const evtSourceRef = useRef(null);
 
 
+    console.log('MediaList channelPreviews')
+
     const editMedia = (media, index, tool) => {
       setActiveTool(tool)
       setDisplayEditItem(true)
       editingIndex.current = index
-
-      console.log('media', media)
 
       setItem(media)
     }
@@ -3480,71 +3624,9 @@ const MediaList = ({
 
 
     const changeSortableState = (newState) => {
-      console.log('changeSortableState')
       setMedia(newState)
     }
 
-    const checkPostType = (images) => {
-
-
-      if (!postType) return
-
-      let errorArray = []
-
-      const checkedImages = images.map((file)=>{
-
-        if (!file?.file_type || !file?.file_url) return
-
-        const isImage = file?.file_type === "image/png" || file?.file_type === 'image/jpeg' || file?.file_url?.match(/\.(jpg|jpeg|png)$/i);
-        const isVideo = file?.file_type === "video/mp4" || file?.file_type === 'video/webm' || file?.file_url?.match(/\.(mp4|mov|m4v)$/i);
-
-        const temp = {...file}
-
-        if ((!isVideo && postType === 'video_reels') || (!isImage && postType === 'photos')){
-          temp.post_type_error = true
-          errorArray.push(true)
-        }
-
-        return temp
-
-      })
-
-      setFiles(checkedImages)
-
-      if (errorArray.length > 0){
-        setPostTypeError(true)
-        showError('Post Type error')
-      }else{
-        setPostTypeError(false)
-      }
-    }
-
-    const checkInstagramImages = async (images) => {
-
-        let errorArray = []
-
-         const checkedImages = await Promise.all(images.map(async(image) => {
-
-           let instagramImageCheck = await checkImageSize(image.file_url)
-
-           var temp = {...image}
-           temp.instagram_image_error = instagramImageCheck
-           if (instagramImageCheck){
-              errorArray.push(true)
-              //showError('Instagram Image Size Error')
-           }
-           return temp;
-         }))
-
-         setFiles(checkedImages)
-
-         if (errorArray.length > 0){
-           setInstagramError(true)
-           showError('Instagram Image Size Error')
-         }else{
-           setInstagramError(false)
-         }
-    }
 
     const updateMediaOrder = async(media) =>{
 
@@ -3561,7 +3643,11 @@ const MediaList = ({
       await updatePostFilesSortOrder(uniqueArray)
     }
 
+
+
     useEffect(()=>{
+
+      console.log('media', media)
 
       setFiles(media)
 
@@ -3573,23 +3659,8 @@ const MediaList = ({
     },[media])
 
 
-    useEffect(()=>{
-      const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
-
-      if (media.length > 0 && hasInstagram){
-        checkInstagramImages(media)
-      }
-
-    },[media, channelPreviews])
 
 
-    useEffect(()=>{
-
-      if (media.length > 0 && postType){
-        checkPostType(media)
-      }
-
-    },[media, postType])
 
 
 
@@ -3597,6 +3668,9 @@ const MediaList = ({
     const removeImage = async (index) => {
 
       console.log('removeImage')
+
+      //.setFiles(prev => prev.filter((_, i) => i !== index));
+
 
       setMedia(prev => prev.filter((_, i) => i !== index));
 
@@ -3733,7 +3807,7 @@ const MediaList = ({
 
   return(
     <ReactSortable
-      list={media}
+      list={files}
       setList={(newState) => changeSortableState(newState)}
       onDragOver={()=>onSortItems()}
       onDragStart={()=>onSortItems()}
@@ -3743,7 +3817,7 @@ const MediaList = ({
       // Only apply this delay rule on mobile/touch screens
       delayOnTouchOnly={true}
       // Prevents minor micro-twitches on sensitive touchscreens from canceling the drag
-      touchStartThreshold={10}
+      touchStartThreshold={20}
       >
   {files.map((item, index) => {
     const isVideo = item?.file_type === "video/mp4" || item?.file_url?.match(/\.(mp4|mov|m4v)$/i);
@@ -3810,6 +3884,8 @@ const InstagramImage = ({
   channelPreviews,
   setInstagramError
 }) => {
+
+
   const [error, setError] = useState(false)
   const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
 
@@ -3840,38 +3916,124 @@ useEffect(()=>{
   )
 }
 
-const FacebookPhotosPreview = ({media}) => {
+const FacebookPhotosPreview = ({
+  media,
+  caption,
+  customCaptions,
+  selectedSocialPages,
+  addComment,
+  setAddComment,
+  status
+}) => {
+  const [captionText, setCaptionText] = useState(caption)
 
+  useEffect(() => {
 
-    if (media.length>1){
-      return(
-        <div className="grid-container">
-        {media.map((item, index)=>{
-            return(
-              <div key={index} className="grid-item">
-                <img src={item.file_url}/>
-              </div>
-            )
-          })}
-        </div>
-
-      )
-
+    if (customCaptions?.length>0){
+      const instagramCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
+      setCaptionText(instagramCaption.caption)
     }else{
-      return (
-        <img src={media[0]?.file_url}/>
-      )
-
+      setCaptionText(caption)
     }
 
+  },[caption, customCaptions])
+
+
+  return(
+    <div style={{marginTop:'25px'}}>
+      <div
+        style={{
+          background:'#ffffff',
+          borderTopLeftRadius: '8px',
+          borderTopRightRadius: '8px',
+          padding:'10px',
+          position:'relative'
+        }}
+      >
+        <div style={{position:'absolute', right:'10px'}}>
+          <ThreeDotMenu>
+            {status === 'unpublished'&&
+              <>
+                  <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
+                  <Checkbox
+                    id={'add-comment'}
+                    className="form-check-input"
+                    type="checkbox"
+                    onChange={() => setAddComment(prev => !prev)}
+                    checked={addComment}
+                    sx={{
+                      color: 'var(--md-sys-color-secondary)',
+                      '&.Mui-checked': {
+                        color: 'var(--md-sys-color-primary)',
+                      },
+                    }}
+                  />
+                  Add Link in Comment
+                </label>
+              </>
+            }
+          </ThreeDotMenu>
+        </div>
+        <div style={{marginTop: '30px'}}>
+          {media.length>1?(
+            <>
+              <div className="grid-container">
+                {media.map((item, index)=>{
+                    return(
+                      <div key={index} className="grid-item">
+                        <img src={item.file_url}/>
+                      </div>
+                    )
+                  })}
+                </div>
+                {captionText&&
+                  <ReadMore maxCharacterCount={50}>
+                      {captionText}
+                  </ReadMore>
+                }
+            </>
+
+            ):(
+              <>
+                <img src={media[0]?.file_url}/>
+                {captionText&&
+                  <ReadMore maxCharacterCount={50}>
+                      {captionText}
+                  </ReadMore>
+                }
+              </>
+            )
+          }
+        </div>
+      </div>
+    </div>
+  )
 }
 
 
 const InstagramPhotosPreview = ({
   media,
-  caption
+  caption,
+  customCaptions,
+  selectedSocialPages,
+  addComment,
+  setAddComment,
+  status
 }) => {
     const [currentSlide, setCurrentSlide] = useState(0)
+    const [captionText, setCaptionText] = useState(caption)
+
+
+    useEffect(() => {
+
+      if (customCaptions?.length>0){
+        const instagramCaption = customCaptions.find((cap)=> cap.platform === 'instagram')
+        setCaptionText(instagramCaption.caption)
+      }else{
+        setCaptionText(caption)
+      }
+
+    },[caption, customCaptions])
 
 
     const onCarouselChange = (args) => {
@@ -3917,10 +4079,10 @@ const InstagramPhotosPreview = ({
        })
     }
     </Carousel>
-    {caption&&
+    {captionText&&
       <div style={{padding:'10px'}}>
         <ReadMore maxCharacterCount={50}>
-          {caption}
+          {captionText}
         </ReadMore>
       </div>
     }

@@ -25,6 +25,106 @@
   fill: rgb(186 26 26);
 }
 
+.cropper-bg{
+  background-image: none!important
+}
+
+.cropper-modal {
+     background-color: transparent!important
+   }
+
+
+
+   .cropper-line{
+  background-color: transparent!important
+   }
+
+   .cropper-point.point-nw {
+    cursor: nwse-resize;
+    left: -8px !important;
+    top: -8px !important;
+}
+
+   .cropper-point.point-se {
+       bottom: -8px !important;
+       right: -8px !important;
+   }
+
+
+   .cropper-point.point-sw {
+    bottom: -8px !important;
+    cursor: nesw-resize;
+    left: -8px !important;
+}
+
+   .cropper-point.point-s {
+    bottom: -8px !important;
+    cursor: s-resize;
+    left: 50%;
+    margin-left: -8px !important;
+}
+
+   .cropper-point.point-w {
+    cursor: ew-resize;
+    left: -8px !important;
+    margin-top: -8px !important;
+    top: 50%;
+}
+
+   .cropper-point.point-n {
+    cursor: ns-resize;
+    left: 50%;
+    margin-left: -8px !important;
+    top: -8px !important;
+}
+
+   .cropper-point.point-e {
+      cursor: ew-resize;
+      margin-top: -8px !important;
+      right: -8px !important;
+      top: 50%;
+  }
+
+
+   .cropper-point.point-ne {
+      cursor: nesw-resize;
+      right: -8px !important;
+      top: -8px !important;
+  }
+
+
+   .cropper-point {
+      height: 15px !important;
+      opacity: 1 !important;
+      width: 15px !important;
+      background-color: #ffffff !important;
+      border: 1px solid var(--md-sys-color-primary) !important;;
+  }
+
+   .cropper-view-box {
+    display: block;
+    height: 100%;
+    outline: 1px solid var(--md-sys-color-primary)!important;
+    outline-color: var(--md-sys-color-primary)!important;
+    overflow: hidden;
+    width: 100%;
+}
+
+
+
+.cropper-container-wrapper {
+  width: 100%;
+  height: calc(100vh - 120px); /* subtract any header/toolbar height */
+  background: #1a1a1a; /* dark workspace background */
+}
+
+.cropper-container-wrapper img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+
 .unselectable {
   -webkit-user-select: none; /* Safari */
   -ms-user-select: none;     /* IE 10 and 11 */
@@ -38,6 +138,19 @@
 .btn{
   white-space: nowrap;
   cursor:pointer;
+}
+
+.btn-outline{
+  border-width: 3px;
+  border-style: solid;
+  box-sizing: border-box;
+}
+
+.btn-outline.primary {
+  border-color: var(--md-sys-color-inverse-primary);
+  border-width: 3px;
+  border-style: solid;
+  box-sizing: border-box;
 }
 
 #drag-area {

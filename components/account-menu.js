@@ -23,6 +23,9 @@ return(
     <div style={{padding:'5px 0px'}}>
       <Link className={pagePath==="/account/channels"?'active':null} style={{marginleft:'10px'}} href='/account/channels'>Channels</Link>
     </div>
+    <div style={{padding:'5px 0px'}}>
+      <Link className={pagePath==="/account/feeds"?'active':null} style={{marginleft:'10px'}} href='/account/feeds'>Feeds</Link>
+    </div>
   </div>
 )
 

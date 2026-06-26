@@ -50,7 +50,8 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   ArrowLeft,
   ZoomIn,
   ZoomOut,
-  Frame
+  Frame,
+  RefreshCcw
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
 import { updateFileDescriptionValue } from "@/lib/supabase";
@@ -2082,15 +2083,8 @@ async drawVideoInit(ctx) {
 
     videoEl.crossOrigin = 'anonymous';
 
+    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(this.videoSrc)}`;
 
-      let proxiedUrl;
-      if (this.videoSrc.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
-        const key = this.videoSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
-      } else {
-        // For Contentful or any other origin, proxy the full URL
-        proxiedUrl = this.videoSrc
-      }
 
     videoEl.src = proxiedUrl;
 
@@ -2230,14 +2224,8 @@ async updateImage(image){
 
 
 
-      let proxiedUrl;
-      if (image.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
-        const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
-      } else {
-        // For Contentful or any other origin, proxy the full URL
-        proxiedUrl = image;
-      }
+    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(image)}`;
+
 
 
 
@@ -2275,15 +2263,7 @@ async replaceImage(image){
     img.crossOrigin = "anonymous";
 
 
-     let proxiedUrl;
-      if (image.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
-        const key = image.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
-      } else {
-        // For Contentful or any other origin, proxy the full URL
-        proxiedUrl = image
-      }
-
+    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(image)}`;
 
 
     img.src = proxiedUrl
@@ -2323,16 +2303,7 @@ async drawImageInit() {
       img.crossOrigin = "anonymous";
 
 
-      let proxiedUrl;
-      if (this.imageSrc.includes('pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev')) {
-        const key = this.imageSrc.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-        proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
-      } else {
-        // For Contentful or any other origin, proxy the full URL
-        proxiedUrl = this.imageSrc;
-      }
-
-
+      const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(this.imageSrc)}`;
 
 
       img.src = proxiedUrl;
@@ -8806,7 +8777,7 @@ useEffect(() => {
     <div
       ref={containerRef}
       style={{ position: "relative", width: "100%"}}
-      className='editor-background video'
+      className='editor-background video-editor'
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
@@ -10878,7 +10849,11 @@ useEffect(() => {
       </div>
 
       {/* Timeline tracks */}
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1" style={{
+        overflowX: 'scroll',
+        height: '120px',
+        overflowY: 'hidden'
+      }}>
         <div
           ref={timelineRef}
           style={{ width: `${duration * pixelsPerSecond + 100}px`, minWidth: '100%', position:'relative', height:'130px', overflowY: 'hidden'}}
@@ -10903,7 +10878,7 @@ useEffect(() => {
               </div>
             ))}
           </div>
-        <div style={{overflowY:'scroll', height: '100px'}}>
+        <div style={{overflowY:'scroll', height: '80px'}}>
           {/* Element tracks */}
           <div style={{position:'relative', display:'flex', gap:'2px'}}>
             {scenes?.map((scene, index)=>{
@@ -11242,7 +11217,7 @@ const FeedsPanel = ({
   }) => {
 
     const [noPosts, setNoPosts] = useState(false)
-
+    const [loader, setLoader] = useState(false)
 
     const onFeedChange = (value) => {
       const feed = FEEDS.find(item => item.label === value);
@@ -11262,6 +11237,7 @@ const FeedsPanel = ({
 
 
     const getFeed = async (selectedFeed, dateFilter) => {
+        setLoader(true)
         setNoPosts(false)
         setPosts([])
 
@@ -11287,6 +11263,7 @@ const FeedsPanel = ({
 
 
         if (filterPosts.length === 0){
+          setLoader(false)
           setNoPosts(true)
           return
         }
@@ -11338,9 +11315,9 @@ const FeedsPanel = ({
           .order('desc')
           .get()
 
-        //const response = await wp.posts().embed().perPage(100).order('desc').orderby('date').after(new Date(date)).get()
 
         if (response.length === 0){
+          setLoader(false)
           setNoPosts(true)
           return
         }
@@ -11373,19 +11350,28 @@ const FeedsPanel = ({
         setPosts(posts)
 
       }
+
+      setLoader(false)
     }
 
 
 
   return(
     <div>
-      <label className='font-label'>Publication</label>
-      <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
-        {FEEDS.map((feed, index)=>{
-          return <option key={index} value={feed.label}>{feed.label}</option>
-        })
-        }
-      </select>
+      <div style={{display:'flex', alignItems:'end', gap:'5px', paddingRight:'10px'}}>
+        <div style={{flex:2}}>
+          <label className='font-label'>Publication</label>
+          <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
+            {FEEDS.map((feed, index)=>{
+              return <option key={index} value={feed.label}>{feed.label}</option>
+            })
+            }
+          </select>
+        </div>
+        <button onClick={() => getFeed(selectedFeed, dateFilter)} className='btn btn-sm primary' style={{height: '36px', margin: '10px 0px'}}>
+          <RefreshCcw  style={{verticalAlign: 'middle', color:'white'}} size={20}/>
+        </button>
+      </div>
       <div>
         <label className='font-label'>Publication Date Filter</label>
           <DatePicker
@@ -11403,6 +11389,9 @@ const FeedsPanel = ({
         alignContent: 'flex-start',
         gap: '2%'
       }}>
+        <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+            <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+        </div>
         {noPosts &&
           <div className='alert alert-danger'>
             No Posts

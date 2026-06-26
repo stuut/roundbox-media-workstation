@@ -90,8 +90,9 @@ export const PDFViewer = ({pdfUrl, sizeCallBack, setPageNumberCallBack}) => {
 
   },[pageNumber])
 
-  const key = pdfUrl.replace('https://pub-d6323aeb43a84ab4a229b45727a1e7ee.r2.dev/', '');
-  const proxiedUrl = `/api/r2-proxy?key=${encodeURIComponent(key)}`;
+
+
+  const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(pdfUrl)}`;
 
 
   return (

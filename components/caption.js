@@ -27,7 +27,8 @@ export const Caption = ({
   instagramCaptionError,
   calendarEvents,
   setCalendarEvents,
-  postData
+  postData,
+  activeCaptionCallback
 }) => {
 
   const [activeCaption, setActiveCaption] = useState(null)
@@ -35,6 +36,12 @@ export const Caption = ({
   const isOneSignalPost = postData?.platform_account?.platform === 'One Signal'
   const isFacebookPost = postData?.platform_account?.platform === 'facebook'
   const isInstagramPost = postData?.platform_account?.platform === 'instagram'
+
+  useEffect(() => {
+    if (activeCaptionCallback){
+      activeCaptionCallback(activeCaption)
+    }
+  }, [activeCaption]);
 
 
   useEffect(() => {

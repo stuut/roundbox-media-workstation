@@ -16,6 +16,8 @@ import dynamic from 'next/dynamic'
 import { storeFileInfo } from "@/lib/supabase";
 import * as contentful from 'contentful'
 import Dropdown from "@/components/dropdown"
+import { getFeeds } from '@/lib/supabase'
+
 var WPAPI = require( 'wpapi' );
 import {
   X,
@@ -27,7 +29,8 @@ import {
   Crop,
   EllipsisVertical,
   Download,
-  FileImage
+  FileImage,
+  Copy
 } from 'lucide-react';
 //const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
 import { PDFViewer } from "@/components/pdf-viewer"
@@ -231,6 +234,7 @@ export default function PdfTextExtractor({user}) {
     return wp
 
   }
+
 
 
   function isInArray(value, array) {
@@ -507,8 +511,13 @@ async function downloadImage(image) {
 
   const addNewFile = async (files) => {
     const file = files[0]
+    console.log('file', file.file_url)
+    console.log('file', file)
     if (file.file_type === 'application/pdf'){
+
+      console.log('file', file.file_url)
       setpdfUrl(file.file_url)
+      //setpdfUrl('https://roundbox-media-task-manager.s3.ap-southeast-2.amazonaws.com/1782275065890-Hilltops-Phoenix-Issue-502-25-June-2026.pdf')
     }else if (file.file_type === 'image/png' || file.file_type === 'image/jpeg'){
       const checkedImages = await checkInstagramImages(files)
       console.log('setImages')
@@ -520,12 +529,16 @@ async function downloadImage(image) {
 
   useEffect(() => {
 
-    if (!hasMounted.current) {
-      hasMounted.current = true
-      return
-    }
+    console.log('showFiles', showFiles)
+
+    console.log('showFiles', showFiles)
+
+
 
     if (!showFiles && selectedFiles.length > 0) {
+
+
+
       addNewFile(selectedFiles)
     }
 
@@ -1663,10 +1676,36 @@ const handleContentfulCategoriesList = (data) => {
 
 }
 
-const createPost = () => {
+const copyImageCode = (image) =>{
+
+  let imageHTML
+  let codeType
+
+
+  if (selectedFeed.CMSType === 'wordpress'){
+      imageHTML = createImageHTML(image)
+      codeType = "html"
+  }
+
+  if (selectedFeed.CMSType === 'contentful'){
+      imageHTML = createImageMd(image)
+      codeType = "markdown"
+  }
+
+  navigator.clipboard.writeText(imageHTML).then(function() {
+    // Success feedback (optional)
+    showSuccess(`Copied image ${codeType}`)
+
+  }).catch(function(err) {
+    // Error handling (optional)
+    console.error('Could not copy code: ', err);
+  });
 
 }
 
+const createPost = () => {
+
+}
 
 
 
@@ -1821,6 +1860,7 @@ const createPost = () => {
                       editMedia={editMedia}
                       editInPhotoshop={editInPhotoshop}
                       downloadImage={downloadImage}
+                      copyImageCode={copyImageCode}
                       margin={margin}
                       />
                     )
@@ -1870,6 +1910,7 @@ const createPost = () => {
                 updateCaption={updateCaption}
                 editMedia={editMedia}
                 editInPhotoshop={editInPhotoshop}
+                copyImageCode={copyImageCode}
                 downloadImage={downloadImage}
                 />
               </>
@@ -1893,7 +1934,7 @@ const createPost = () => {
               placeholder="Heading..."
               />
             {selectedFeed &&
-              <>
+              <div style={{position:'relative'}}>
                 {(selectedFeed.CMSType === 'wordpress') &&
                   <Editor
                     apiKey={tinymceAPIkey}
@@ -1925,13 +1966,18 @@ const createPost = () => {
                         'image',
                         'charmap',
                         'preview',
-                        'anchor'
+                        'anchor',
+                        'code',
                       ],
                       browser_spellcheck: true,
                       contextmenu: false,
-                      setup: function (editor) {
-                        editor.on('init', function () {
-                          editor.getDoc().head.innerHTML += '<style>.wp-caption-text {font-weight: bold; font-size: .8em} .social-scheduler-image > p{margin: 0;} .social-scheduler-image{margin-bottom: 10px;}</style>';
+                      setup: (editor) => {
+                        editor.on('GetContent', (e) => {
+                          // Modify the text content output via regex or DOM parser right before it returns to React
+                          /*
+                          e.content = e.content.replace(/<img[^>]*>/g, (match) => {
+                            return `<div class="image-wrapper">${match}</div>`;
+                          });*/
                         });
                       },
 
@@ -1940,12 +1986,9 @@ const createPost = () => {
                          alignright: {selector: 'img', styles: {'float': 'right', 'margin': '0 0 10px 10px'}},
                          aligncenter: {selector: 'img', classes: 'aligncenter'},
                        },
-                      toolbar:
-                        "styleselect | spellcheckdialog | link " +
-                        "undo redo | " +
-                        "bold italic backcolor | alignleft aligncenter " +
-                        "alignright alignjustify | bullist numlist outdent indent | " +
-                        "removeformat | emoticons| help",
+                       toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright alignjustify | link image | code', // 2. CRITICAL: Add the code button to the toolbar
+                       toolbar_mode: 'floating',
+
 
                       content_style:
                         "body { font-family:Helvetica,Arial,sans-serif; font-size:14px }",
@@ -1972,7 +2015,7 @@ const createPost = () => {
                     </div>
                   </>
                 }
-              </>
+              </div>
             }
         </div>
         {inputType === 'articles'&&
@@ -2172,7 +2215,8 @@ const ImageComponent  = ({
   editMedia,
   editInPhotoshop,
   downloadImage,
-  margin
+  margin,
+  copyImageCode
 }) => {
 
   const [caption, setCaption] = useState(image.caption)
@@ -2183,6 +2227,8 @@ const ImageComponent  = ({
     setCaption(image.caption)
 
   },[image.caption])
+
+
 
   return(
     <div
@@ -2216,12 +2262,12 @@ const ImageComponent  = ({
       >
       </textarea>
       <div style={{marginLeft:'auto', height: '30px', display:'flex', alignItems:'center'}}>
-        <img onClick={() => editInPhotoshop(image)} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
-        <Crop size={30} onClick={() => editMedia(image, index, 'crop')}/>
+        <img onClick={() => editInPhotoshop(image)} src='/Adobe_Photoshop_CC_icon.png' style={{width:'25px', marginRight:'10px'}}/>
+        <Crop size={25} onClick={() => editMedia(image, index, 'crop')}/>
         {/*}<SquarePen style={{marginLeft:'10px'}} size={30} onClick={() => editMedia(image, index, 'caption')}/>*/}
-        <Download style={{marginLeft:'10px'}} size={30} onClick={() => downloadImage(image)}/>
-
-        <Trash2 style={{marginLeft:'10px'}} size={30} onClick={() => removeCallback(image.id)}/>
+        <Download style={{marginLeft:'10px'}} size={25} onClick={() => downloadImage(image)}/>
+        <Copy style={{marginLeft:'10px'}} size={25} onClick={() => copyImageCode(image)}/>
+        <Trash2 style={{marginLeft:'10px'}} size={25} onClick={() => removeCallback(image.id)}/>
 
       </div>
     </div>

@@ -38,6 +38,8 @@ export default function MyFilesPageComponent() {
   const [imageSearch, setImageSearch] = useState('')
   const [selectedFiles, setSelectedFiles] = useState([])
   const [files, setFiles] = useState([])
+  const [loader, setLoader] = useState(false)
+
 
   const editMedia = (media) => {
     setDisplayEditItem(true)
@@ -165,13 +167,17 @@ const uploadFileLoop = async(event) => {
   if (!event.target.files || event.target.files.length === 0) {
     throw new Error('You must select an image to upload.')
   }
-  console.log('event.target.files', event.target.files)
 
   setUploading(true)
 
   for (const file of event.target.files) {
+    try{
       await uploadFile(file)
-  // color = 'yellow'; // ❌ Throws TypeError: Assignment to constant variable.
+    } catch (err){
+      notifyError(err)
+      setUploading(false)
+    }
+
   }
 
   setUploading(false)
@@ -204,14 +210,17 @@ const uploadFile = async (file) => {
           file_name:fileName
         }
         handleFileFunction(fileData)
+
       } else {
         showError(result.error)
+        setLoader(false)
       }
 
 
   } catch (error) {
     console.log(error)
     alert('Error uploading image!')
+    setLoader(false)
   }
 }
 
@@ -235,9 +244,9 @@ const handleFileFunction = async (data) => {
 
   setFiles(prev => [newFile, ...prev]);
 
-
   }catch (error){
     console.log('Error updating task due date: ', error)
+    setLoader(false)
   }
 }
 
@@ -312,6 +321,17 @@ async function downloadAndZip() {
   URL.revokeObjectURL(link.href);
 }
 
+const copyFileUrl = (url) => {
+  navigator.clipboard.writeText(url).then(function() {
+    // Success feedback (optional)
+    showSuccess(`Copied file url`)
+
+  }).catch(function(err) {
+    // Error handling (optional)
+    console.error('Could not copy url: ', err);
+  });
+}
+
 
 
   return (
@@ -324,47 +344,33 @@ async function downloadAndZip() {
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Gemini')} className={`${'btn'} ${filesDisplay ==='Gemini'?'primary':'secondary'}`}>Gemini</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Veo</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('X Z Image Turbo')} className={`${'btn'} ${filesDisplay ==='X Z Image Turbo'?'primary':'secondary'}`}>X Z Image Turbo</button>
-
                 </div>
-                <div style={{flex:3, padding:'15px', overflowY: 'scroll', maxHeight: '800px'}}>
+                <div style={{flex:3, padding:'15px', overflowY: 'hidden', height: '800px'}}>
+                  <div style={uploading? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                      <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                  </div>
                   <div>
-                    <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '10px'}}>
+                    <div style={{
+                      display:'flex',
+                      flexDirection:'row',
+                      flexWrap: 'wrap',
+                      gap:'15px',
+                      margin: '0 auto'
+                    }}>
                       {selectedFiles.map((file, index)=>{
                         return(
-                              <div key={file.id} style={{width:'25%', position:'relative'}}>
-                                {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                                  <>
-                                    <div style={{position:'absolute', right:'5px', top:'5px'}}>
-                                        <ThreeDotMenu>
-                                          <button onClick={() => editMedia(file)} className='btn btn-sm clear'>Edit Image</button>
-                                        </ThreeDotMenu>
-                                    </div>
-                                    <img style={{width:'100%', height:'auto', objectFit:'cover', borderRadius:'5px'}} className={`${'media-image'}`} src={file.file_url}/>
-                                  </>
-                                }
-                                {file.file_type === 'application/pdf'&&
-                                  <>
-                                    <img className={`${'media-file'}`} src={'/pdf-icon.png'}/>
-                                  </>
-                                }
-                                {file.file_type === 'video/mp4'&&
-                                  <>
-                                    <div>
-                                       <ReactPlayer
-                                         src={file.file_url}
-                                         controls
-                                         autoPlay={false}
-                                         className="video_thumb"
-                                         playsInline
-                                         style={{
-                                           minWidth:'unset',
-                                           borderRadius: '5px'
-                                         }}
-                                       />
-                                    </div>
-                                  </>
-                                }
-                              </div>
+                          <ImageComponent
+                            key={file.id}
+                            fileFilters={fileFilters}
+                            file={file}
+                            editMedia={editMedia}
+                            copyFileUrl={copyFileUrl}
+                            selectedFiles={selectedFiles}
+                            selectFileFunction={selectFileFunction}
+                            width={'25%'}
+                            objectFit={false}
+                            showSelection={false}
+                            />
                           )
                       })}
                     </div>
@@ -443,6 +449,22 @@ async function downloadAndZip() {
                       </div>
                       <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
                         <Checkbox
+                          id={'documents'}
+                          className="form-check-input"
+                          type="checkbox"
+                          onChange={() => checkboxFunction('documents')}
+                          checked={fileFilters.includes('documents')}
+                          sx={{
+                            color: 'var(--md-sys-color-secondary)',
+                            '&.Mui-checked': {
+                              color: 'var(--md-sys-color-primary)',
+                            },
+                          }}
+                        />
+                        <span style={{marginLeft:'5px'}}>documents</span>
+                      </div>
+                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
+                        <Checkbox
                           id={'iimages'}
                           className="form-check-input"
                           type="checkbox"
@@ -472,54 +494,36 @@ async function downloadAndZip() {
                     </div>
                       </div>
                   {(filesDisplay ==='My Files') &&
-
-                    <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap'}}>
-                      {files.map((file, index)=>{
-                        const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
-                        return (
-                          <div key={file.id} style={{width:'18%', margin:'1%', position:'relative'}}>
-
-                              {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                                <>
-                                  <div style={{position:'absolute', right:'5px', top:'5px'}}>
-                                    <ThreeDotMenu>
-                                      <button onClick={() => editMedia(file)} className='btn btn-sm clear'>Edit Image</button>
-                                    </ThreeDotMenu>
-                                  </div>
-                                  <img className={`${'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
-                                </>
-                              }
-                              {file.file_type === 'application/pdf'&&
-                                <>
-                                  <img className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) } src={'/pdf-icon.png'}/>
-                                </>
-                              }
-                              {(file.file_type === 'video/mp4' || file.file_type === 'video/webm' || isVideo)&&
-                                <>
-                                  <div className={`${'media-file video'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
-                                     <video
-                                       src={file.file_url}
-                                       controls
-                                       autoPlay={false}
-                                       className="video_thumb"
-                                       playsInline
-                                       style={{minWidth:'unset'}}
-                                     />
-                                  </div>
-                                </>
-                              }
-                              {(file.file_type === 'audio/mpeg' || file.file_type === 'audio/wav' || file.file_type === 'audio/aac' || file.file_type === 'audio/webm' || file.file_type === 'audio/ogg')&&
-                                <div className={`${'media-file'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
-                                  <Audio file={file}/>
-                                </div>
-                              }
-                              {/*}<p style={{fontSize:'.8em'}}>{file.file_name}</p>*/}
-
-                          </div>
-                        )
-                      })}
+                    <div style={{
+                      overflowY: 'scroll',
+                      height: 'calc(100% - 200px)'
+                    }}>
+                      <div style={{
+                        display:'flex',
+                        flexDirection:'row',
+                        flexWrap: 'wrap',
+                        gap:'15px',
+                        justifyContent: 'center',
+                        margin: '0 auto'
+                      }}>
+                        {files.map((file, index)=>{
+                          return (
+                            <ImageComponent
+                            key={file.id}
+                            fileFilters={fileFilters}
+                            file={file}
+                            editMedia={editMedia}
+                            copyFileUrl={copyFileUrl}
+                            selectedFiles={selectedFiles}
+                            selectFileFunction={selectFileFunction}
+                            width={'25%'}
+                            objectFit={true}
+                            showSelection={true}
+                            />
+                          )
+                        })}
+                      </div>
                     </div>
-
 
                   }
 
@@ -545,6 +549,100 @@ async function downloadAndZip() {
 
 
     </>
+  )
+}
+
+export const ImageComponent = ({
+  fileFilters,
+  file,
+  editMedia,
+  copyFileUrl,
+  selectedFiles,
+  selectFileFunction,
+  width,
+  objectFit,
+  showSelection
+})=>{
+  const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
+
+  return(
+    <div  style={{
+      //width:fileFilters.includes('audio')?'32%':'24%',
+      position:'relative',
+      flex: `1 1 calc(${width} - 15px)`,
+      maxWidth: `calc(${width} - 15px)`,
+      minWidth: '250px',
+      height: '250px',
+      overflow: 'hidden',
+      borderRadius: '8px'
+    }}>
+        {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
+          <>
+            <div style={{position:'absolute', right:'5px', top:'5px'}}>
+              <ThreeDotMenu>
+                <button onClick={() => editMedia(file)} className='btn btn-sm clear'>Edit Image</button>
+                <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+              </ThreeDotMenu>
+            </div>
+            <img
+              style={{
+                borderRadius: '8px',
+                height: objectFit?'250px':'unset',
+                objectFit: objectFit?'cover':'unset'
+              }}
+            className={`${'media-image'} ${isObjectInArray(file, selectedFiles) && showSelection?'active':''}`} onClick={() => selectFileFunction(file) } src={file.file_url}/>
+          </>
+        }
+        {file.file_type === 'application/pdf'&&
+          <>
+            <div style={{position:'absolute', right:'5px', top:'5px'}}>
+              <ThreeDotMenu>
+                <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+              </ThreeDotMenu>
+            </div>
+            <img className={`${'media-file'} ${isObjectInArray(file, selectedFiles) && showSelection?'active':''}`} onClick={() => selectFileFunction(file) } src={'/pdf-icon.png'}/>
+            <p style={{fontSize:'.8em'}}> {file.file_name}</p>
+          </>
+        }
+        {(file.file_type === 'video/mp4' || file.file_type === 'video/webm' || isVideo)&&
+          <>
+            <div style={{position:'absolute', right:'5px', top:'5px'}}>
+              <ThreeDotMenu>
+                <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+              </ThreeDotMenu>
+            </div>
+            <div className={`${'media-file video'} ${isObjectInArray(file, selectedFiles) && showSelection?'active':''}`} onClick={() => selectFileFunction(file) }>
+              <ReactPlayer
+                src={file.file_url}
+                controls
+                autoPlay={false}
+                className="video_thumb"
+                playsInline
+                style={{
+                  minWidth:'unset',
+                  borderRadius: '5px'
+                }}
+              />
+            </div>
+          </>
+        }
+        {(file.file_type === 'audio/mpeg' || file.file_type === 'audio/wav' || file.file_type === 'audio/aac' || file.file_type === 'audio/webm' || file.file_type === 'audio/ogg')&&
+          <div style={{
+            background: '#f0f0f0',
+            padding: '0px 15px 0px 0px',
+            borderRadius: '6px'
+          }}>
+              <div style={{position:'absolute', right:'5px', top:'5px'}}>
+                <ThreeDotMenu>
+                  <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+                </ThreeDotMenu>
+              </div>
+            <div className={`${'media-file'} ${isObjectInArray(file, selectedFiles) && showSelection?'active':''}`} onClick={() => selectFileFunction(file) }>
+              <Audio file={file}/>
+            </div>
+          </div>
+        }
+    </div>
   )
 }
 

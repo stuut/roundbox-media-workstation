@@ -365,6 +365,7 @@ hr {
   top: 0px;
   min-width: 281px;
   height: auto;
+  max-width:300px
 }
 
 .colour-picker .sketch-picker {
@@ -451,6 +452,8 @@ input:-webkit-autofill {
   background-color: var(--md-sys-color-secondary);
   color: var(--md-sys-color-on-secondary);
 }
+
+
 
 .primary{
   background-color: var(--md-sys-color-primary);
@@ -598,7 +601,7 @@ input::file-selector-button {
   -moz-box-shadow: -2px 1px 9px 0px rgba(0,0,0,0.15);
 }
 
-.editor-background.video{
+.editor-background.video-editor{
   height: calc(100% - 230px);
 }
 
