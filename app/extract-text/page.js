@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import PdfTextExtractor from '@/components/pdf-text-extractor'
-import { getFeeds } from '@/lib/supabase'
+import { getPublishFeeds } from '@/lib/supabase'
 
 
 
@@ -20,7 +20,7 @@ export default async function Page() {
 
   const userId = user.id
 
-  const data = await getFeeds(userId)
+  const data = await getPublishFeeds(userId)
 
   const feeds = data.map((feed)=>{
     return{

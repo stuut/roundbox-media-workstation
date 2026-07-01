@@ -131,13 +131,14 @@ try {
         }
       )
 
+      /*
       const post = await client.entry.publish(
         { spaceId: selectedFeed.spaceId, environmentId: selectedFeed.environmentId, entryId: entry.sys.id },
         entry
-      )
+      )*/
 
       return Response.json({
-        data:post
+        data:entry
       },{ status: 200 })
 
   }catch(err){

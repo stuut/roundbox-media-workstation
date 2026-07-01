@@ -190,6 +190,8 @@ export default function PdfTextExtractor({user, feeds}) {
   const [guestAuthor, setGuestAuthor] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const mdValueRef = useRef('')
+  const [uploadedPosts, setUploadedPosts] = useState([]);
+  const [usedDates, setUsedDates] = useState([]);
 
 
 
@@ -1715,9 +1717,19 @@ const createPost = async() => {
 
   if (selectedFeedRef.current.CMSType === 'contentful'){
 
+
+      if (selectedContentfulCategories.length===0){
+        showError('No Categories Selected')
+        return
+      }
+
+
+
       const extractedImages = extractImagesFromMarkdown(mdValue);
       var uploadedArticleImages = []
       var uploadMarkdownData = mdValue
+      const publishDate = new Date();
+      publishDate.setDate(publishDate.getDate() + 1);
 
 
       //get images to upload
@@ -1762,8 +1774,6 @@ const createPost = async() => {
             })
 
             uploadMarkdownData = replaceBase64ImageInMarkdown(uploadMarkdownData, image.file_url, uploadedImageUrl)
-
-            console.log('uploadMarkdownData', uploadMarkdownData)
         }
       }
 
@@ -1776,7 +1786,6 @@ const createPost = async() => {
         featureImageId = checkFeatureImage.contentfulId
       }else{
         // upload feature image
-
         const response = await fetch('/api/contentful/publish-asset', {
               method: 'POST',
               headers: {
@@ -1791,15 +1800,84 @@ const createPost = async() => {
           const uploadedFeatureImage = await response.json();
           // store contentful Id for feature image
           featureImageId = uploadedFeatureImage.data[0]?.sys?.id
-
-
-          //upload post
-
-
       }
+
+      const response = await fetch('/api/contentful/create-content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              feedId: selectedFeed.id,
+              heading: heading??null,
+              authorId: author??null,
+              publishDate: moment(publishDate).format('YYYY-MM-DD'),
+              scheduleDate: moment(date).format('YYYY-MM-DDTHH:mm'),
+              imageField:selectedFeedRef.current.image,
+              imageId:featureImageId,
+              text:uploadMarkdownData,
+              textField:selectedFeedRef.current.text,
+              categories:selectedContentfulCategories.length>0?selectedContentfulCategories:[],
+              tags:selectedContentfulTags.length>0?selectedContentfulTags:[],
+            }),
+        });
+
+
+        const data = await response.json();
+
+        setUploadedPosts(uploadedPosts => [...uploadedPosts, data.data])
+        setUsedDates(usedDates => [...usedDates, moment(date).format('YYYY-MM-DD HH:mm:ss')])
+
+
+
 
   }
 
+}
+
+const uploadImages = async () => {
+  if (selectedFeedRef.current.CMSType === 'contentful'){
+
+    try{
+
+      const response = await fetch('/api/contentful/publish-asset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              feedId: selectedFeed.id,
+              images: images
+            }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed with status: ${response.status}`);
+        }
+
+        const uploadedImages = await response.json();
+
+        showSuccess(image)
+
+
+    }catch(err){
+      showError('Error uploading images')
+    }
+
+
+  }else{
+
+  }
+}
+
+const changeScheduleDate = (date) => {
+  setDate(date)
+
+  const dateUsed = isInArray(moment(date).format('YYYY-MM-DD HH:mm:ss'), usedDates)
+
+  if (dateUsed){
+    showError('Post date used')
+  }
 }
 
 
@@ -2278,6 +2356,29 @@ const createPost = async() => {
                           </>
                         }
                 </div>
+            }
+          </div>
+        }
+        {uploadedPosts.length>0 &&
+        <div style={{flex:.2, padding:'10px', maxWidth:'200px'}}>
+          {uploadedPosts.map((entry, index) => {
+                if (entry === null) return null
+                if (entry.acf){
+                  return(
+                    <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
+                      <p>{entry.title.raw?entry.title.raw:''}</p>
+                      <p><strong>{entry.acf.schedule_date?moment(entry.acf.schedule_date).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
+                    </div>
+                  )
+                }else{
+                    return (
+                      <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
+                        <p>{entry.fields.title['en-AU']?entry.fields.title['en-AU']:''}</p>
+                        <p><strong>{entry.fields.scheduleDate['en-AU']?moment(entry.fields.scheduleDate['en-AU']).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
+                      </div>
+                    )
+                }
+              })
             }
           </div>
         }

@@ -174,7 +174,8 @@ export const FacebookConnection = ({userId}) => {
 
       async function pushTofacebookInfoDatabase(account) {
       try {
-        await supabase.from('platform_accounts').upsert({
+        await supabase.from('platform_accounts').upsert(
+          {
           user_id: userId,
           platform: 'facebook',
           external_account_id: account.id,
@@ -184,7 +185,11 @@ export const FacebookConnection = ({userId}) => {
             facebook_page_id: account.id,
             accountInfo:account
           }
-        })
+        },
+        {
+           onConflict: 'user_id,external_account_id',
+        }
+      )
       } catch (err) {
         console.log('Supabase insert error (Facebook):', err.message);
         showError(err.message);
@@ -193,7 +198,8 @@ export const FacebookConnection = ({userId}) => {
 
     async function pushToInstagramInfoDatabase(account, instagramBusinessAccountId) {
       try {
-        await supabase.from('platform_accounts').upsert({
+        await supabase.from('platform_accounts').upsert(
+          {
           user_id: userId,
           platform: 'instagram',
           external_account_id: instagramBusinessAccountId,
@@ -204,7 +210,11 @@ export const FacebookConnection = ({userId}) => {
             instagram_business_account_id: instagramBusinessAccountId,
             accountInfo:account
           }
-        })
+        },
+        {
+           onConflict: 'user_id, external_account_id',
+        }
+      )
 
       } catch (err) {
         console.log('Supabase insert error (Instagram):', err.message);
