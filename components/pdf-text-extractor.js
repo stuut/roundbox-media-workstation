@@ -76,7 +76,7 @@ function removeTags(str) {
 }
 
 
-const tinymceAPIkey = 'p3buqczwwii4scekdj4yuqpuwif3v2w63nbm6krta5jdnazt'
+const tinymceAPIkey = process.env.TINYMCEAPIKEY
 
 function extractImagesFromMarkdown(markdown) {
     // Regular expression to match Markdown image syntax

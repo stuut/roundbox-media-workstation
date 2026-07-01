@@ -1,5 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
-const { createClient } = require('contentful-management');
+import { createClient as supabaseClient } from "@/utils/supabase/server";
+import moment from "moment";
+const contentful = require('contentful-management');
 
 function createSlug(string) {
   return string
@@ -34,8 +35,7 @@ try {
     return Response.json({ message: "No Feed Id" },{ status: 500 })
   }
 
-  const supabase = await createClient();
-
+  const supabase = await supabaseClient();
 
   const { data, error } = await supabase
 
@@ -131,7 +131,7 @@ try {
         }
       )
 
-      const entry = await client.entry.publish(
+      const post = await client.entry.publish(
         { spaceId: selectedFeed.spaceId, environmentId: selectedFeed.environmentId, entryId: entry.sys.id },
         entry
       )
