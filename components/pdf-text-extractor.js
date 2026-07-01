@@ -1948,7 +1948,7 @@ const changeScheduleDate = (date) => {
         <div className='scroll-wrap'>
 
             <div style={{display:'flex'}} className='scroll-inner'>
-              <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative', height:'100%'}}>
+              <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
                 <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
                     <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                 </div>
@@ -1966,7 +1966,7 @@ const changeScheduleDate = (date) => {
                   <div id="select-box" ref={selectBoxRef}/>
                 </div>
               </div>
-              <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px', height:'100%'}}>
+              <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
 
                 <Dropdown placeholder="Add Images">
                   <button className="btn btn-sm clear" onClick={() => {

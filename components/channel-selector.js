@@ -180,7 +180,7 @@ return(
               Choose a Channel...
           </>
           :
-          <div style={{display:'flex', flexDirection:'column', paddingLeft:'8px'}}>
+          <div style={{display:'flex', flexDirection:'column'}}>
             {selectedSocialPages.map((page, index)=>{
                 return(
                   <div key={index}

@@ -2932,6 +2932,7 @@ const addNewFiles = async(selectedFiles) => {
                           postData={postData}
                           caption={caption}
                           customCaptions={customCaptions}
+                          customCaptionsToggle={customCaptionsToggle}
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
@@ -2958,6 +2959,7 @@ const addNewFiles = async(selectedFiles) => {
                           media={media}
                           caption={caption}
                           customCaptions={customCaptions}
+                          customCaptionsToggle={customCaptionsToggle}
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
@@ -2972,6 +2974,7 @@ const addNewFiles = async(selectedFiles) => {
                           media={media}
                           caption={caption}
                           customCaptions={customCaptions}
+                          customCaptionsToggle={customCaptionsToggle}
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
@@ -2987,6 +2990,7 @@ const addNewFiles = async(selectedFiles) => {
                           media={media}
                           caption={caption}
                           customCaptions={customCaptions}
+                          customCaptionsToggle={customCaptionsToggle}
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
@@ -3010,6 +3014,7 @@ const FacebookLinkPreview = ({
   postData,
   caption,
   customCaptions,
+  customCaptionsToggle,
   selectedSocialPages,
   addComment,
   setAddComment,
@@ -3022,17 +3027,23 @@ const FacebookLinkPreview = ({
 
   const hasRun = useRef(false);
 
+  console.log('caption', caption)
+
 
   useEffect(() => {
 
-    if (customCaptions?.length>0){
-      const instagramCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
-      setCaptionText(instagramCaption.caption)
+    console.log('caption useEffect', caption)
+
+    console.log('customCaptions', customCaptions)
+
+    if (customCaptions?.length>0 && customCaptionsToggle){
+      const facebookCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
+      setCaptionText(facebookCaption.caption)
     }else{
       setCaptionText(caption)
     }
 
-  },[caption, customCaptions])
+  },[caption, customCaptions, customCaptionsToggle])
 
 
 
@@ -3709,6 +3720,7 @@ const FacebookPhotosPreview = ({
   media,
   caption,
   customCaptions,
+  customCaptionsToggle,
   selectedSocialPages,
   addComment,
   setAddComment,
@@ -3718,14 +3730,14 @@ const FacebookPhotosPreview = ({
 
   useEffect(() => {
 
-    if (customCaptions?.length>0){
+    if (customCaptions?.length>0 && customCaptionsToggle){
       const instagramCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
       setCaptionText(instagramCaption.caption)
     }else{
       setCaptionText(caption)
     }
 
-  },[caption, customCaptions])
+  },[caption, customCaptions, customCaptionsToggle])
 
 
   return(
@@ -3804,6 +3816,7 @@ const InstagramPhotosPreview = ({
   media,
   caption,
   customCaptions,
+  customCaptionsToggle,
   selectedSocialPages,
   addComment,
   setAddComment,
@@ -3815,14 +3828,14 @@ const InstagramPhotosPreview = ({
 
     useEffect(() => {
 
-      if (customCaptions?.length>0){
+      if (customCaptions?.length>0 && customCaptionsToggle){
         const instagramCaption = customCaptions.find((cap)=> cap.platform === 'instagram')
         setCaptionText(instagramCaption.caption)
       }else{
         setCaptionText(caption)
       }
 
-    },[caption, customCaptions])
+    },[caption, customCaptions, customCaptionsToggle])
 
 
     const onCarouselChange = (args) => {
