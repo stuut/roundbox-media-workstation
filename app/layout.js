@@ -101,9 +101,8 @@ export default async function RootLayout({ children, params  }) {
                       {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
                     </div>
                   </nav>
-
                 <ImportItems/>
-                <div style={{height: 'calc(100% - 71.5px)'}}>
+                <div style={{height: 'calc(100% - 70px)', overflow: 'hidden'}}>
                   {children}
                 </div>
                 <MyFiles/>

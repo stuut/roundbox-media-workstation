@@ -30,11 +30,9 @@ export default async function Page() {
   })
 
   return (
-    <div style={{padding:'0px 25px'}}>
+    <div style={{padding:'0px 25px', height:'100%'}}>
       <h2>Extract Pdf</h2>
-      <div>
         <PdfTextExtractor user={user} feeds={feeds}/>
-      </div>
     </div>
   );
 }

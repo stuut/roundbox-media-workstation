@@ -111,6 +111,18 @@
 }
 
 
+.scroll-wrap {
+  overflow-x: auto;
+  transform: scaleY(-1);   /* flips whole container */
+  height: calc(100% - 167px);
+  overflow-y: hidden;
+}
+
+.scroll-inner {
+  transform: scaleY(-1);   /* flips content back upright */
+  height: 100%;
+}
+
 
 .cropper-container-wrapper {
   width: 100%;

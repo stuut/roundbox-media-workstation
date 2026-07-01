@@ -359,7 +359,12 @@ export default function PdfTextExtractor({user, feeds}) {
     // 2. Extract the raw base64 string by removing the "data:image/jpeg;base64," prefix
 
     // 3. Create a folder inside the ZIP and add the image file
-    const imageFolder = zip.folder("images");
+
+    let folderName = heading??'images'
+
+
+
+    const imageFolder = zip.folder(folderName);
 
     for (const image of images) {
       if (image.file_url.startsWith('data:image/')){
@@ -1885,7 +1890,7 @@ const changeScheduleDate = (date) => {
 
   return (
     <>
-    <div>
+    <div style={{height:'100%'}}>
       <div className='properties-container'>
         <label className='label'>Publication</label>
         <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
@@ -1940,10 +1945,10 @@ const changeScheduleDate = (date) => {
       }
       {/* Point explicitly to the public folder directory link */}
       {pdfUrl &&
-        <div className='scroll-top-container'>
-          <div className='content-inside'>
-            <div style={{display:'flex', overflowX: 'scroll'}}>
-              <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative'}}>
+        <div className='scroll-wrap'>
+
+            <div style={{display:'flex'}} className='scroll-inner'>
+              <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative', height:'100%'}}>
                 <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
                     <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                 </div>
@@ -1961,7 +1966,8 @@ const changeScheduleDate = (date) => {
                   <div id="select-box" ref={selectBoxRef}/>
                 </div>
               </div>
-              <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px'}}>
+              <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px', height:'100%'}}>
+
                 <Dropdown placeholder="Add Images">
                   <button className="btn btn-sm clear" onClick={() => {
                     setSelectedFiles([])
@@ -1975,10 +1981,13 @@ const changeScheduleDate = (date) => {
                   </button>
 
                 </Dropdown>
-                {images.length !== 0&&
+                {images.length !== 0 &&
                   <div>
                     <button style={{marginTop:'0px'}} className="btn secondary btn-sm" onClick={downloadImagesAsZip}>
                       Download Images
+                    </button>
+                    <button style={{marginTop:'0px'}} className="btn secondary outline btn-sm" onClick={uploadImages}>
+                      Upload Images
                     </button>
                   </div>
                 }
@@ -2043,8 +2052,8 @@ const changeScheduleDate = (date) => {
                   }
                 </div>
               </div>
-              <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
-                <button style={{margin:'15px 15px 0px 0px'}} className="btn primary" onClick={() => createPost()} disabled={(pdfUrl || loader)?false:true}><strong>Upload Post</strong></button>
+              <div style={{flex:.7, padding:'10px', minWidth:'500px', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
+                <button style={{margin:'15px 15px 0px 0px'}} className="btn primary btn-outline" onClick={() => createPost()} disabled={(pdfUrl || loader)?false:true}><strong>Upload Post</strong></button>
                     {selectedFeed.CMSType === 'wordpress' &&
                       <div>
                         <input style={{
@@ -2193,7 +2202,7 @@ const changeScheduleDate = (date) => {
                   }
               </div>
               {inputType === 'articles'&&
-                <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
+                <div style={{flex:.5, padding:'10px', minWidth:'280px', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
                   {(selectedFeed.CMSType === 'wordpress' && categoriesNested.length > 0) &&
                     <div className='properties-container'>
                       {
@@ -2361,7 +2370,7 @@ const changeScheduleDate = (date) => {
                 </div>
               }
               {uploadedPosts.length>0 &&
-              <div style={{flex:.2, padding:'10px', maxWidth:'200px'}}>
+              <div style={{flex:.2, padding:'10px', maxWidth:'200px', height:'100%'}}>
                 {uploadedPosts.map((entry, index) => {
                       if (entry === null) return null
                       if (entry.acf){
@@ -2383,7 +2392,7 @@ const changeScheduleDate = (date) => {
                   }
               </div>
               }
-            </div>
+
           </div>
         </div>
       }
