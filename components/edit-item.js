@@ -222,7 +222,7 @@ const CropComponent = ({
              user_id: user.id
            })
 
-           setFileUrl(fileData.file_url)
+           //setFileUrl(fileData.file_url)
 
          } else {
            showError(result.error)

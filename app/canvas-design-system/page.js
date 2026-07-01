@@ -3,11 +3,7 @@ import ImageGeneration from "@/components/image-generation"
 import { redirect } from 'next/navigation'
 import { CanvasDesignSystem } from "@/components/canvas-design-system"
 import { Danva }  from "@/components/two-canvas-design-video-scenemanager"
-//import  TwoCanvasDesign  from "@/components/two-canvas-design-video-tracking"
-//import  TwoCanvasDesign  from "@/components/two-canvas-design"
-//import  TwoCanvasDesign  from "@/components/two-canvas-design-bk-2"
-
-//import  TwoCanvasDesign  from "@/components/two-canvas-design-bk-2025"
+import { getFeeds } from '@/lib/supabase'
 
 
 export default async function Page() {
@@ -26,6 +22,16 @@ export default async function Page() {
 
   const userId = user.id
 
+  const data = await getFeeds(userId)
+
+
+  const feeds = data.map((feed)=>{
+    return{
+      ...feed,
+      CTA_image:feed.files?.file_url
+    }
+  })
+
   return (
         <div style={{
           height: '100%',
@@ -33,9 +39,9 @@ export default async function Page() {
         }}>
           {/*}<ImageGeneration/>*/}
           {/*}<CanvasDesignSystem/>*/}
-          <Danva  user={ user}/>
+          <Danva  user={ user} feeds={feeds}/>
 
         </div>
-  
+
   );
 }

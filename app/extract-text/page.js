@@ -1,8 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-
 import PdfTextExtractor from '@/components/pdf-text-extractor'
-
 import { getFeeds } from '@/lib/supabase'
 
 
@@ -22,17 +20,20 @@ export default async function Page() {
 
   const userId = user.id
 
-  const { data } = await supabase.from('feeds').select(`*`).eq('user_id', userId)
+  const data = await getFeeds(userId)
 
-  console.log('data', data)
-
-
+  const feeds = data.map((feed)=>{
+    return{
+      ...feed,
+      CTA_image:feed.files?.file_url
+    }
+  })
 
   return (
     <div style={{padding:'0px 25px'}}>
       <h2>Extract Pdf</h2>
       <div>
-        <PdfTextExtractor user={user} feeds={data}/>
+        <PdfTextExtractor user={user} feeds={feeds}/>
       </div>
     </div>
   );

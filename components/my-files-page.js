@@ -571,8 +571,8 @@ export const ImageComponent = ({
       position:'relative',
       flex: `1 1 calc(${width} - 15px)`,
       maxWidth: `calc(${width} - 15px)`,
-      minWidth: '250px',
-      height: '250px',
+      //minWidth: '250px',
+      //height: '250px',
       overflow: 'hidden',
       borderRadius: '8px'
     }}>

@@ -54,181 +54,9 @@ import {
   RefreshCcw
 } from 'lucide-react';
 
-const FEEDS = [
-  {
-    label: 'Hilltops Phoenix',
-    spaceId: 'ticbtmcn8ib7',
-    accessToken: 'ZevYwQ2O4E749EFWvAWStcN_nZh9ntUhi5dzW9fk2Dw',
-    website:'www.hilltopsphoenix.com.au',
-    CMSType:'contentful',
-    scheduleDate: 'scheduleDate',
-    publishedDate: 'publishDate',
-    slug:'slug',
-    title:'title',
-    image:'heroImage',
-    text:'body',
-    facebook_page_id:'1509386042722586',
-    content_type: 'post',
-    CTA_image : 'hilltops-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-  {
-    label: 'Hilltops Phoenix Ads',
-    spaceId: 'ticbtmcn8ib7',
-    accessToken: 'ZevYwQ2O4E749EFWvAWStcN_nZh9ntUhi5dzW9fk2Dw',
-    website:'www.hilltopsphoenix.com.au',
-    CMSType:'contentful',
-    title:'title',
-    image:'image',
-    text:'description',
-    content_type: 'adModule',
-    facebook_page_id:'1509386042722586',
-    CTA_image : 'hilltops-logo-stacked.png',
-    customFilterField: 'targeting',
-    postType: 'photos',
-    useDateFilter:false,
-    useEventImport:false,
-    addComment:false
-  },
-  {
-    label: 'Cowra Phoenix',
-    spaceId: 'blbpa6fzvcno',
-    accessToken: '_jbLmb4SDG2TkgW42NOTAVjPoCS78mQGEjOIXJrRExI',
-    website:'www.cowraphoenix.com.au',
-    CMSType:'contentful',
-    scheduleDate: 'scheduleDate',
-    publishedDate: 'publishDate',
-    slug:'slug',
-    title:'title',
-    image:'image',
-    text:'copy',
-    facebook_page_id:'100367901935086',
-    content_type: 'post',
-    CTA_image : 'cowra-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-  {
-    label: 'Cowra Phoenix Ads',
-    spaceId: 'blbpa6fzvcno',
-    accessToken: '_jbLmb4SDG2TkgW42NOTAVjPoCS78mQGEjOIXJrRExI',
-    website:'www.cowraphoenix.com.au',
-    CMSType:'contentful',
-    title:'title',
-    image:'image',
-    text:'description',
-    content_type: 'adModule',
-    facebook_page_id:'100367901935086',
-    CTA_image : 'cowra-logo-stacked.png',
-    customFilterField: 'targeting',
-    postType: 'photos',
-    useDateFilter:false,
-    useEventImport:false,
-    addComment:false
-  },
-  {
-    label: 'Canowindra Phoenix',
-    username: 'editor',
-    password: 'xKGAB%ncydDFbrClXwd5Ex%t',
-    website:'www.canowindraphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'106626202692898',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'canowindra-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-  {
-    label: 'Canowindra Phoenix Ads',
-    username: 'editor',
-    password: 'xKGAB%ncydDFbrClXwd5Ex%t',
-    website:'www.canowindraphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'106626202692898',
-    CTA_image : 'canowindra-logo-stacked.png',
-    query_type: 'Custom Api Query',
-    query_field: 'social-scheduler',
-    query_id_field:'id',
-    query_link_field:'link',
-    query_image_field:'image',
-    postType: 'photos',
-    useDateFilter:false,
-    useEventImport:false,
-    addComment:false
-  },
-  {
-    label: 'Parkes Phoenix',
-    username: 'roxane',
-    password: 'SOw4vSFu*ueYUBnR$4Jkip@b',
-    website:'www.parkesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'973264922791233',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'parkes-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
 
-  {
-    label: 'Forbes Phoenix',
-    username: 'roxane',
-    password: 'f#63$^bBGRz(Om)XXcpLqt0z',
-    website:'www.forbesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'883736781692596',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'forbes-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-  {
-    label: 'Forbes Phoenix Ads',
-    username: 'roxane',
-    password: 'f#63$^bBGRz(Om)XXcpLqt0z',
-    website:'www.forbesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'883736781692596',
-    CTA_image : 'forbes-logo-stacked.png',
-    query_type: 'Custom Api Query',
-    query_field: 'social-sheduler',
-    query_id_field:'id',
-    query_link_field:'link',
-    query_image_field:'image',
-    postType: 'photos',
-    useDateFilter:false,
-    useEventImport:false,
-    addComment:false
-  },
-  {
-    label: 'Forbes Phoenix Classifieds',
-    username: 'roxane',
-    password: 'f#63$^bBGRz(Om)XXcpLqt0z',
-    website:'www.forbesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'883736781692596',
-    CTA_image : 'forbes-logo-stacked.png',
-    query_type: 'Custom Api Query',
-    query_field: 'social-sheduler-classifieds',
-    query_id_field:'id',
-    query_link_field:'link',
-    query_image_field:'image',
-    postType: 'photos',
-    useDateFilter:false,
-    useEventImport:false,
-    addComment:false
-  }
-]
+
+
 
 const convertDateUnix = (unix) => {
   return new Date(unixTimestamp * 1000);
@@ -447,8 +275,8 @@ const decodeCaptionEntities = (str) => {
   return decodeHTMLEntities(str);
 }
 
-export const Scheduler = ({user})=>{
-  const [selectedFeed, setSelectedFeed] = useState(FEEDS[0])
+export const Scheduler = ({user, feeds})=>{
+  const [selectedFeed, setSelectedFeed] = useState(feeds[0])
   const [calendarEvents, setCalendarEvents] = useState([])
   const [dateFilter, setDateFilter] = useState(new Date());
   const [posts, setPosts] = useState([]);
@@ -462,7 +290,7 @@ export const Scheduler = ({user})=>{
 
 
 
-
+  //const FEEDS = feeds
 
 
   const getNotifications =  async () => {
@@ -1083,6 +911,7 @@ const hasRun = useRef(false);
         */}
 
         <FeedsPanel
+          feeds={feeds}
           selectedFeed={selectedFeed}
           setSelectedFeed={setSelectedFeed}
           dateFilter={dateFilter}
@@ -1178,6 +1007,7 @@ const hasRun = useRef(false);
 
 
 const FeedsPanel = ({
+  feeds,
   selectedFeed,
   setSelectedFeed,
   dateFilter,
@@ -1242,7 +1072,7 @@ const FeedsPanel = ({
 
 
     const onFeedChange = (value) => {
-      const feed = FEEDS.find(item => item.label === value);
+      const feed = feeds.find(item => item.label === value);
       setSelectedFeed(feed);
       if (dateFilter){
         getFeed(feed, dateFilter);
@@ -1273,10 +1103,7 @@ const FeedsPanel = ({
 
 
       if (selectedFeed.CMSType === 'contentful'){
-        const client = contentful.createClient({
-          space: selectedFeed.spaceId,
-          accessToken: selectedFeed.accessToken,
-        })
+
 
 
         let order
@@ -1287,37 +1114,41 @@ const FeedsPanel = ({
          }
 
 
+        const contentfulResponse  = await fetch('/api/contentful/get-content', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                feedId: selectedFeed.id,
+                order: order,
+                contentType: selectedFeed.content_type
+              }),
+          });
 
-        const response = await client.getEntries({
-          'content_type': selectedFeed.content_type,
-          'order': order,
-           'limit': '100',
-          'include': '10',
-        })
+          const response = await contentfulResponse.json();
 
         let date = moment(dateFeed).format('YYYY-MM-DD');
 
-        var filterPosts = response.items
-
-
+        var filterPosts = response.data
 
         if (selectedFeed.useDateFilter){
-          filterPosts = response.items.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
-        }
-
-
-        if (filterPosts.length === 0){
-          setNoPosts(true)
-          setLoader(false)
-          return
+          filterPosts = response.data.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
         }
 
         if (selectedFeed.customFilterField){
           filterPosts = filterPosts.filter(function(node) {
                return !node.fields[`${selectedFeed.customFilterField}`]
-
            });
         }
+
+        if (filterPosts?.length === 0){
+          setNoPosts(true)
+          setLoader(false)
+          return
+        }
+
+
 
         const posts = []
 
@@ -1365,69 +1196,26 @@ const FeedsPanel = ({
         setPosts(checkedPosts)
       }else if (selectedFeed.CMSType === 'wordpress'){
 
-        let date = moment(dateFeed).format('YYYY-MM-DD')+'T00:00:00';
 
-        const wpapiUrl = 'https://' + selectedFeed.website + '/wp-json'
+      const wordpressResponse  = await fetch('/api/wordpress/get-content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              feedId: selectedFeed.id,
+              dateFilter: selectedFeed.useDateFilter?dateFeed:null
+            }),
+        });
 
-        let wp
+        const response = await wordpressResponse.json();
 
-
-        let response
-
-
-        if (selectedFeed.query_field){
-              wp = new WPAPI({ endpoint: wpapiUrl });
-              //site.myCustomResource = site.registerRoute( 'wp/v2', content.queryField );
-              wp.myCustomResource = wp.registerRoute( 'wp/v2', selectedFeed.query_field, {
-                  params: [ 'order', 'orderby', 'after']
-              });
-                      //site.myCustomResource(); // => myplugin/v1/author/17
-               if (selectedFeed.useDateFilter){
-                 response = await wp.myCustomResource().order('desc').orderby('date').after(new Date(date)).get()
-
-               }else{
-                 response = await wp.myCustomResource().get()
-
-               }
-        }else{
-          wp = new WPAPI({
-              endpoint: wpapiUrl,
-              username: selectedFeed.editor,
-              password: selectedFeed.password,
-          });
-
-          if (selectedFeed.useDateFilter){
-
-            const start = moment(dateFeed).format('YYYY-MM-DD')+'T00:00:00';
-            const end = moment(dateFeed).format('YYYY-MM-DD')+'T23:59:59';
-
-            response = await wp.posts()
-              .embed()
-              .perPage(100)
-              .after(start)
-              .before(end)
-              .orderby('date')
-              .order('desc')
-              .get()
-
-          }else{
-            response = await wp.posts()
-              .embed()
-              .perPage(100)
-              .orderby('date')
-              .order('desc')
-              .get()
-
-          }
-
+        if (response?.data.length === 0){
+          setLoader(false)
+          setNoPosts(true)
+          return
         }
 
-
-          if (response.length === 0){
-            setLoader(false)
-            setNoPosts(true)
-            return
-          }
 
         function multiIndex(obj,is) {  // obj,['1','2','3'] -> ((obj['1'])['2'])['3']
             return is.length ? multiIndex(obj[is[0]],is.slice(1)) : obj
@@ -1438,12 +1226,11 @@ const FeedsPanel = ({
 
         const posts = []
 
-        for (const item of response) {
+        for (const item of response?.data) {
 
 
           const isCustomApi = selectedFeed.query_field
 
-          const urlString = !isCustomApi? item?._embedded['wp:featuredmedia'][0].source_url:item[`${selectedFeed.query_image_field}`]
 
 
           const url = new URL(urlString);
@@ -1496,6 +1283,8 @@ const FeedsPanel = ({
             add_comment:selectedFeed.addComment
           })
         }
+
+
         const checkedPosts = checkCalendarEventsDuplicate(posts)
         setPosts(checkedPosts)
       }
@@ -1511,7 +1300,7 @@ const FeedsPanel = ({
             <div style={{flex:2}}>
               <label className='label'>Publication</label>
               <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
-                {FEEDS.map((feed, index)=>{
+                {feeds.map((feed, index)=>{
                   return <option key={index} value={feed.label}>{feed.label}</option>
                 })
                 }

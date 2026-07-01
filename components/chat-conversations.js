@@ -20,7 +20,7 @@ export const ChatConversations = forwardRef(({alert}, ref) =>{
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [myConversations, setMyConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [selectedConversationMessages, setSelectedConversationMessages] = useState(null);
+  const [selectedConversationMessages, setSelectedConversationMessages] = useState([]);
 
   const { user } = useUserContext();
 

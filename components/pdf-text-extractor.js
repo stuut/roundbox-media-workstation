@@ -16,7 +16,6 @@ import dynamic from 'next/dynamic'
 import { storeFileInfo } from "@/lib/supabase";
 import * as contentful from 'contentful'
 import Dropdown from "@/components/dropdown"
-import { getFeeds } from '@/lib/supabase'
 
 var WPAPI = require( 'wpapi' );
 import {
@@ -77,98 +76,69 @@ function removeTags(str) {
 }
 
 
-const FEEDS = [
-  {
-    label: 'Hilltops Phoenix',
-    spaceId: 'ticbtmcn8ib7',
-    accessToken: 'ZevYwQ2O4E749EFWvAWStcN_nZh9ntUhi5dzW9fk2Dw',
-    website:'www.hilltopsphoenix.com.au',
-    CMSType:'contentful',
-    scheduleDate: 'scheduleDate',
-    publishedDate: 'publishDate',
-    slug:'slug',
-    title:'title',
-    image:'heroImage',
-    text:'body',
-    facebook_page_id:'1509386042722586',
-    content_type: 'post',
-    CTA_image : 'hilltops-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-  {
-    label: 'Cowra Phoenix',
-    spaceId: 'blbpa6fzvcno',
-    accessToken: '_jbLmb4SDG2TkgW42NOTAVjPoCS78mQGEjOIXJrRExI',
-    website:'www.cowraphoenix.com.au',
-    CMSType:'contentful',
-    scheduleDate: 'scheduleDate',
-    publishedDate: 'publishDate',
-    slug:'slug',
-    title:'title',
-    image:'image',
-    text:'copy',
-    facebook_page_id:'100367901935086',
-    content_type: 'post',
-    CTA_image : 'cowra-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-  {
-    label: 'Canowindra Phoenix',
-    username: 'editor',
-    password: 'xKGAB%ncydDFbrClXwd5Ex%t',
-    website:'www.canowindraphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'106626202692898',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'canowindra-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-  {
-    label: 'Parkes Phoenix',
-    username: 'roxane',
-    password: 'SOw4vSFu*ueYUBnR$4Jkip@b',
-    website:'www.parkesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'973264922791233',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'parkes-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-
-  {
-    label: 'Forbes Phoenix',
-    username: 'roxane',
-    password: 'f#63$^bBGRz(Om)XXcpLqt0z',
-    website:'www.forbesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'883736781692596',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'forbes-logo-stacked.png',
-    postType: 'link',
-    useDateFilter:true,
-    useEventImport:true,
-    addComment:true
-  },
-]
-
 const tinymceAPIkey = 'p3buqczwwii4scekdj4yuqpuwif3v2w63nbm6krta5jdnazt'
 
+function extractImagesFromMarkdown(markdown) {
+    // Regular expression to match Markdown image syntax
+    const imageRegex = /!\[.*?\]\((.*?)\)/g;
+
+    // Find all matches
+    let matches;
+    const images = [];
+
+    while ((matches = imageRegex.exec(markdown)) !== null) {
+        const url = matches[1];
+        const filename = url.split('/').pop();
+        images.push({file_url:url });
+    }
+
+    return images;
+}
+
+function extractImagesFromWordpress(htmlString) {
+
+      // Create a new DOMParser instance
+      var parser = new DOMParser();
+      let images = [];
+
+      // Parse the HTML string into a document
+      var doc = parser.parseFromString(htmlString, 'text/html');
+
+      // Query for all img elements in the document
+      var imgElements = doc.querySelectorAll('img');
+
+      // Iterate over each img element and process the src attribute asynchronously
+      for (let img of imgElements) {
+          let url = img.getAttribute('src');
+          images.push({file_url:url});
+
+      }
+
+      return images
+
+}
 
 
 
-export default function PdfTextExtractor({user}) {
+
+function replaceBase64ImageInMarkdown(markdownString, targetBase64, newUrl) {
+  let result = '';
+    let rest = markdownString;
+    let idx;
+
+    while ((idx = rest.indexOf(targetBase64)) !== -1) {
+        result += rest.slice(0, idx) + newUrl;
+        rest = rest.slice(idx + targetBase64.length);
+    }
+    result += rest;
+
+    return result;
+}
+
+
+
+
+export default function PdfTextExtractor({user, feeds}) {
   const { displayEditItem, setDisplayEditItem, item, setItem, setActiveTool} = useEditItemContext();
   const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker, fileLimit, setFileLimit } = useFilesContext();
   const [pageNumber, setPageNumber] = useState(1)
@@ -186,7 +156,7 @@ export default function PdfTextExtractor({user}) {
   const inputTypeRef  = useRef(inputType);
   const [images, setImages] = useState([])
   const imagesRef = useRef([]);
-  const [selectedFeed, setSelectedFeed] = useState(FEEDS[0])
+  const [selectedFeed, setSelectedFeed] = useState(feeds[0])
   const editorRef = useRef(null);
   const selectedFeedRef = useRef(selectedFeed)
   const [canvasSize, setCanvasSize] = useState(null)
@@ -219,21 +189,7 @@ export default function PdfTextExtractor({user}) {
   const hasMounted = useRef(false)
   const [guestAuthor, setGuestAuthor] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const createWPAPI = () => {
-    let wpapiUrl
-    if (!selectedFeed.website.endsWith("/")){
-      wpapiUrl = 'https://' + selectedFeed.website + '/wp-json'
-    }else{
-      wpapiUrl = 'https://' + selectedFeed.website+'wp-json'
-    }
-    var wp = new WPAPI({
-        endpoint: wpapiUrl,
-        username: selectedFeed.username,
-        password: selectedFeed.password,
-    });
-    return wp
-
-  }
+  const mdValueRef = useRef('')
 
 
 
@@ -282,13 +238,26 @@ export default function PdfTextExtractor({user}) {
 
 
 
-  const getWPCategories = () =>{
-    var wp = createWPAPI()
-    wp.categories().perPage(100).get().then(function(response) {
-        let nestedList = buildNestedCheckboxes(response)
+  const getWPCategories = async () =>{
+
+
+    const response = await fetch('/api/wordpress/get-categories', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            feedId: selectedFeed.id
+          }),
+      });
+
+      const categories = await response.json();
+
+
+        let nestedList = buildNestedCheckboxes(categories.data)
         setCategoriesState(prev => !prev)
         setCategoriesNested(nestedList)
-    })
+
   }
 
 
@@ -296,57 +265,64 @@ export default function PdfTextExtractor({user}) {
     e.preventDefault();
     setMediaList([])
 
-  if (selectedFeed.CMSType === 'wordpress'){
-    var wp = createWPAPI()
-    wp.media().perPage(100).search(searchMedia).get().then(function( response ) {
-      const updateImages = response.map((entry, index) => {
+  if (selectedFeedRef.current.CMSType === 'wordpress'){
 
-        console.log('entry', entry)
+    const response = await fetch('/api/wordpress/get-assets', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            feedId: selectedFeed.id,
+            searchTerm: searchMedia
+          }),
+      });
+
+      const images = await response.json();
+
+      const updateImages = images.data.map((entry, index) => {
 
           return {
             id : entry.id,
-            file_name : entry.filename,
-            file_url : entry.source_url,
-            width: entry.media_details.width,
-            height: entry.media_details.height,
-            caption: entry.caption.rendered?removeTags(entry.caption.rendered):''
+            file_name : entry?.filename??null,
+            file_url : entry?.source_url??null,
+            width: entry?.media_details.width??null,
+            height: entry?.media_details.height??null,
+            caption: entry?.caption.rendered?removeTags(entry.caption.rendered):null,
+            file_type: entry?.mime_type??null,
+            source:'wordpress'
           }
       })
 
       setMediaList(updateImages)
-    })
+
   }else{
 
-    let client = contentful.createClient({
-        space: selectedFeed.spaceId,
-        accessToken: selectedFeed.accessToken,
-      })
-      async function getAssetsWithSearchTerm(searchTerm) {
-        try {
-          const response = await client.getAssets({
-            query: searchTerm
-          });
+    const response = await fetch('/api/contentful/get-assets', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            feedId: selectedFeed.id,
+            searchTerm: searchMedia
+          }),
+      });
 
-          return response.items
-        } catch (error) {
-          console.error('Error fetching assets:', error);
-        }
-      }
+      const images = await response.json();
+      console.log('images', images)
 
-      const images = await getAssetsWithSearchTerm(searchMedia);
-
-
-      const updateImages = images.map((entry, index) => {
-
-            console.log('images', entry.fields.file.fileName)
+      const updateImages = images.data.map((entry, index) => {
 
             return {
               id : entry.sys.id,
-              file_name : entry.fields.file.fileName,
-              file_url : entry.fields.file.url,
-              width: entry.fields.file.details.image?entry.fields.file.details.image.width:'',
-              height: entry.fields.file.details.image?entry.fields.file.details.image.height:'',
-              caption: entry.fields.description
+              file_name : entry?.fields?.file?.fileName,
+              file_url : entry?.fields?.file.url,
+              width: entry?.fields?.file?.details?.image?.width??null,
+              height: entry?.fields?.file?.details?.image?.height??null,
+              caption: entry?.fields?.description,
+              file_type: entry?.fields?.file?.contentType??null,
+              source:'contentful'
             }
       })
       setMediaList(updateImages)
@@ -356,19 +332,21 @@ export default function PdfTextExtractor({user}) {
 
 
   const getContentfulData = async (data, contentType) => {
-    let client = contentful.createClient({
-        space: data.spaceId,
-        accessToken: data.accessToken,
-      })
-    const response = await client.getEntries({
-      'content_type': contentType,
-      'order': 'sys.updatedAt',
-       'limit': '1000',
-      'include': '10',
-    })
+    const response = await fetch('/api/contentful/get-content', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            feedId: data.id,
+            contentType: contentType
+          }),
+      });
+
+      const contentfulData = await response.json();
 
 
-    return response.items??[]
+    return contentfulData.data??[]
 }
 
 
@@ -511,17 +489,23 @@ async function downloadImage(image) {
 
   const addNewFile = async (files) => {
     const file = files[0]
-    console.log('file', file.file_url)
-    console.log('file', file)
+
     if (file.file_type === 'application/pdf'){
 
-      console.log('file', file.file_url)
+
       setpdfUrl(file.file_url)
       //setpdfUrl('https://roundbox-media-task-manager.s3.ap-southeast-2.amazonaws.com/1782275065890-Hilltops-Phoenix-Issue-502-25-June-2026.pdf')
     }else if (file.file_type === 'image/png' || file.file_type === 'image/jpeg'){
       const checkedImages = await checkInstagramImages(files)
-      console.log('setImages')
-      setImages(images => [...checkedImages, ...images])
+
+      const newImages = checkedImages.map((file)=>{
+        return{
+          ...file,
+          source:'internal'
+        }
+      })
+
+      setImages(images => [...newImages, ...images])
     }
     setSelectedFiles([])
   }
@@ -529,15 +513,8 @@ async function downloadImage(image) {
 
   useEffect(() => {
 
-    console.log('showFiles', showFiles)
-
-    console.log('showFiles', showFiles)
-
-
 
     if (!showFiles && selectedFiles.length > 0) {
-
-
 
       addNewFile(selectedFiles)
     }
@@ -677,11 +654,11 @@ const sendAreaData = async(selectionArea) => {
     if (responseJson.images.length > 0){
       imagesWithCaptions = addCaptions(responseJson.images, captions)
 
-      const checkedImages = await checkInstagramImages(imagesWithCaptions)
+      const newCheckedImages = await checkInstagramImages(imagesWithCaptions)
 
-      newImages = [...checkedImages, ...imagesRef.current]
-      console.log('setImages')
-      setImages(prev => [...checkedImages, ...prev])
+      newImages = [...imagesRef.current, ...newCheckedImages]
+
+      setImages(prev => [...prev, ...newCheckedImages])
 
     }
     if (selectedFeedRef.current.CMSType === 'wordpress'){
@@ -712,9 +689,9 @@ function removeDoubleSpaces(string) {
 
 const addContentfulArticle = (paragraphs, images) => {
 
-    let previousContent = mdValue
+  let previousContent = mdValueRef.current
 
-    let combinedContent
+  let combinedContent
 
   if (paragraphs){
 
@@ -725,8 +702,8 @@ const addContentfulArticle = (paragraphs, images) => {
         const urlRegex = /(https?:\/\/[^\s]+)/gi;
         const updatedUrlText = paragraph.replace(urlRegex, '[$1]($1)');
 
-        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-        const updatedEmailText = updatedUrlText.replace(emailRegex, '[mailto:$1]($1)');
+        const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+        const updatedEmailText = updatedUrlText.replace(emailRegex, '[$1](mailto:$1)');
 
         const newText = markdownLinkify(paragraph)
 
@@ -734,15 +711,15 @@ const addContentfulArticle = (paragraphs, images) => {
       });
 
       combinedContent = previousContent + paragraphText
-
   }else{
-
       combinedContent = previousContent
-
   }
 
 
+
+
   if (images.length > 1){
+
     let lastImages = addLastImages(images)
 
     handleMDEditorChange(combinedContent + '\n'+ lastImages)
@@ -803,11 +780,15 @@ function htmlLinkify(text) {
 
 const addWordPressArticle = (paragraphs, images) => {
 
+
+  console.log('paragraphs', paragraphs)
+
   if (!editorRef.current) return
 
   let htmlString = getEditorContent()
   var parser = new DOMParser();
   var doc = parser.parseFromString(htmlString, 'text/html');
+
   var imgElements = doc.querySelectorAll('img');
   var captions = doc.getElementsByClassName('wp-caption-text')
 
@@ -824,22 +805,17 @@ const addWordPressArticle = (paragraphs, images) => {
 
   let combinedContent
 
-  if (paragraphs){
+  if (paragraphs.length>0){
 
     let paragraphText = ''
 
     paragraphs.forEach((paragraph, index) => {
-
       paragraphText += '<p>'+htmlLinkify(paragraph)+' </p>'
     });
 
-
     combinedContent = previousContent + paragraphText
-
   }else{
-
     combinedContent = previousContent
-
   }
 
 
@@ -848,12 +824,15 @@ const addWordPressArticle = (paragraphs, images) => {
 
   }else{
 
+
     var firstImage = addFirstImage(images)
 
     if (images.length>1){
       let lastImages = addLastImages(images)
-      if (lastImages){
 
+
+
+      if (lastImages){
         setTinymceContent(firstImage + combinedContent + lastImages)
       }
     }else{
@@ -861,45 +840,13 @@ const addWordPressArticle = (paragraphs, images) => {
     }
   }
 }
-/*
-const updateCopy = (images) => {
-  let htmlString = getEditorContent()
-  var parser = new DOMParser();
-  var doc = parser.parseFromString(htmlString, 'text/html');
-  var imgElements = doc.querySelectorAll('img');
-  var captions = doc.getElementsByClassName('wp-caption-text')
 
-  for (let caption of captions) {
-      caption.remove()
-  }
-
-  for (let img of imgElements) {
-      let remove = img.parentNode
-      remove.remove()
-  }
-  var modifiedHtmlString = doc.body.innerHTML;
-
-  var firstImage = addFirstImage(images)
-
-  if (images.length>1){
-    let lastImages = addLastImages(images)
-    if (lastImages){
-
-      setTinymceContent(firstImage + combinedContent + lastImages)
-    }
-  }else{
-      setTinymceContent(firstImage + combinedContent)
-  }
-}
-*/
 const addFirstImage = (images) => {
   var newImageHTML
 
-  console.log('selectedFeed', selectedFeed)
-
   if (images[0].file_url){
 
-      if (selectedFeed.CMSType === 'wordpress'){
+      if (selectedFeedRef.current.CMSType === 'wordpress'){
           newImageHTML = createImageHTML(images[0])
       }else{
           newImageHTML = createImageMd(images[0])
@@ -911,21 +858,50 @@ const addFirstImage = (images) => {
 
 const addLastImages = (images) => {
 
-
   let imagesHTML = ''
 
   let imagesWithoutFirstElement = images.slice(1);
-  imagesWithoutFirstElement.reverse()
 
   imagesWithoutFirstElement.forEach((image, index) => {
+
 
     if (image.file_url){
         var newImage
 
-        if (selectedFeed.CMSType === 'wordpress'){
+        if (selectedFeedRef.current.CMSType === 'wordpress'){
+
+         let editorContent = getEditorContent()
+
+          const extractedImages = extractImagesFromWordpress(editorContent);
+
+
+          const findImage = extractedImages.find((extracted)=> extracted.file_url === image.file_url)
+
+
+
+          if (!findImage){
             newImage = createImageHTML(image)
+
+
+          }else{
+            newImage = ''
+          }
+
+
+
         }else{
+
+          const extractedImages = extractImagesFromMarkdown(mdValue);
+
+          const findImage = extractedImages.find((extracted)=> extracted.file_url === image.file_url)
+
+          if (!findImage){
             newImage = createImageMd(image)
+          }else{
+            newImage = ''
+          }
+
+
         }
 
         imagesHTML += newImage
@@ -1068,7 +1044,9 @@ function detectArticle(data) {
 
           }else{
 
-          if (selectedFeed && selectedFeed?.CMSType === "wordpress"){
+            console.log('selectedFeed.current?.CMSType', selectedFeedRef.current?.CMSType)
+
+          if (selectedFeedRef.current?.CMSType === "wordpress"){
                 text = isBold ? `<b>${text}</b>` : text;
           }else if (selectedFeed && selectedFeed?.CMSType === "contentful"){
                 text = isBold ? `__${text}__` : text;
@@ -1145,21 +1123,24 @@ useEffect(()=>{
 
 },[pageNumber])
 
-useEffect(()=>{
 
-  imagesRef.current = images
 
+const reflowImages = (images) => {
   if (inputTypeRef.current === 'articles'){
     if (selectedFeedRef.current.CMSType === 'wordpress'){
         setTinymceContent('')
-        addWordPressArticle(null, images)
+        selectedFeedRef.current.CMSType(null, images)
     }else if (selectedFeedRef.current.CMSType === 'contentful'){
         handleMDEditorChange('')
         addContentfulArticle(null, images)
     }
 
   }
+}
 
+useEffect(()=>{
+
+  imagesRef.current = images
 
 },[images])
 
@@ -1198,6 +1179,7 @@ useEffect(()=>{
     }else if (selectedFeedRef.current.CMSType === 'contentful'){
 
         if (!mdValue){
+         console.log('addContentfulArticle selectedFeed')
           addContentfulArticle(paragraphsState, images)
         }
     }
@@ -1208,7 +1190,10 @@ useEffect(()=>{
 
 const onFeedChange = async(value) => {
   setMediaList([])
-  const feed = FEEDS.find(item => item.label === value);
+  const feed = feeds.find(item => item.label === value);
+
+  console.log('onFeedChange', feed)
+
   setSelectedFeed(feed);
 
 
@@ -1335,9 +1320,14 @@ const handleEditorInit = (event, editor) => {
 
 const handleMDEditorChange = (newValue) => {
   setMdValue(newValue);
+
+
 };
 
-
+useEffect(()=>{
+  mdValueRef.current = mdValue
+  console.log('mdValueRef.current', mdValueRef.current)
+},[mdValue])
 
 
 const removeArticleImage = (id) => {
@@ -1418,13 +1408,13 @@ const handleDrop = (e, id) => {
         const [draggedItem] = updatedItems.splice(draggedItemIndex, 1);
         updatedItems.splice(targetItemIndex, 0, draggedItem);
       }
-      console.log('setImages')
       setImages(updatedItems);
+      reflowImages(updatedItems)
     }
   }else{
 
 
-    const newImage = mediaList.find((media)=>{
+const newImage = mediaList.find((media)=>{
 
       let checkId
 
@@ -1438,11 +1428,15 @@ const handleDrop = (e, id) => {
 
     })
 
-    console.log('newImage', newImage)
 
     if (newImage){
-      console.log('setImages')
+
       setImages(prev => [ newImage, ...prev]);
+
+      const updatedItems = [ newImage, ...images]
+
+      reflowImages(updatedItems)
+
     }
 
 
@@ -1462,7 +1456,7 @@ const getEditorContent = () => {
 };
 
 const updateCaption = (value, id) => {
-  console.log('setImages')
+
   setImages(prev =>
     prev.map(image =>
       image.id === id
@@ -1483,9 +1477,17 @@ const handleEditReplace = async(index, newItem) => {
 
   const checkedImages = await checkInstagramImages([newItem])
 
-  console.log('handleEditReplace')
+  const newImages = checkedImages.map((file)=>{
+    return{
+      ...file,
+      source:'internal'
+    }
+  })
+
+
+
   setImages(prevItems =>
-    prevItems.map((item, i) => i === index ? checkedImages[0] : item)
+    prevItems.map((item, i) => i === index ? newImages[0] : item)
   );
 
 
@@ -1635,6 +1637,10 @@ if (data.publicUrl) {
 
 const clear = () => {
   setTinymceContent('')
+  if (editorRef.current){
+      editorRef.current.setContent('');
+  }
+
   setHeading('')
   setImages([])
   setCategoriesList([])
@@ -1682,12 +1688,12 @@ const copyImageCode = (image) =>{
   let codeType
 
 
-  if (selectedFeed.CMSType === 'wordpress'){
+  if (selectedFeedRef.current.CMSType === 'wordpress'){
       imageHTML = createImageHTML(image)
       codeType = "html"
   }
 
-  if (selectedFeed.CMSType === 'contentful'){
+  if (selectedFeedRef.current.CMSType === 'contentful'){
       imageHTML = createImageMd(image)
       codeType = "markdown"
   }
@@ -1703,7 +1709,96 @@ const copyImageCode = (image) =>{
 
 }
 
-const createPost = () => {
+
+
+const createPost = async() => {
+
+  if (selectedFeedRef.current.CMSType === 'contentful'){
+
+      const extractedImages = extractImagesFromMarkdown(mdValue);
+      var uploadedArticleImages = []
+      var uploadMarkdownData = mdValue
+
+
+      //get images to upload
+
+      const featureImage = images[0]
+      var featureImageId
+
+      const imagesFromArticle = images.filter((image)=>{
+        const findImage = extractedImages.find((extracted)=> extracted.file_url === image.file_url)
+        if (findImage){
+          return {
+            ...image
+          }
+        }
+      })
+
+
+      for (const image of imagesFromArticle) {
+        // image is not from contentful CMS
+        if (image.source !== 'contentful') {
+          const response = await fetch('/api/contentful/publish-asset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  feedId: selectedFeed.id,
+                  images: [image]
+                }),
+            });
+
+            const uploadedImages = await response.json();
+
+            const uploadedImage = uploadedImages.data[0]
+            const uploadedImageUrl = 'https'+uploadedImage?.fields?.file?.['en-AU']?.url
+            const contentfulId = uploadedImage?.sys?.id
+
+            uploadedArticleImages.push({
+              originalUrl:image.file_url,
+              uploadedUrl:uploadedImageUrl,
+              contentfulId:contentfulId
+            })
+
+            uploadMarkdownData = replaceBase64ImageInMarkdown(uploadMarkdownData, image.file_url, uploadedImageUrl)
+
+            console.log('uploadMarkdownData', uploadMarkdownData)
+        }
+      }
+
+      //check if feature image has been uploaded already
+
+      const checkFeatureImage = uploadedArticleImages.find((uploadedImage)=>uploadedImage.originalUrl === featureImage.file_url)
+
+      if (checkFeatureImage){
+        // store contentful Id for feature image
+        featureImageId = checkFeatureImage.contentfulId
+      }else{
+        // upload feature image
+
+        const response = await fetch('/api/contentful/publish-asset', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                feedId: selectedFeed.id,
+                images: [featureImage]
+              }),
+          });
+
+          const uploadedFeatureImage = await response.json();
+          // store contentful Id for feature image
+          featureImageId = uploadedFeatureImage.data[0]?.sys?.id
+
+
+          //upload post
+
+
+      }
+
+  }
 
 }
 
@@ -1717,7 +1812,7 @@ const createPost = () => {
       <div className='properties-container'>
         <label className='label'>Publication</label>
         <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
-          {FEEDS.map((feed, index)=>{
+          {feeds.map((feed, index)=>{
             return <option key={index} value={feed.label}>{feed.label}</option>
           })
           }
@@ -2375,7 +2470,6 @@ const CheckBox = ({checkFunction, category, state, style}) => {
       setCheckbox(false)
     },[state])
 
-    console.log('render checkbox')
   return(
     <div className="form-check" style={{display:'flex', alignItems:'center', gap:'5px'}}>
        <input

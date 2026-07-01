@@ -305,70 +305,6 @@ const TEMPLATES = {
 
 }
 
-const FEEDS = [
-  {
-    label: 'Hilltops Phoenix',
-    spaceId: 'ticbtmcn8ib7',
-    accessToken: 'ZevYwQ2O4E749EFWvAWStcN_nZh9ntUhi5dzW9fk2Dw',
-    website:'www.hilltopsphoenix.com.au',
-    CMSType:'contentful',
-    scheduleDate: 'scheduleDate',
-    publishedDate: 'publishDate',
-    slug:'slug',
-    title:'title',
-    image:'heroImage',
-    text:'body',
-    facebook_page_id:'1509386042722586',
-    CTA_image : 'hilltops-logo-stacked.png'
-
-  },
-  {
-    label: 'Cowra Phoenix',
-    spaceId: 'blbpa6fzvcno',
-    accessToken: '_jbLmb4SDG2TkgW42NOTAVjPoCS78mQGEjOIXJrRExI',
-    website:'www.cowraphoenix.com.au',
-    CMSType:'contentful',
-    scheduleDate: 'scheduleDate',
-    publishedDate: 'publishDate',
-    slug:'slug',
-    title:'title',
-    image:'image',
-    text:'copy',
-    facebook_page_id:'100367901935086',
-    CTA_image : 'cowra-logo-stacked.png'
-  },
-  {
-    label: 'Canowindra Phoenix',
-    username: 'editor',
-    password: 'xKGAB%ncydDFbrClXwd5Ex%t',
-    website:'www.canowindraphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'106626202692898',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'canowindra-logo-stacked.png'
-  },
-  {
-    label: 'Parkes Phoenix',
-    username: 'roxane',
-    password: 'SOw4vSFu*ueYUBnR$4Jkip@b',
-    website:'www.parkesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'973264922791233',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'parkes-logo-stacked.png'
-  },
-  {
-    label: 'Forbes Phoenix',
-    username: 'roxane',
-    password: 'f#63$^bBGRz(Om)XXcpLqt0z',
-    website:'www.forbesphoenix.com.au',
-    CMSType:'wordpress',
-    facebook_page_id:'883736781692596',
-    scheduleDate: 'acf.schedule_date',
-    CTA_image : 'forbes-logo-stacked.png'
-  },
-]
-
 const fonts = [
   {
     label: "Poppins",
@@ -461,7 +397,7 @@ function calculateMinAnimationDuration({
 
 
 
-export const Danva = (({postData, user}, ref) => {
+export const Danva = (({postData, user, feeds}, ref) => {
   const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
 
   const upperRef = useRef(null);
@@ -599,7 +535,7 @@ export const Danva = (({postData, user}, ref) => {
   const [activeElement, setActiveElement] = useState(null);
   const [activeSceneState, setActiveSceneState] = useState(null);
 
-  const [selectedFeed, setSelectedFeed] = useState(FEEDS[0])
+  const [selectedFeed, setSelectedFeed] = useState(feeds[0])
   const [dateFilter, setDateFilter] = useState(new Date());
   const [posts, setPosts] = useState([]);
 
@@ -9073,6 +9009,7 @@ useEffect(() => {
             }}
           >
             <FeedsPanel
+              feeds={feeds}
               selectedFeed={selectedFeed}
               setSelectedFeed={setSelectedFeed}
               dateFilter={dateFilter}
@@ -11207,6 +11144,7 @@ const TemplatePanel = ({
 }
 
 const FeedsPanel = ({
+  feeds,
   selectedFeed,
   setSelectedFeed,
   dateFilter,
@@ -11220,7 +11158,7 @@ const FeedsPanel = ({
     const [loader, setLoader] = useState(false)
 
     const onFeedChange = (value) => {
-      const feed = FEEDS.find(item => item.label === value);
+      const feed = feeds.find(item => item.label === value);
       setSelectedFeed(feed);
       if (dateFilter){
         getFeed(feed, dateFilter);
@@ -11242,25 +11180,43 @@ const FeedsPanel = ({
         setPosts([])
 
       if (selectedFeed.CMSType === 'contentful'){
-        const client = contentful.createClient({
-          space: selectedFeed.spaceId,
-          accessToken: selectedFeed.accessToken,
-        })
 
-        const response = await client.getEntries({
-          'content_type': 'post',
-          'order': '-fields.publishDate',
-           'limit': '100',
-          'include': '10',
-        })
 
+
+        let order
+         if (selectedFeed.publishedDate){
+           order = '-fields.'+selectedFeed.publishedDate
+         }else{
+           order = 'sys.updatedAt'
+         }
+
+         const contentfulResponse  = await fetch('/api/contentful/get-content', {
+               method: 'POST',
+               headers: {
+                   'Content-Type': 'application/json',
+               },
+               body: JSON.stringify({
+                 feedId: selectedFeed.id,
+                 order: order,
+                 contentType: selectedFeed.content_type
+               }),
+           });
+
+           const response = await contentfulResponse.json();
 
         let date = moment(dateFilter).format('YYYY-MM-DD');
 
+        var filterPosts = response.data
 
+        if (selectedFeed.useDateFilter){
+          filterPosts = response.data.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
+        }
 
-        const filterPosts = response.items.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
-
+        if (selectedFeed.customFilterField){
+          filterPosts = filterPosts.filter(function(node) {
+               return !node.fields[`${selectedFeed.customFilterField}`]
+           });
+        }
 
         if (filterPosts.length === 0){
           setLoader(false)
@@ -11294,26 +11250,18 @@ const FeedsPanel = ({
 
         //let date = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
 
-        const wpapiUrl = 'https://' + selectedFeed.website + '/wp-json'
+        const wordpressResponse  = await fetch('/api/wordpress/get-content', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                feedId: selectedFeed.id,
+                dateFilter: selectedFeed.useDateFilter?dateFilter:null
+              }),
+          });
 
-        const wp = new WPAPI({
-            endpoint: wpapiUrl,
-            username: selectedFeed.editor,
-            password: selectedFeed.password,
-        });
-
-
-        const start = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
-        const end = moment(dateFilter).format('YYYY-MM-DD')+'T23:59:59';
-
-        const response = await wp.posts()
-          .embed()
-          .perPage(100)
-          .after(start)
-          .before(end)
-          .orderby('date')
-          .order('desc')
-          .get()
+          const response = await wordpressResponse.json();
 
 
         if (response.length === 0){
@@ -11330,19 +11278,26 @@ const FeedsPanel = ({
             return multiIndex(obj,is.split('.'))
         }
 
-        const posts = response.map((item)=>{
+        const isCustomApi = selectedFeed.query_field
+
+
+
+
+
+        const posts = response?.data.map((item)=>{
+
             return {
               id : item.id.toString(),
-              scheduleDate: pathIndex(item, selectedFeed.scheduleDate),
+              scheduleDate: selectedFeed.scheduleDate? pathIndex(item, selectedFeed.scheduleDate):null,
               link: item.slug? 'https://' + selectedFeed.website +'/' + item.slug : null,
-              image_url: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null,
+              image_url:!isCustomApi? (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null : item[`${selectedFeed.query_image_field}`]??null,
               file_description: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].caption.rendered : null,
-              title: decodeEntities(item.title.rendered),
+              title: !isCustomApi? decodeEntities(item.title.rendered) : item[`${selectedFeed.query_title_field}`]??null,
               slug: item.slug,
               base_url: selectedFeed.website,
               status: 'unpublished',
-              caption: decodeCaptionEntities(item.content.rendered),
-              publishedDate: item.date,
+              caption: !isCustomApi? decodeCaptionEntities(item.content.rendered) : item[`${selectedFeed.query_caption_field}`]??null,
+              publishedDate: !isCustomApi?item.date:null,
               scheduled:false,
               CTA_image:selectedFeed.CTA_image
             }
@@ -11362,7 +11317,7 @@ const FeedsPanel = ({
         <div style={{flex:2}}>
           <label className='font-label'>Publication</label>
           <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
-            {FEEDS.map((feed, index)=>{
+            {feeds?.map((feed, index)=>{
               return <option key={index} value={feed.label}>{feed.label}</option>
             })
             }

@@ -5,8 +5,7 @@ import MarkdownEditor from '@uiw/react-markdown-editor';
 
 const MarkdownEditorComponent = ({ value, onChange, selectedTab, onTabChange }) => {
 
-  console.log('MarkdownEditor')
-
+  console.log('MarkdownEditor', value)
 
   return (
     <div>
