@@ -124,6 +124,16 @@
   max-height: 100%;
 }
 
+.scroll-top-container {
+  width: 100%;             /* Or your desired width */
+  overflow-x: auto;        /* Enables horizontal scrolling */
+  transform: rotate(180deg); /* Flips the container upside down */
+}
+
+.content-inside {
+  transform: rotate(180deg); /* Flips content back so text is upright */
+}
+
 
 .unselectable {
   -webkit-user-select: none; /* Safari */

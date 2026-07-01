@@ -75,8 +75,7 @@ function removeTags(str) {
   return str.replace(/(<([^>]+)>)/ig, '');
 }
 
-
-const tinymceAPIkey = process.env.TINYMCEAPIKEY
+const tinymceAPIkey = process.env.NEXT_PUBLIC_TINY_MCE_API_KEY
 
 function extractImagesFromMarkdown(markdown) {
     // Regular expression to match Markdown image syntax
@@ -936,7 +935,7 @@ const createImageMd = (image) => {
 
   let imageHTML = ''
 
-      let img = '!['+image.file_url+']('+image.file_url+')'
+      let img = '!['+image.file_name+']('+image.file_url+')'
       if (image.caption){
         imageHTML = img+image.caption+'\n'
       }else{
@@ -1764,7 +1763,7 @@ const createPost = async() => {
             const uploadedImages = await response.json();
 
             const uploadedImage = uploadedImages.data[0]
-            const uploadedImageUrl = 'https'+uploadedImage?.fields?.file?.['en-AU']?.url
+            const uploadedImageUrl = uploadedImage?.fields?.file?.['en-AU']?.url
             const contentfulId = uploadedImage?.sys?.id
 
             uploadedArticleImages.push({
@@ -1941,90 +1940,143 @@ const changeScheduleDate = (date) => {
       }
       {/* Point explicitly to the public folder directory link */}
       {pdfUrl &&
-        <div style={{display:'flex'}}>
-          <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative'}}>
-            <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-                <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
-            </div>
-            <div
-              id="drag-area"
-              className='unselectable'
-              ref={dragAreaRef}
-              style={{ position: 'relative', height: 'calc(100% - 120px)'}}
-            >
-              <PDFViewer
-              pdfUrl={pdfUrl}
-              sizeCallBack={setCanvasSize}
-              setPageNumberCallBack={setPageNumber}
-              />
-              <div id="select-box" ref={selectBoxRef}/>
-            </div>
-        </div>
-        <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px'}}>
-          <Dropdown placeholder="Add Images">
-            <button className="btn btn-sm clear" onClick={() => {
-              setSelectedFiles([])
-              setFilePicker(true)
-              setShowFiles(prevState => !prevState)
-            }}>From My Files</button>
-            <button className={`${'btn btn-sm'} ${showMedia? 'primary':'clear'}`}
-              onClick={() => setShowMedia(prevShowMedia => !prevShowMedia)}
-              disabled={selectedFeed === null}
-            >Show Media
-            </button>
+        <div className='scroll-top-container'>
+          <div className='content-inside'>
+            <div style={{display:'flex', overflowX: 'scroll'}}>
+              <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative'}}>
+                <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                    <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                </div>
+                <div
+                  id="drag-area"
+                  className='unselectable'
+                  ref={dragAreaRef}
+                  style={{ position: 'relative', height: 'calc(100% - 120px)'}}
+                >
+                  <PDFViewer
+                  pdfUrl={pdfUrl}
+                  sizeCallBack={setCanvasSize}
+                  setPageNumberCallBack={setPageNumber}
+                  />
+                  <div id="select-box" ref={selectBoxRef}/>
+                </div>
+              </div>
+              <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px'}}>
+                <Dropdown placeholder="Add Images">
+                  <button className="btn btn-sm clear" onClick={() => {
+                    setSelectedFiles([])
+                    setFilePicker(true)
+                    setShowFiles(prevState => !prevState)
+                  }}>From My Files</button>
+                  <button className={`${'btn btn-sm'} ${showMedia? 'primary':'clear'}`}
+                    onClick={() => setShowMedia(prevShowMedia => !prevShowMedia)}
+                    disabled={selectedFeed === null}
+                  >Show Media
+                  </button>
 
-          </Dropdown>
-          {images.length !== 0&&
-            <div>
-              <button style={{marginTop:'0px'}} className="btn secondary btn-sm" onClick={downloadImagesAsZip}>
-                Download Images
-              </button>
-            </div>
-          }
-          <div
-            className={`${imagesDragOver?'active':''} images-container`}
-            onDragOver={handleImagesDragOver}
-            onDragLeave={handleImagesDragLeave}
-            onDrop={(e) => handleDrop(e, null)}
-            style={{
-              position:'relative',
-              minHeight:images.length === 0?'150px':'0px',
-              backgroundColor:images.length === 0?'var(--md-sys-color-surface-container)':'transparent',
-              borderRadius: 'var(--input-border-radius)',
-            }}
-          >
-            {images.length === 0 &&
-              <div
-                style={{
-                  top:'50%',
-                  left:'50%',
-                  transform:'translate(-50%, -50%)',
-                  position:'absolute',
-                  display:'flex',
-                  flexDirection:'column',
-                  alignItems: 'center'
-                }}
-              >
-              <FileImage size={50}/>
-              <p><strong> No Images </strong></p>
-            </div>
-            }
-
-            {images.length !== 0 &&
-              <>
-                {images.map((image, index)=>{
-
-                  let margin=true
-
-                  if (index+1 === images.length){
-                    margin=false
+                </Dropdown>
+                {images.length !== 0&&
+                  <div>
+                    <button style={{marginTop:'0px'}} className="btn secondary btn-sm" onClick={downloadImagesAsZip}>
+                      Download Images
+                    </button>
+                  </div>
+                }
+                <div
+                  className={`${imagesDragOver?'active':''} images-container`}
+                  onDragOver={handleImagesDragOver}
+                  onDragLeave={handleImagesDragLeave}
+                  onDrop={(e) => handleDrop(e, null)}
+                  style={{
+                    position:'relative',
+                    minHeight:images.length === 0?'150px':'0px',
+                    backgroundColor:images.length === 0?'var(--md-sys-color-surface-container)':'transparent',
+                    borderRadius: 'var(--input-border-radius)',
+                  }}
+                >
+                  {images.length === 0 &&
+                    <div
+                      style={{
+                        top:'50%',
+                        left:'50%',
+                        transform:'translate(-50%, -50%)',
+                        position:'absolute',
+                        display:'flex',
+                        flexDirection:'column',
+                        alignItems: 'center'
+                      }}
+                    >
+                    <FileImage size={50}/>
+                    <p><strong> No Images </strong></p>
+                  </div>
                   }
 
-                  return(
+                  {images.length !== 0 &&
+                    <>
+                      {images.map((image, index)=>{
+
+                        let margin=true
+
+                        if (index+1 === images.length){
+                          margin=false
+                        }
+
+                        return(
+                            <ImageComponent
+                            key={image.id}
+                            image={image}
+                            index={index}
+                            removeCallback={removeArticleImage}
+                            handleDragStart={handleDragStart}
+                            handleDrop={handleDrop}
+                            handleDragOver={handleDragOver}
+                            updateCaption={updateCaption}
+                            editMedia={editMedia}
+                            editInPhotoshop={editInPhotoshop}
+                            downloadImage={downloadImage}
+                            copyImageCode={copyImageCode}
+                            margin={margin}
+                            />
+                          )
+                      })}
+                    </>
+                  }
+                </div>
+              </div>
+              <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
+                <button style={{margin:'15px 15px 0px 0px'}} className="btn primary" onClick={() => createPost()} disabled={(pdfUrl || loader)?false:true}><strong>Upload Post</strong></button>
+                    {selectedFeed.CMSType === 'wordpress' &&
+                      <div>
+                        <input style={{
+                          width:"100%",
+                          margin:'15px 0px',
+                        }}
+                          id='guest-author'
+                          type="text"
+                          className="form-input"
+                          value={guestAuthor}
+                          onChange={(e) => setGuestAuthor(e.target.value)}
+                          placeholder="Guest Author..."
+                        />
+                      </div>
+                    }
+                  <p style={{marginBottom:'0px'}} className="label" >Schedule Date</p>
+                    <DatePicker
+                      minDate={moment().toDate()}
+                      minTime={minTime}
+                      maxTime={moment().endOf('day').toDate()}
+                      selected={date}
+                      onChange={(date) => changeScheduleDate(date)}
+                      showTimeSelect
+                      dateFormat="MMMM d, yyyy h:mm aa"
+                      className={'form-input'}
+                    />
+
+                  {images.length !== 0 &&
+                    <>
                       <ImageComponent
-                      key={image.id}
-                      image={image}
-                      index={index}
+                      image={images[0]}
+                      index={0}
                       removeCallback={removeArticleImage}
                       handleDragStart={handleDragStart}
                       handleDrop={handleDrop}
@@ -2032,357 +2084,308 @@ const changeScheduleDate = (date) => {
                       updateCaption={updateCaption}
                       editMedia={editMedia}
                       editInPhotoshop={editInPhotoshop}
-                      downloadImage={downloadImage}
                       copyImageCode={copyImageCode}
-                      margin={margin}
+                      downloadImage={downloadImage}
                       />
-                    )
-                })}
-              </>
-            }
-          </div>
-        </div>
-        <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
-          <button style={{margin:'15px 15px 0px 0px'}} className="btn primary" onClick={() => createPost()} disabled={(pdfUrl || loader)?false:true}><strong>Upload Post</strong></button>
-              {selectedFeed.CMSType === 'wordpress' &&
-                <div>
-                  <input style={{
-                    width:"100%",
-                    margin:'15px 0px',
-                  }}
-                    id='guest-author'
-                    type="text"
-                    className="form-input"
-                    value={guestAuthor}
-                    onChange={(e) => setGuestAuthor(e.target.value)}
-                    placeholder="Guest Author..."
-                  />
-                </div>
-              }
-            <p style={{marginBottom:'0px'}} className="label" >Schedule Date</p>
-              <DatePicker
-                minDate={moment().toDate()}
-                minTime={minTime}
-                maxTime={moment().endOf('day').toDate()}
-                selected={date}
-                onChange={(date) => changeScheduleDate(date)}
-                showTimeSelect
-                dateFormat="MMMM d, yyyy h:mm aa"
-                className={'form-input'}
-              />
-
-            {images.length !== 0 &&
-              <>
-                <ImageComponent
-                image={images[0]}
-                index={0}
-                removeCallback={removeArticleImage}
-                handleDragStart={handleDragStart}
-                handleDrop={handleDrop}
-                handleDragOver={handleDragOver}
-                updateCaption={updateCaption}
-                editMedia={editMedia}
-                editInPhotoshop={editInPhotoshop}
-                copyImageCode={copyImageCode}
-                downloadImage={downloadImage}
-                />
-              </>
-            }
-            <textarea style={{
-                width:"100%",
-                margin:'15px 0px',
-                fontWeight: 'bold',
-                fontSize: '2em',
-                background: 'transparent',
-                outline: '0',
-                border: '0px',
-                boxShadow: 'none',
-                lineHeight: '1.3em'
-              }}
-              id='heading'
-              className="form-control"
-              value={heading}
-              rows="3"
-              onChange={(e) => setHeading(e.target.value)}
-              placeholder="Heading..."
-              />
-            {selectedFeed &&
-              <div style={{position:'relative'}}>
-                {(selectedFeed.CMSType === 'wordpress') &&
-                  <Editor
-                    apiKey={tinymceAPIkey}
-                    onEditorChange={() => onTinyEditorChange()}
-                    value={tinymceContent}
-                    onInit={(evt, editor) => handleEditorInit(evt, editor)}
-                    init_instance_callback={(editor) => {
-                        editor.on('ExecCommand', (e) => {
-                          console.log(`The ${e.command} command was fired.`);
-                        });
-                      }
-                    }
-                    // initialValue="<p>This is the initial content of the editor.</p>"
-                    init={{
-                      height: 500,
-                      menubar: false,
-                      style_formats: [
-                        {title: 'Caption', inline: 'p', classes: 'wp-caption-text'},
-                        {title: 'Heading', inline: 'h1'},
-                        {title: 'Bold', block: 'b'},
-                        {title: 'Paragraph', block: 'p'}
-                      ],
-
-                      plugins: [
-                        'advlist',
-                        'autolink',
-                        'lists',
-                        'link',
-                        'image',
-                        'charmap',
-                        'preview',
-                        'anchor',
-                        'code',
-                      ],
-                      browser_spellcheck: true,
-                      contextmenu: false,
-                      setup: (editor) => {
-                        editor.on('GetContent', (e) => {
-                          // Modify the text content output via regex or DOM parser right before it returns to React
-                          /*
-                          e.content = e.content.replace(/<img[^>]*>/g, (match) => {
-                            return `<div class="image-wrapper">${match}</div>`;
-                          });*/
-                        });
-                      },
-
-                      formats: {
-                         alignleft: {selector: 'img', styles: {'float': 'left', 'margin': '0 10px 0 10px'}},
-                         alignright: {selector: 'img', styles: {'float': 'right', 'margin': '0 0 10px 10px'}},
-                         aligncenter: {selector: 'img', classes: 'aligncenter'},
-                       },
-                       toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright alignjustify | link image | code', // 2. CRITICAL: Add the code button to the toolbar
-                       toolbar_mode: 'floating',
-
-
-                      content_style:
-                        "body { font-family:Helvetica,Arial,sans-serif; font-size:14px }",
-                      emoticons_append: {
-                        custom_mind_explode: {
-                          keywords: ["brain", "mind", "explode", "blown"],
-                          char: "🤯",
-                        },
-                      },
+                    </>
+                  }
+                  <textarea style={{
+                      width:"100%",
+                      margin:'15px 0px',
+                      fontWeight: 'bold',
+                      fontSize: '2em',
+                      background: 'transparent',
+                      outline: '0',
+                      border: '0px',
+                      boxShadow: 'none',
+                      lineHeight: '1.3em'
                     }}
-                  />
-                }
-
-                {(selectedFeed.CMSType === 'contentful') &&
-                  <>
-                    <div
-                    onDrop={(e) => handleMarkdownDrop(e)}
-                    onDragOver={(e) => handleMarkdownDragOver(e)}
-                    >
-                    <MarkdownEditorComponent
-                     value={mdValue}
-                     onChange={handleMDEditorChange} // Pass the handler as onChange prop
+                    id='heading'
+                    className="form-control"
+                    value={heading}
+                    rows="3"
+                    onChange={(e) => setHeading(e.target.value)}
+                    placeholder="Heading..."
                     />
-                    </div>
-                  </>
-                }
-              </div>
-            }
-        </div>
-        {inputType === 'articles'&&
-          <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
-            {(selectedFeed.CMSType === 'wordpress' && categoriesNested.length > 0) &&
-              <div className='properties-container'>
-                {
-                  categoriesNested.map((category, index) => {
-                    return (
-                      <div key={index} style={{marginLeft:'20px', marginTop:'5px', marginBottom:'5px'}}>
-                        <CheckBox key={index} category={category} checkFunction={checkFunction} state={categoriesState} style={{fontWeight:'bold'}}/>
-                        {category.children.length > 0 &&
-                          <>
-                           {category.children.map((catChild, i) => {
-                             return (
-                               <div key={i} style={{paddingLeft:'20px'}}>
-                                  <CheckBox key={i} category={catChild} checkFunction={checkFunction} state={categoriesState} style={{fontSize:'.9em'}}/>
-                               </div>
-                             )
-                           })
-                           }
-                          </>
-                        }
-                      </div>
-                    )
-
-                  })
-                }
-              </div>
-            }
-            {selectedFeed.CMSType === 'contentful'&&
-                <div style={{position:'relative'}} className="properties-container">
-                    <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
-                      <button className={`${'btn btn-sm'} ${contentfulFilter === 'authors'? 'primary' : ''}`} onClick={() => setContentfulFilter('authors')}>Authors</button>
-                      <button className={`${'btn btn-sm'} ${contentfulFilter === 'categories'? 'primary' : ''}`} onClick={() => setContentfulFilter('categories')}>Categories</button>
-                      <button className={`${'btn btn-sm'} ${contentfulFilter === 'tags'? 'primary' : ''}`} onClick={() => setContentfulFilter('tags')}>Tags</button>
-                    </div>
-                    <div>
-                      <input style={{
-                        width:"100%",
-                        margin:'15px 0px',
-                      }}
-                        id='search-term'
-                        type="text"
-                        className="form-input"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Filter..."
-                      />
-                    </div>
-                    <div>
-                    <button style={{marginBottom:'15px'}} className={`${'btn btn-sm'} ${'secondary'}`} onClick={() => clearSelection(contentfulFilter)}>Clear Selection</button>
-                    </div>
-                        {contentfulFilter === 'authors'&&
-                          <>
-                            {contentfulAuthorsList.length>0&&
-                              <div style={{borderColor: '#EBEBEC', flexGrow: 2, height:'700px', overflowY:'scroll'}} className="">
-                              {
-                                contentfulAuthorsList.filter((node) => {
-                                    if (searchTerm){
-                                      return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
-                                    }else{
-                                      return node;
-                                    }
-
-                                }).map((ele, index) => {
-                                  return(
-                                    <div key={index} onClick={() => setAuthor(ele.sys.id)} className={`${'select-tab'} ${author === ele.sys.id?'active': ''}`}>
-                                    {ele.fields.title}
-                                    </div>
-                                  )
-                                })
-                              }
-                              </div>
+                  {selectedFeed &&
+                    <div style={{position:'relative'}}>
+                      {(selectedFeed.CMSType === 'wordpress') &&
+                        <Editor
+                          apiKey={tinymceAPIkey}
+                          onEditorChange={() => onTinyEditorChange()}
+                          value={tinymceContent}
+                          onInit={(evt, editor) => handleEditorInit(evt, editor)}
+                          init_instance_callback={(editor) => {
+                              editor.on('ExecCommand', (e) => {
+                                console.log(`The ${e.command} command was fired.`);
+                              });
                             }
-                          </>
-                        }
-                        {contentfulFilter === 'categories'&&
-                          <>
-                            {contentfulCategoriesList.length>0&&
-                              <div style={{flexGrow: 2, height:'700px', overflowY:'scroll'}}>
+                          }
+                          // initialValue="<p>This is the initial content of the editor.</p>"
+                          init={{
+                            height: 500,
+                            menubar: false,
+                            style_formats: [
+                              {title: 'Caption', inline: 'p', classes: 'wp-caption-text'},
+                              {title: 'Heading', inline: 'h1'},
+                              {title: 'Bold', block: 'b'},
+                              {title: 'Paragraph', block: 'p'}
+                            ],
 
-                              {selectedContentfulCategories.length>0&&
-                                <div style={{marginBottom:'15px'}}>
-                                  {contentfulCategoriesList.map((ele, index) => {
-                                    if (isInArray(ele.sys.id, selectedContentfulCategories)){
-                                      return(
-                                        <span
-                                          key={index} className="btn btn-sm pill">
-                                        {ele.fields.title}
-                                        </span>
-                                      )
-                                    }else{
-                                      return null
-                                    }
+                            plugins: [
+                              'advlist',
+                              'autolink',
+                              'lists',
+                              'link',
+                              'image',
+                              'charmap',
+                              'preview',
+                              'anchor',
+                              'code',
+                            ],
+                            browser_spellcheck: true,
+                            contextmenu: false,
+                            setup: (editor) => {
+                              editor.on('GetContent', (e) => {
+                                // Modify the text content output via regex or DOM parser right before it returns to React
+                                /*
+                                e.content = e.content.replace(/<img[^>]*>/g, (match) => {
+                                  return `<div class="image-wrapper">${match}</div>`;
+                                });*/
+                              });
+                            },
 
-                                  })
-                                  }
-                                </div>
+                            formats: {
+                               alignleft: {selector: 'img', styles: {'float': 'left', 'margin': '0 10px 0 10px'}},
+                               alignright: {selector: 'img', styles: {'float': 'right', 'margin': '0 0 10px 10px'}},
+                               aligncenter: {selector: 'img', classes: 'aligncenter'},
+                             },
+                             toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright alignjustify | link image | code', // 2. CRITICAL: Add the code button to the toolbar
+                             toolbar_mode: 'floating',
+
+
+                            content_style:
+                              "body { font-family:Helvetica,Arial,sans-serif; font-size:14px }",
+                            emoticons_append: {
+                              custom_mind_explode: {
+                                keywords: ["brain", "mind", "explode", "blown"],
+                                char: "🤯",
+                              },
+                            },
+                          }}
+                        />
+                      }
+
+                      {(selectedFeed.CMSType === 'contentful') &&
+                        <>
+                          <div
+                          onDrop={(e) => handleMarkdownDrop(e)}
+                          onDragOver={(e) => handleMarkdownDragOver(e)}
+                          >
+                          <MarkdownEditorComponent
+                           value={mdValue}
+                           onChange={handleMDEditorChange} // Pass the handler as onChange prop
+                          />
+                          </div>
+                        </>
+                      }
+                    </div>
+                  }
+              </div>
+              {inputType === 'articles'&&
+                <div style={{flex:.7, padding:'10px', maxWidth:'500px'}}>
+                  {(selectedFeed.CMSType === 'wordpress' && categoriesNested.length > 0) &&
+                    <div className='properties-container'>
+                      {
+                        categoriesNested.map((category, index) => {
+                          return (
+                            <div key={index} style={{marginLeft:'20px', marginTop:'5px', marginBottom:'5px'}}>
+                              <CheckBox key={index} category={category} checkFunction={checkFunction} state={categoriesState} style={{fontWeight:'bold'}}/>
+                              {category.children.length > 0 &&
+                                <>
+                                 {category.children.map((catChild, i) => {
+                                   return (
+                                     <div key={i} style={{paddingLeft:'20px'}}>
+                                        <CheckBox key={i} category={catChild} checkFunction={checkFunction} state={categoriesState} style={{fontSize:'.9em'}}/>
+                                     </div>
+                                   )
+                                 })
+                                 }
+                                </>
                               }
+                            </div>
+                          )
 
-                              {
-                                contentfulCategoriesList.filter((node) => {
-                                    if (searchTerm){
-                                      return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
-                                    }else{
-                                      return node;
-                                    }
+                        })
+                      }
+                    </div>
+                  }
+                  {selectedFeed.CMSType === 'contentful'&&
+                      <div style={{position:'relative'}} className="properties-container">
+                          <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
+                            <button className={`${'btn btn-sm'} ${contentfulFilter === 'authors'? 'primary' : ''}`} onClick={() => setContentfulFilter('authors')}>Authors</button>
+                            <button className={`${'btn btn-sm'} ${contentfulFilter === 'categories'? 'primary' : ''}`} onClick={() => setContentfulFilter('categories')}>Categories</button>
+                            <button className={`${'btn btn-sm'} ${contentfulFilter === 'tags'? 'primary' : ''}`} onClick={() => setContentfulFilter('tags')}>Tags</button>
+                          </div>
+                          <div>
+                            <input style={{
+                              width:"100%",
+                              margin:'15px 0px',
+                            }}
+                              id='search-term'
+                              type="text"
+                              className="form-input"
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              placeholder="Filter..."
+                            />
+                          </div>
+                          <div>
+                          <button style={{marginBottom:'15px'}} className={`${'btn btn-sm'} ${'secondary'}`} onClick={() => clearSelection(contentfulFilter)}>Clear Selection</button>
+                          </div>
+                              {contentfulFilter === 'authors'&&
+                                <>
+                                  {contentfulAuthorsList.length>0&&
+                                    <div style={{borderColor: '#EBEBEC', flexGrow: 2, height:'700px', overflowY:'scroll'}} className="">
+                                    {
+                                      contentfulAuthorsList.filter((node) => {
+                                          if (searchTerm){
+                                            return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
+                                          }else{
+                                            return node;
+                                          }
 
-                                }).map((ele, index) => {
-                                  return(
-                                    <div key={index} onClick={() => handleContentfulCategoriesList(ele.sys.id)} className={`${'select-tab'} ${isInArray(ele.sys.id, selectedContentfulCategories)?'active': ''}`}>
-                                    {ele.fields.title}
-                                    </div>
-                                  )
-                                })
-                              }
-                              </div>
-                            }
-                          </>
-                        }
-                        {contentfulFilter === 'tags'&&
-                          <>
-                            {contentfulTagsList.length>0&&
-                              <div style={{flexGrow: 2, height:'700px', overflowY:'scroll'}} >
-
-                                {selectedContentfulTags.length>0&&
-                                  <div style={{marginBottom:'15px'}}>
-                                    {contentfulTagsList.map((ele, index) => {
-                                      if (isInArray(ele.sys.id, selectedContentfulTags)){
+                                      }).map((ele, index) => {
                                         return(
-                                          <span
-                                            key={index} className="btn btn-sm pill">
+                                          <div key={index} onClick={() => setAuthor(ele.sys.id)} className={`${'select-tab'} ${author === ele.sys.id?'active': ''}`}>
                                           {ele.fields.title}
-                                          </span>
+                                          </div>
                                         )
-                                      }else{
-                                        return null
+                                      })
+                                    }
+                                    </div>
+                                  }
+                                </>
+                              }
+                              {contentfulFilter === 'categories'&&
+                                <>
+                                  {contentfulCategoriesList.length>0&&
+                                    <div style={{flexGrow: 2, height:'700px', overflowY:'scroll'}}>
+
+                                    {selectedContentfulCategories.length>0&&
+                                      <div style={{marginBottom:'15px'}}>
+                                        {contentfulCategoriesList.map((ele, index) => {
+                                          if (isInArray(ele.sys.id, selectedContentfulCategories)){
+                                            return(
+                                              <span
+                                                key={index} className="btn btn-sm pill">
+                                              {ele.fields.title}
+                                              </span>
+                                            )
+                                          }else{
+                                            return null
+                                          }
+
+                                        })
+                                        }
+                                      </div>
+                                    }
+
+                                    {
+                                      contentfulCategoriesList.filter((node) => {
+                                          if (searchTerm){
+                                            return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
+                                          }else{
+                                            return node;
+                                          }
+
+                                      }).map((ele, index) => {
+                                        return(
+                                          <div key={index} onClick={() => handleContentfulCategoriesList(ele.sys.id)} className={`${'select-tab'} ${isInArray(ele.sys.id, selectedContentfulCategories)?'active': ''}`}>
+                                          {ele.fields.title}
+                                          </div>
+                                        )
+                                      })
+                                    }
+                                    </div>
+                                  }
+                                </>
+                              }
+                              {contentfulFilter === 'tags'&&
+                                <>
+                                  {contentfulTagsList.length>0&&
+                                    <div style={{flexGrow: 2, height:'700px', overflowY:'scroll'}} >
+
+                                      {selectedContentfulTags.length>0&&
+                                        <div style={{marginBottom:'15px'}}>
+                                          {contentfulTagsList.map((ele, index) => {
+                                            if (isInArray(ele.sys.id, selectedContentfulTags)){
+                                              return(
+                                                <span
+                                                  key={index} className="btn btn-sm pill">
+                                                {ele.fields.title}
+                                                </span>
+                                              )
+                                            }else{
+                                              return null
+                                            }
+
+                                          })
+                                          }
+                                        </div>
                                       }
 
-                                    })
+
+                                    {
+                                      contentfulTagsList.filter((node) => {
+                                          if (searchTerm){
+                                            return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
+                                          }else{
+                                            return node;
+                                          }
+
+                                      }).map((ele, index) => {
+                                        return(
+                                          <div key={index} onClick={() => handleContentfulTagsList(ele.sys.id)} className={`${'select-tab'} ${isInArray(ele.sys.id, selectedContentfulTags)?'active': ''}`}>
+                                          {ele.fields.title}
+                                          </div>
+                                        )
+                                      })
                                     }
-                                  </div>
-                                }
-
-
-                              {
-                                contentfulTagsList.filter((node) => {
-                                    if (searchTerm){
-                                      return node.fields.title.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1;
-                                    }else{
-                                      return node;
-                                    }
-
-                                }).map((ele, index) => {
-                                  return(
-                                    <div key={index} onClick={() => handleContentfulTagsList(ele.sys.id)} className={`${'select-tab'} ${isInArray(ele.sys.id, selectedContentfulTags)?'active': ''}`}>
-                                    {ele.fields.title}
                                     </div>
-                                  )
-                                })
+                                  }
+                                </>
                               }
-                              </div>
-                            }
-                          </>
-                        }
-                </div>
-            }
-          </div>
-        }
-        {uploadedPosts.length>0 &&
-        <div style={{flex:.2, padding:'10px', maxWidth:'200px'}}>
-          {uploadedPosts.map((entry, index) => {
-                if (entry === null) return null
-                if (entry.acf){
-                  return(
-                    <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
-                      <p>{entry.title.raw?entry.title.raw:''}</p>
-                      <p><strong>{entry.acf.schedule_date?moment(entry.acf.schedule_date).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
-                    </div>
-                  )
-                }else{
-                    return (
-                      <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
-                        <p>{entry.fields.title['en-AU']?entry.fields.title['en-AU']:''}</p>
-                        <p><strong>{entry.fields.scheduleDate['en-AU']?moment(entry.fields.scheduleDate['en-AU']).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
                       </div>
-                    )
-                }
-              })
-            }
+                  }
+                </div>
+              }
+              {uploadedPosts.length>0 &&
+              <div style={{flex:.2, padding:'10px', maxWidth:'200px'}}>
+                {uploadedPosts.map((entry, index) => {
+                      if (entry === null) return null
+                      if (entry.acf){
+                        return(
+                          <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
+                            <p>{entry.title.raw?entry.title.raw:''}</p>
+                            <p><strong>{entry.acf.schedule_date?moment(entry.acf.schedule_date).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
+                          </div>
+                        )
+                      }else{
+                          return (
+                            <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
+                              <p>{entry.fields.title['en-AU']?entry.fields.title['en-AU']:''}</p>
+                              <p><strong>{entry.fields.scheduleDate['en-AU']?moment(entry.fields.scheduleDate['en-AU']).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
+                            </div>
+                          )
+                      }
+                    })
+                  }
+              </div>
+              }
+            </div>
           </div>
-        }
-      </div>
+        </div>
       }
     </div>
     {showMedia &&
