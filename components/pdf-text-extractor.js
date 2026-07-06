@@ -16,6 +16,7 @@ import dynamic from 'next/dynamic'
 import { storeFileInfo } from "@/lib/supabase";
 import * as contentful from 'contentful'
 import Dropdown from "@/components/dropdown"
+import nspell from 'nspell';
 
 var WPAPI = require( 'wpapi' );
 import {
@@ -33,6 +34,8 @@ import {
 } from 'lucide-react';
 //const PDFViewer = dynamic(() => import('@/components/pdf-viewer'), { ssr: false })
 import { PDFViewer } from "@/components/pdf-viewer"
+
+
 
 export const checkRatio = (w, h) => {
 
@@ -134,6 +137,35 @@ function replaceBase64ImageInMarkdown(markdownString, targetBase64, newUrl) {
     return result;
 }
 
+function replaceBase64ImageInWordpress(htmlString, targetBase64, newUrl) {
+
+    // Create a new DOMParser instance
+    var parser = new DOMParser();
+    let images = [];
+
+    // Parse the HTML string into a document
+    var doc = parser.parseFromString(htmlString, 'text/html');
+
+    // Query for all img elements in the document
+    var imgElements = doc.querySelectorAll('img');
+
+
+    for (let img of imgElements) {
+
+
+      if (img.getAttribute('src') === targetBase64){
+
+        img.src = newUrl
+      }
+
+    }
+
+    var modifiedHtmlString = doc.body.innerHTML;
+
+    return modifiedHtmlString;
+
+}
+
 
 
 
@@ -171,6 +203,8 @@ export default function PdfTextExtractor({user, feeds}) {
   const editImageData = useRef(null)
   const evtSourceRef = useRef(null);
   const [loader, setLoader] = useState(false)
+  const [uploadLoader, setUploadLoader] = useState(false)
+
   const [contentfulFilter, setContentfulFilter] = useState('authors');
   const [contentfulAuthorsList, setContentfulAuthorsList] = useState([]);
   const [contentfulCategoriesList, setContentfulCategoriesList] = useState([]);
@@ -545,6 +579,17 @@ async function downloadImage(image) {
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
+
+
+    const dragRect = dragAreaRef.current.getBoundingClientRect();
+      const canvasEl = dragAreaRef.current.querySelector('canvas'); // adjust selector if needed
+      const canvasRect = canvasEl.getBoundingClientRect();
+      console.log('drag-area:', dragRect.left, dragRect.top);
+      console.log('canvas:', canvasRect.left, canvasRect.top);
+
+      console.log('devicePixelRatio:', window.devicePixelRatio);
+
+
   };
 
 
@@ -584,7 +629,11 @@ async function downloadImage(image) {
   };
 
 useEffect(() => {
+
+
   if (pdfUrl){
+
+
     const dragArea = dragAreaRef.current;
     dragArea.addEventListener('mousedown', onMouseDown);
       return () => {
@@ -592,6 +641,8 @@ useEffect(() => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
       };
+
+
   }
 }, [pdfUrl]);
 
@@ -624,7 +675,8 @@ const sendAreaData = async(selectionArea) => {
       pdfUrl: pdfUrl,
       rect: selectionArea,
       pageNumber: pageNumberRef.current,
-      removeWhiteSpace: removeWhiteSpaceRef.current
+      removeWhiteSpace: removeWhiteSpaceRef.current,
+      outputScale:window.devicePixelRatio
     }),
   });
 
@@ -639,7 +691,33 @@ const sendAreaData = async(selectionArea) => {
   }else{
 
 
-    const {paragraphs, heading, captions} = detectArticle(responseJson)
+    //const {paragraphs, heading, captions} = detectArticle(responseJson)
+
+    const raw = detectArticle(responseJson);
+
+
+    const paragraphsResponse = await fetch('/api/resolve-spacing/', {
+      method: 'POST',
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        paragraphs: raw.paragraphs
+      }),
+    });
+
+
+    const paragraphsJson = await paragraphsResponse.json()
+
+
+
+    const result = { ...raw, ...paragraphsJson.paragraphs };
+
+
+    const paragraphs = paragraphsJson.paragraphs
+
+
+    console.log('paragraphs', paragraphs)
 
 
     if (paragraphs){
@@ -651,14 +729,14 @@ const sendAreaData = async(selectionArea) => {
     let imagesWithCaptions = []
 
 
-    if (heading){
-      const TrimHeading = heading.trimStart()
+    if (raw.heading){
+      const TrimHeading = result.heading.trimStart()
       const ReplaceHeading = TrimHeading.replace(/\s{2,}/g, ' ')
       setHeading(toTitleCase(ReplaceHeading))
     }
 
     if (responseJson.images.length > 0){
-      imagesWithCaptions = addCaptions(responseJson.images, captions)
+      imagesWithCaptions = addCaptions(responseJson.images, result.captions)
 
       const newCheckedImages = await checkInstagramImages(imagesWithCaptions)
 
@@ -785,9 +863,6 @@ function htmlLinkify(text) {
 
 
 const addWordPressArticle = (paragraphs, images) => {
-
-
-  console.log('paragraphs', paragraphs)
 
   if (!editorRef.current) return
 
@@ -968,147 +1043,140 @@ const createWPImageHTML = (image) => {
 
 
 
+const LINE_WRAP_MARK = '\u0001';
 
 function detectArticle(data) {
   const paragraphs = [];
-  const images = [];
-  let heading = ""
-  let captions = []
+  let heading = "";
+  let captions = [];
   let currentParagraph = "";
-  let currentCaption = ""
-  let bodyhtml = ""
-  let previousParagraph = ''
-  let counter = 0
+  let currentCaption = "";
+  let previousParagraph = '';
+  let previousBodyY = null;
+  let previousWasNoSpace = false;
+  let pendingHyphenGlue = false;
+  let currentSection = 'none'; // tracks which of body/caption/heading is currently active
 
-    data.text_json.blocks.forEach(block =>{
-        if (block.height === 0 ) return
+  function stripTrailingSpace(section) {
+    if (section === 'body') currentParagraph = currentParagraph.replace(/[ \t]+$/, '');
+    else if (section === 'caption') currentCaption = currentCaption.replace(/[ \t]+$/, '');
+    else if (section === 'heading') heading = heading.replace(/[ \t]+$/, '');
+  }
 
-        const isBold = block.fontName === 'BKSRGB+MuseoSans-900' ||
-          block.fontName === 'KSGAJY+BodoniSvtyTwoITCTT-Bold' ||
-          block.fontName === 'KSGAJY+Helvetica-Bold'
+  data.text_json.blocks.forEach(block => {
+    const rawText = block.text;
+    if (rawText.length === 0) return; // truly empty marker/spacer block
 
-
-        let text = block.text
-
-        if (text.length === 0) return
-
-
-        let noSpace = false
-        previousParagraph = text
-
-        if (text.endsWith("-")){
-            noSpace = true
-            const lastIndex = text.lastIndexOf("-");
-             if (lastIndex !== -1) {
-               // Replace the last occurrence of '-'
-               text = text.substring(0, lastIndex) + text.substring(lastIndex + 1);
-             }
-        }
-
-
-        if (text.endsWith("/")){
-            const lastIndex = text.lastIndexOf("/");
-            noSpace = true
-             if (lastIndex !== -1) {
-               // Replace the last occurrence of '-'
-               text = text.substring(0, lastIndex) + text.substring(lastIndex + 1);
-             }
-        }
-
-        if (text.length === 1){
-          noSpace = true
-        }
-
-
-        if (block.height < 8){
-          //caption
-          const endsWithPeriod = currentCaption.trim().endsWith('.');
-          const endsWithQuotePeriod = currentCaption.trim().endsWith('".');
-          const endsWithPeriodQuote = currentCaption.trim().endsWith('."');
-
-          if (endsWithPeriod || endsWithQuotePeriod || endsWithPeriodQuote) {
-            captions.push(currentCaption);
-            currentCaption = "";
-          }
-
-          if (noSpace){
-                currentCaption += text
-          }else{
-                currentCaption += text + " "
-          }
-
-
-          } else if (block.height > 11 && text.length > 1){
-
-            //heading
-
-              if (noSpace){
-                    heading += text;
-              }else{
-                    heading += text + " "
-              }
-
-          }else{
-
-            console.log('selectedFeed.current?.CMSType', selectedFeedRef.current?.CMSType)
-
-          if (selectedFeedRef.current?.CMSType === "wordpress"){
-                text = isBold ? `<b>${text}</b>` : text;
-          }else if (selectedFeed && selectedFeed?.CMSType === "contentful"){
-                text = isBold ? `__${text}__` : text;
-          }
-
-          const endsWithPeriod = currentParagraph.trim().endsWith('.');
-          // Check if the current paragraph ends with a quote followed by a period, but not a URL
-
-          const endsWithQuotePeriod = currentParagraph.trim().endsWith('".');
-
-          const endsWithPeriodQuote = currentParagraph.trim().endsWith('."');
-
-          // Check if the current paragraph ends with a colon
-          const endsWithColon = currentParagraph.trim().endsWith(':');
-
-          // Check if the current text starts with a bullet point
-          const startsWithBullet = text.trim().startsWith('•');
-
-          const endsWithWWW = currentParagraph.trim().endsWith('www.');
-
-
-
-          if ((endsWithPeriod || endsWithQuotePeriod || endsWithPeriodQuote || endsWithColon || startsWithBullet) && !endsWithWWW) {
-            paragraphs.push(currentParagraph);
-            currentParagraph = "";
-          }
-
-          if (previousParagraph === '-'){
-            text.trim()
-          }
-
-          if (noSpace){
-            currentParagraph += text;
-          }else{
-
-            currentParagraph += text + " ";
-          }
-
-        }
-
-    })
-
-    if (currentParagraph.trim() !== "") {
-      paragraphs.push(currentParagraph.trim());
+    // NEW: pure whitespace block — an explicit inter-word space PDF emits
+    // as its own block (height 0). Insert a real space wherever we're
+    // currently accumulating text, instead of silently dropping it.
+    if (rawText.trim() === '') {
+      if (currentSection === 'body') {
+        if (!previousWasNoSpace) currentParagraph += ' ';
+      } else if (currentSection === 'caption') {
+        currentCaption += ' ';
+      } else if (currentSection === 'heading') {
+        heading += ' ';
+      }
+      return;
     }
 
-    if (currentCaption.trim() !== "") {
-      captions.push(currentCaption.trim());
+    // Standalone line-break hyphen: word split across a column edge, "-"
+    // is its own block. No text to add — just glue the next block on.
+    if (rawText.trim() === '-') {
+      stripTrailingSpace(currentSection);
+      pendingHyphenGlue = true;
+      if (currentSection === 'body') previousBodyY = block.y;
+      return;
     }
 
-    const filterCaptions = captions.filter((cap)=>cap !== "")
+    const isBold = block.fontName === 'BKSRGB+MuseoSans-900' ||
+      block.fontName === 'KSGAJY+BodoniSvtyTwoITCTT-Bold' ||
+      block.fontName === 'KSGAJY+Helvetica-Bold'
+    let text = rawText
+    let noSpace = false
+    previousParagraph = text
 
-    const filterParagraphs = paragraphs.filter((par)=>par !== "")
+    if (text.endsWith("-")) {
+      noSpace = true
+      const lastIndex = text.lastIndexOf("-");
+      if (lastIndex !== -1) text = text.substring(0, lastIndex) + text.substring(lastIndex + 1);
+    }
+    if (text.endsWith("/")) {
+      noSpace = true
+      const lastIndex = text.lastIndexOf("/");
+      if (lastIndex !== -1) text = text.substring(0, lastIndex) + text.substring(lastIndex + 1);
+    }
+    // Drop cap only if visually much taller than body text — a lone
+    // one-letter word ("a", "I") has normal height and must NOT glue.
+    if (text.length === 1 && block.height > 20) noSpace = true
 
-    return { paragraphs:filterParagraphs, heading, captions:filterCaptions};
+    if (block.height < 8) {
+      currentSection = 'caption';
+      const endsWithPeriod = currentCaption.trim().endsWith('.');
+      const endsWithQuotePeriod = currentCaption.trim().endsWith('".');
+      const endsWithPeriodQuote = currentCaption.trim().endsWith('."');
+      if (endsWithPeriod || endsWithQuotePeriod || endsWithPeriodQuote) {
+        captions.push(currentCaption);
+        currentCaption = "";
+      }
+      if (pendingHyphenGlue) { currentCaption += text; pendingHyphenGlue = false; }
+      else currentCaption += noSpace ? text : text + " "
+    } else if (block.height > 11 && text.length > 1) {
+      currentSection = 'heading';
+      if (pendingHyphenGlue) { heading += text; pendingHyphenGlue = false; }
+      else heading += noSpace ? text : text + " "
+    } else {
+      currentSection = 'body';
+      if (selectedFeedRef.current?.CMSType === "wordpress") {
+        text = isBold ? `<b>${text}</b>` : text;
+      } else if (selectedFeed && selectedFeed?.CMSType === "contentful") {
+        text = isBold ? `__${text}__` : text;
+      }
+      const endsWithPeriod = currentParagraph.trim().endsWith('.');
+      const endsWithQuotePeriod = currentParagraph.trim().endsWith('".');
+      const endsWithPeriodQuote = currentParagraph.trim().endsWith('."');
+      const endsWithColon = currentParagraph.trim().endsWith(':');
+      const startsWithBullet = text.trim().startsWith('•');
+      const endsWithWWW = currentParagraph.trim().endsWith('www.');
+      if ((endsWithPeriod || endsWithQuotePeriod || endsWithPeriodQuote || endsWithColon || startsWithBullet) && !endsWithWWW) {
+        paragraphs.push(currentParagraph);
+        currentParagraph = "";
+        previousBodyY = null;
+        previousWasNoSpace = false;
+        pendingHyphenGlue = false;
+      }
+      if (previousParagraph === '-') text.trim()
 
+      const isLineWrap = previousBodyY !== null && block.y !== previousBodyY
+        && !noSpace && !previousWasNoSpace && !pendingHyphenGlue
+        && currentParagraph.length > 0;
+
+      if (pendingHyphenGlue) {
+        currentParagraph += text;
+        pendingHyphenGlue = false;
+        previousWasNoSpace = true;
+      } else if (noSpace) {
+        currentParagraph += text;
+        previousWasNoSpace = true;
+      } else if (isLineWrap) {
+        currentParagraph = currentParagraph.replace(/[ \t]+$/, '');
+        currentParagraph += LINE_WRAP_MARK + text;
+        previousWasNoSpace = false;
+      } else {
+        currentParagraph += text + " ";
+        previousWasNoSpace = false;
+      }
+      previousBodyY = block.y;
+    }
+  })
+
+  if (currentParagraph.trim() !== "") paragraphs.push(currentParagraph.trim());
+  if (currentCaption.trim() !== "") captions.push(currentCaption.trim());
+
+  const filterCaptions = captions.filter((cap) => cap !== "")
+  const filterParagraphs = paragraphs.filter((par) => par !== "")
+  return { paragraphs: filterParagraphs, heading, captions: filterCaptions };
 }
 
 useEffect(()=>{
@@ -1198,7 +1266,6 @@ const onFeedChange = async(value) => {
   setMediaList([])
   const feed = feeds.find(item => item.label === value);
 
-  console.log('onFeedChange', feed)
 
   setSelectedFeed(feed);
 
@@ -1481,6 +1548,8 @@ const editMedia = (media, index, tool) => {
 
 const handleEditReplace = async(index, newItem) => {
 
+
+
   const checkedImages = await checkInstagramImages([newItem])
 
   const newImages = checkedImages.map((file)=>{
@@ -1719,27 +1788,36 @@ const copyImageCode = (image) =>{
 
 const createPost = async() => {
 
-  if (selectedFeedRef.current.CMSType === 'contentful'){
 
+  if (selectedFeedRef.current.CMSType === 'contentful'){
 
       if (selectedContentfulCategories.length===0){
         showError('No Categories Selected')
         return
       }
 
+      try{
 
+      setUploadLoader(true)
 
-      const extractedImages = extractImagesFromMarkdown(mdValue);
-      var uploadedArticleImages = []
-      var uploadMarkdownData = mdValue
       const publishDate = new Date();
       publishDate.setDate(publishDate.getDate() + 1);
 
+      //get image urls from markdown article to upload
+      const extractedImages = extractImagesFromMarkdown(mdValue);
+      var uploadedArticleImages = []
+      var uploadMarkdownData = mdValue
 
-      //get images to upload
+
+      //get feature image from images
 
       const featureImage = images[0]
+
+
+      //get declare feature image id variable
       var featureImageId
+
+      //create array of image objects by matching url
 
       const imagesFromArticle = images.filter((image)=>{
         const findImage = extractedImages.find((extracted)=> extracted.file_url === image.file_url)
@@ -1750,9 +1828,10 @@ const createPost = async() => {
         }
       })
 
+      //upload images from article loop
 
       for (const image of imagesFromArticle) {
-        // image is not from contentful CMS
+        // image is not from contentful CMS so create new contentful image
         if (image.source !== 'contentful') {
           const response = await fetch('/api/contentful/publish-asset', {
                 method: 'POST',
@@ -1777,17 +1856,21 @@ const createPost = async() => {
               contentfulId:contentfulId
             })
 
+            //update upload markdown with new contentful urls
             uploadMarkdownData = replaceBase64ImageInMarkdown(uploadMarkdownData, image.file_url, uploadedImageUrl)
         }
       }
 
-      //check if feature image has been uploaded already
-
+      //check if feature image has been uploaded already (if it happens to be in article)
       const checkFeatureImage = uploadedArticleImages.find((uploadedImage)=>uploadedImage.originalUrl === featureImage.file_url)
 
       if (checkFeatureImage){
-        // store contentful Id for feature image
+        // store contentful Id for feature image because it has alreday been uploaded
         featureImageId = checkFeatureImage.contentfulId
+      }else if (featureImage.source==='contentful'){
+        // store contentful Id for feature image because image is already from contentful
+        featureImageId = featureImage.id
+
       }else{
         // upload feature image
         const response = await fetch('/api/contentful/publish-asset', {
@@ -1802,10 +1885,11 @@ const createPost = async() => {
           });
 
           const uploadedFeatureImage = await response.json();
-          // store contentful Id for feature image
+          // store contentful Id for feature image from newly uploaded image
           featureImageId = uploadedFeatureImage.data[0]?.sys?.id
       }
 
+      // create post
       const response = await fetch('/api/contentful/create-content', {
             method: 'POST',
             headers: {
@@ -1826,14 +1910,159 @@ const createPost = async() => {
             }),
         });
 
+        if (!response.ok){
+          throw error
+        }
 
         const data = await response.json();
 
-        setUploadedPosts(uploadedPosts => [...uploadedPosts, data.data])
+        setUploadedPosts(uploadedPosts => [...uploadedPosts, {...data.data, website:selectedFeed.website}])
         setUsedDates(usedDates => [...usedDates, moment(date).format('YYYY-MM-DD HH:mm:ss')])
+        showSuccess('Post Created')
+
+      }catch(err){
+        showError(`Error Creating Post: ${err}`)
+      }finally{
+        setUploadLoader(false)
+      }
+
+  } else if (selectedFeedRef.current.CMSType === 'wordpress'){
 
 
 
+    try{
+      setUploadLoader(true)
+
+      const publishDate = new Date();
+      publishDate.setDate(publishDate.getDate() + 1);
+
+
+      //get image urls from wordpress article to upload
+      let htmlString = getEditorContent()
+      const extractedImages = extractImagesFromWordpress(htmlString);
+      var uploadedArticleImages = []
+      var uploadWorkpressArticleData = htmlString
+
+      //get feature image from images
+      const featureImage = images[0]
+
+      //get declare feature image id variable
+      var featureImageId
+
+      //create array of image objects by matching url
+
+      const imagesFromArticle = images.filter((image)=>{
+        const findImage = extractedImages.find((extracted)=> extracted.file_url === image.file_url)
+        if (findImage){
+          return {
+            ...image
+          }
+        }
+      })
+
+      //upload images from article loop
+
+      for (const image of imagesFromArticle) {
+        // image is not from contentful CMS so create new contentful image
+        if (image.source !== 'wordpress') {
+          const response = await fetch('/api/wordpress/publish-asset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  feedId: selectedFeed.id,
+                  images: [image]
+                }),
+            });
+
+            const uploadedImages = await response.json();
+
+            const uploadedImage = uploadedImages.data[0]
+            const uploadedImageUrl = uploadedImage?.source_url
+            const wordpressId = uploadedImage?.id
+
+            uploadedArticleImages.push({
+              originalUrl:image.file_url,
+              uploadedUrl:uploadedImageUrl,
+               wordpressId:wordpressId
+            })
+
+            //update upload wordpress copy with new contentful urls
+            uploadWorkpressArticleData = replaceBase64ImageInWordpress(uploadWorkpressArticleData, image.file_url, uploadedImageUrl)
+        }
+      }
+
+      //check if feature image has been uploaded already (if it happens to be in article)
+      const checkFeatureImage = uploadedArticleImages.find((uploadedImage)=>uploadedImage.originalUrl === featureImage.file_url)
+
+      if (checkFeatureImage){
+        // store  media Id for feature image because it has already been uploaded
+        featureImageId = checkFeatureImage.wordpressId
+      }else if (featureImage.source==='wordpress'){
+        // store media Id for feature image because image is already from contentful
+        featureImageId = featureImage.id
+
+      }else{
+        // upload feature image
+        const response = await fetch('/api/wordpress/publish-asset', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                feedId: selectedFeed.id,
+                images: [featureImage]
+              }),
+          });
+
+          const uploadedFeatureImage = await response.json();
+          // store contentful Id for feature image from newly uploaded image
+          featureImageId = uploadedFeatureImage.data[0]?.id
+      }
+
+      // create post
+
+      const response = await fetch('/api/wordpress/create-content', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              feedId: selectedFeed.id,
+              title: heading??null,
+              content: uploadWorkpressArticleData??null,
+              categories:categoriesList??[],
+              featured_media: featureImageId??null,
+              acf: {
+                guest_author: guestAuthor? true:false,
+                guest_author_name: guestAuthor?guestAuthor:null,
+                schedule_date: moment(date).format('YYYY-MM-DDTHH:mm')
+              },
+
+            }),
+        });
+
+
+          if (!response.ok){
+            throw error
+          }
+
+          const data = await response.json();
+
+          setUploadedPosts(uploadedPosts => [...uploadedPosts, {...data.data, website:selectedFeed.website}])
+          setUsedDates(usedDates => [...usedDates, moment(date).format('YYYY-MM-DD HH:mm:ss')])
+          showSuccess('Post Created')
+
+
+
+
+    }catch(err){
+      console.log(err)
+      showError(`Error Creating Post: ${err}`)
+    }finally{
+      setUploadLoader(false)
+    }
 
   }
 
@@ -1861,7 +2090,7 @@ const uploadImages = async () => {
 
         const uploadedImages = await response.json();
 
-        showSuccess(image)
+        showSuccess('images uploaded')
 
 
     }catch(err){
@@ -1869,7 +2098,33 @@ const uploadImages = async () => {
     }
 
 
-  }else{
+  }else if (selectedFeedRef.current.CMSType === 'wordpress'){
+
+    try{
+
+      const response = await fetch('/api/wordpress/publish-asset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              feedId: selectedFeed.id,
+              images: images
+            }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed with status: ${response.status}`);
+        }
+
+        const uploadedImages = await response.json();
+
+        showSuccess('images uploaded')
+
+
+    }catch(err){
+      showError('Error uploading images')
+    }
 
   }
 }
@@ -1946,9 +2201,8 @@ const changeScheduleDate = (date) => {
       {/* Point explicitly to the public folder directory link */}
       {pdfUrl &&
         <div className='scroll-wrap'>
-
             <div style={{display:'flex'}} className='scroll-inner'>
-              <div style={{flex:1, maxWidth:'550px', minWidth:'600px', position:'relative', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
+              <div style={{flex:1, maxWidth:'600px', minWidth:'600px', position:'relative', height:'calc(100% - 71px)'}}>
                 <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
                     <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                 </div>
@@ -1966,8 +2220,10 @@ const changeScheduleDate = (date) => {
                   <div id="select-box" ref={selectBoxRef}/>
                 </div>
               </div>
-              <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
-
+              <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px', height:'calc(100% - 71px)', overflowY: 'scroll', position:'relative'}}>
+                <div style={uploadLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                    <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                </div>
                 <Dropdown placeholder="Add Images">
                   <button className="btn btn-sm clear" onClick={() => {
                     setSelectedFiles([])
@@ -2052,7 +2308,10 @@ const changeScheduleDate = (date) => {
                   }
                 </div>
               </div>
-              <div style={{flex:.7, padding:'10px', minWidth:'500px', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
+              <div style={{flex:.7, padding:'10px', minWidth:'700px', height:'calc(100% - 71px)', overflowY: 'scroll', position:'relative'}}>
+                <div style={uploadLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                    <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                </div>
                 <button style={{margin:'15px 15px 0px 0px'}} className="btn primary btn-outline" onClick={() => createPost()} disabled={(pdfUrl || loader)?false:true}><strong>Upload Post</strong></button>
                     {selectedFeed.CMSType === 'wordpress' &&
                       <div>
@@ -2202,7 +2461,10 @@ const changeScheduleDate = (date) => {
                   }
               </div>
               {inputType === 'articles'&&
-                <div style={{flex:.5, padding:'10px', minWidth:'280px', height:'calc(100% - 71px)', overflowY: 'scroll'}}>
+                <div style={{flex:.5, padding:'10px', minWidth:'280px', height:'calc(100% - 71px)', overflowY: 'scroll', position:'relative'}}>
+                  <div style={uploadLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                      <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                  </div>
                   {(selectedFeed.CMSType === 'wordpress' && categoriesNested.length > 0) &&
                     <div className='properties-container'>
                       {
@@ -2371,20 +2633,23 @@ const changeScheduleDate = (date) => {
               }
               {uploadedPosts.length>0 &&
               <div style={{flex:.2, padding:'10px', maxWidth:'200px', height:'100%'}}>
+                <h3 style={{textAlign:'center'}}><strong>Uploaded Posts</strong></h3>
                 {uploadedPosts.map((entry, index) => {
                       if (entry === null) return null
                       if (entry.acf){
                         return(
-                          <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
-                            <p>{entry.title.raw?entry.title.raw:''}</p>
-                            <p><strong>{entry.acf.schedule_date?moment(entry.acf.schedule_date).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
+                          <div key={index} className={'alert'} style={{maxWidth:'250px', border: '0px'}}>
+                            <p style={{fontSize:'.8em'}}>{entry.website}</p>
+                            <p><strong>{entry.title.raw?entry.title.raw:''}</strong></p>
+                            <p style={{fontSize:'.8em'}}>{entry.acf.schedule_date?moment(entry.acf.schedule_date).format('MMMM Do YYYY, h:mm a'):''}</p>
                           </div>
                         )
                       }else{
                           return (
-                            <div key={index} className={'alert'} style={{maxWidth:'250px'}}>
-                              <p>{entry.fields.title['en-AU']?entry.fields.title['en-AU']:''}</p>
-                              <p><strong>{entry.fields.scheduleDate['en-AU']?moment(entry.fields.scheduleDate['en-AU']).format('MMMM Do YYYY, h:mm a'):''}</strong></p>
+                            <div key={index} className={'alert'} style={{maxWidth:'250px', border: '0px'}}>
+                              <p style={{fontSize:'.8em'}}>{entry.website}</p>
+                              <p><strong>{entry.fields.title['en-AU']?entry.fields.title['en-AU']:''}</strong></p>
+                              <p style={{fontSize:'.8em'}}>{entry.fields.scheduleDate['en-AU']?moment(entry.fields.scheduleDate['en-AU']).format('MMMM Do YYYY, h:mm a'):''}</p>
                             </div>
                           )
                       }

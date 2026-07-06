@@ -37,7 +37,7 @@ try {
     const response = await client.getEntries({
       'content_type': contentType,
       'order': order?order:'sys.updatedAt',
-       'limit': '100',
+       'limit': '1000',
       'include': '10',
     })
 

@@ -29,7 +29,7 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemma3",
+        model: "gemma4",
         messages: [
           {
             role: "system",

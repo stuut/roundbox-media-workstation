@@ -50,11 +50,8 @@ export const PDFViewer = ({pdfUrl, sizeCallBack, setPageNumberCallBack}) => {
     if (pdfDocument && pdfDocument.getPage) {
       pdfDocument.getPage(1).then((page) => {
         const { width, height } = page.getViewport({ scale: 1 });
-        const maxWidth = width > height ? 1200 : 800
-        setMaxWidth(maxWidth);
+        console.log(width, height)
 
-        console.log('height', height )
-        sizeCallBack({ width: width, height:height })
 
       });
     } else {
@@ -111,7 +108,9 @@ export const PDFViewer = ({pdfUrl, sizeCallBack, setPageNumberCallBack}) => {
               // page.width and page.height are the rendered dimensions
               //setPdfDimensions({ width: page.width, height: page.height });
             }}
-          width={ containerWidth ? Math.min(containerWidth, maxWidth) : maxWidth} loading={() => renderLoader()}/>
+          scale={1}
+
+        />
           </Document>
         </div>
         <div className='pdf-buttons' style={{textAlign:'center'}}>

@@ -34,7 +34,7 @@ try {
 
     const wp = new WPAPI({
         endpoint: wpapiUrl,
-        username: selectedFeed.editor,
+        username: selectedFeed.username,
         password: selectedFeed.password,
     });
 

@@ -511,7 +511,7 @@ const hasRun = useRef(false);
 
   useEffect(() => {
     if (!hasRun.current) {
-        getPostsInit()
+        //getPostsInit()
         hasRun.current = true; // Mark as run to prevent double execution in dev
 
     }
@@ -1232,6 +1232,7 @@ const FeedsPanel = ({
           const isCustomApi = selectedFeed.query_field
 
 
+          const urlString = !isCustomApi? (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null : item[`${selectedFeed.query_image_field}`]
 
           const url = new URL(urlString);
           const fileName = url.pathname.split('/').pop();
@@ -1247,7 +1248,6 @@ const FeedsPanel = ({
             .fromISO(scheduleDate.replace(' ', 'T'))
             .toISO({ suppressMilliseconds: true });
           }
-
 
 
 
@@ -1418,7 +1418,7 @@ const Share = ({
 
 }) => {
 
-  const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker } = useFilesContext();
+  const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker, setFileLimit } = useFilesContext();
   const [scheduleDate, setScheduleDate] = useState(postData.schedule_date)
   const [publishedDate, setPublishedDate] = useState(postData?.published_at??'')
   const [addComment, setAddComment] = useState(postData?.add_comment??false)
@@ -2682,6 +2682,7 @@ const addNewFiles = async(selectedFiles) => {
                 postInfo={postData}
                 setSocialPagesParent={setSocialPages}
                 callback={channelSelectorCallback}
+
                 disabled={postData?.database_info?.post_publications_id}
               />
               {postData.title !== 'null'&&
@@ -2744,6 +2745,7 @@ const addNewFiles = async(selectedFiles) => {
                   style={{margin:'15px 0px'}}>
                   <p className='label'>Media</p>
                   <button className="btn secondary btn-sm" onClick={() => {
+                    setFileLimit(0)
                     setSelectedFiles([])
                     setFilePicker(true)
                     setShowFiles(prevState => !prevState)

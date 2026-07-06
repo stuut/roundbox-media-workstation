@@ -131,18 +131,31 @@ const CropComponent = ({
 
   const colorPickerRef = useRef(null);
 
+  function isBase64ImagePngOrJpg(url) {
+    // Regex matches data:image/[any subtype];base64, followed by valid base64 chars
+    const base64ImageRegex = /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/;
+    return base64ImageRegex.test(url);
+  }
+
 
   const getCroppedImg = async (imageSrc, croppedAreaPixels, canvas) => {
     const ctx = canvas.getContext('2d');
 
-    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+      let imgSrc
+
+      if (isBase64ImagePngOrJpg(imageSrc)){
+        imgSrc = imageSrc;
+      }else{
+        imgSrc = `/api/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+      }
 
     const img = await new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-      image.src = proxiedUrl;
-    });
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = imgSrc;
+      });
+
 
     canvas.width = croppedAreaPixels.width;
     canvas.height = croppedAreaPixels.height;
@@ -345,7 +358,7 @@ const CropComponent = ({
             <Slider
             value={zoom}
             min={0}
-            max={4}
+            max={2}
             step={0.005}
             defaultValue={1}
             aria-label="Default"

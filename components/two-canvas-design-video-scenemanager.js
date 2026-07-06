@@ -4075,6 +4075,8 @@ const addElement = (newObj) => {
 
     const activeScene = sceneManagerRef.current.getActiveScene()
 
+    if (!activeScene) return
+
     sceneManagerRef.current.addElement(activeScene.id, newObj)
 
 

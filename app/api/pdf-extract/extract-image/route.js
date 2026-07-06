@@ -21,11 +21,18 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 
-async function extractImagesCanvas(rect, page, removeWhiteSpace){
+async function extractImagesCanvas(rect, page, removeWhiteSpace, outputScale = 1){
 
   const scale = 3;
 
   const viewport = page.getViewport({ scale });
+
+  const viewport2 = page.getViewport({ scale:1 });
+
+
+  console.log(viewport.width, viewport.height)
+
+  console.log(viewport2.width, viewport2.height)
 
   const canvas = createCanvas(viewport.width, viewport.height);
   const ctx = canvas.getContext('2d');
@@ -36,10 +43,19 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace){
   }).promise;
 
   // Crop the rect area
+  //const cropX = rect.startX * scale;
+
+
   const cropX = rect.startX * scale;
   const cropY = rect.startY * scale;
-  const cropWidth = (rect.endX - rect.startX) * scale;
-  const cropHeight = (rect.endY - rect.startY) * scale;
+  const cropWidth = (rect.endX * scale) - (rect.startX * scale)
+  const cropHeight = (rect.endY * scale) - (rect.startY * scale)
+
+
+  console.log('cropX', cropX)
+
+  console.log(rect.startX, rect.startX)
+
 
   const croppedCanvas = createCanvas(cropWidth, cropHeight);
   const croppedCtx = croppedCanvas.getContext('2d');
@@ -118,7 +134,6 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace){
     }
   }else{
 
-
     const imageBuffer = croppedCanvas.toBuffer('image/png');
     return {
       id: uuidv4(),
@@ -129,10 +144,6 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace){
       file_url:`data:image/png;base64,${imageBuffer.toString('base64')}`
     };
   }
-
-
-
-
 }
 
 /**
@@ -161,7 +172,6 @@ export async function POST(req) {
 
 
     const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: 1 });
 
     // -------------------------
     // IMAGE EXTRACTION

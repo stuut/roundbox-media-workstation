@@ -1,3 +1,3 @@
 module.exports = {
-  serverExternalPackages: ['canvas'],
+  serverExternalPackages: ['canvas', 'dictionary-en', 'dictionary', 'nspell'],
 };

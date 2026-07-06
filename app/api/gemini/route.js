@@ -88,41 +88,25 @@ export async function POST(request) {
 
 
 
-  const responseStream = await ai.models.generateContentStream({
+  const result = await ai.models.generateContent({
     model: MODEL_ID,
     config,
     contents
   })
 
-  let description = ""
-  let imageData = null
-  let mimeType = null
 
-  for await (const chunk of responseStream) {
-    const parts = chunk?.candidates?.[0]?.content?.parts
-    if (!parts) continue
-
-    for (const part of parts) {
-      if (part.text) {
-        description += part.text
-      } else if (part.inlineData) {
-        imageData = part.inlineData.data
-        mimeType = part.inlineData.mimeType || "image/png"
-
-      }
-    }
-  }
+  const outputImageBase64 = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
 
-  return NextResponse.json({
-      image: imageData ? `data:${mimeType};base64,${imageData}` : null,
+  return Response.json({
+      image: outputImageBase64 ? `data:${mimeType};base64,${outputImageBase64}` : null,
       description: description || null
     }, { status: 200 })
 
   } catch (err) {
     console.error("Error:", err)
 
-    return NextResponse.json({
+    return Response.json({
       error: "Failed to generate content",
       details: err instanceof Error ? err.message : String(err)
       }, { status: 500 })

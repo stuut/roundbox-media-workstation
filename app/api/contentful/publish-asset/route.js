@@ -22,6 +22,7 @@ async function uploadBase64(client, imagePath, fileName, fileType, caption, spac
     {
       fields: {
         title: { 'en-AU': fileName },
+        description: { 'en-AU': caption },
         file: {
           'en-AU': {
             contentType: fileType,
@@ -49,37 +50,35 @@ async function uploadImageFromUrl(client, imagePath, fileName, fileType, caption
 
     // 2. Fetch target Space and Environment
 
-    const environment = await client.environment.get({
-          spaceId: spaceId,
-          environmentId: environmentId,
-    })
 
       // 3. Create the Asset entry pointing to the external URL
-      const asset = await environment.createAsset({
-        fields: {
-          title: {
-            'en-AU': fileName
+      const asset = await client.asset.create(
+        {},
+        {
+          fields: {
+            title: { 'en-AU': fileName },
+            description: { 'en-AU': caption },
+            file: {
+              'en-AU': {
+                contentType: fileType,
+                fileName: fileName,
+                upload: imagePath,
+              },
+            },
           },
-          file: {
-            'en-AU': {
-              contentType: fileType, // Match the source file type
-              fileName: fileName,
-              upload: imagePath // Public URL
-            }
-          }
         }
-      });
+      )
 
-      console.log(`Asset created with ID: ${asset.sys.id}. Processing...`);
+      // Step 3 & 4: Process then publish
 
-      // 4. Instruct Contentful to download and process the image file
-      const processedAsset = await asset.processForAllLocales();
 
-      // 5. Publish the asset to make it active on the CDN
-      const publishedAsset = await processedAsset.publish();
+      const processedAsset =  await client.asset.processForAllLocales({}, asset)
 
-      console.log(`Success! Asset published. URL: ${publishedAsset.fields.file['en-US'].url}`);
-      return publishedAsset;
+
+
+      const publishedAsset = await client.asset.publish({ assetId: processedAsset.sys.id }, processedAsset)
+
+    return publishedAsset
 
 }
 
@@ -119,8 +118,6 @@ try {
 
     const selectedFeed = data[0]
 
-
-    console.log('selectedFeed', selectedFeed)
 
     const client = contentful.createClient(
     { accessToken: selectedFeed.CMAAccessToken },

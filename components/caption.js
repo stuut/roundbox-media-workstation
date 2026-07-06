@@ -235,7 +235,7 @@ return(
       </div>
     }
     {customCaptionsToggle&&
-      <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
+      <div style={{display:'flex', alignItems:'center', gap:'5px', width: '100%', overflowX: 'scroll'}}>
         {customCaptions.map((custom, index)=>{
           const isActive = custom.id === activeCaption?.id
           return(
