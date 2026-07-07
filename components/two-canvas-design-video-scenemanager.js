@@ -74,6 +74,7 @@ import axios from "axios";
 var WPAPI = require( 'wpapi' );
 import WavesurferPlayer from '@wavesurfer/react'
 const workflowJson = require('../outpainting_api.json');
+import { FONTS } from '@/utils/fonts.config.js';
 //const workflowJson = require('../outpainting_api_v2.json');
 
 
@@ -81,6 +82,147 @@ const workflowJson = require('../outpainting_api.json');
 import { Recorder, RecorderStatus, Encoders } from "canvas-record";
 import createCanvasContext from "canvas-context";
 import { AVC } from "media-codecs";*/
+
+
+const designSample = {
+    "data": {
+        "success": true,
+        "data": {
+            "canvas": {
+                "width": 210,
+                "height": 297,
+                "format": "portrait"
+            },
+            "style": {
+                "fontProvider": "google_fonts",
+                "allowedFonts": [
+                    "Poppins",
+                    "Montserrat"
+                ],
+                "colorPalette": [
+                    "#6F4E37",
+                    "#A0522D",
+                    "#FAF0E6",
+                    "#FFC0CB"
+                ]
+            },
+            "elements": [
+                {
+                    "id": "header",
+                    "position": {
+                        "x": 0,
+                        "y": 0
+                    },
+                    "type": "text",
+                    "content": "☕ COFFEE BLISS SALE! 🍂",
+                    "font": {
+                        "family": "Poppins",
+                        "size": 48,
+                        "weight": 700
+                    },
+                    "color": "#6F4E37"
+                },
+                {
+                    "id": "main_title",
+                    "position": {
+                        "x": 0,
+                        "y": 50
+                    },
+                    "type": "text",
+                    "content": "Autumn Harvest Sale",
+                    "font": {
+                        "family": "Montserrat",
+                        "size": 80,
+                        "weight": 900
+                    },
+                    "color": "#A0522D"
+                },
+                {
+                    "id": "subtitle",
+                    "position": {
+                        "x": 0,
+                        "y": 130
+                    },
+                    "type": "text",
+                    "content": "Savor the warmth of fall with our finest blends.",
+                    "font": {
+                        "family": "Poppins",
+                        "size": 24,
+                        "weight": 400
+                    },
+                    "color": "#6F4E37"
+                },
+                {
+                    "id": "sale_details",
+                    "position": {
+                        "x": 0,
+                        "y": 180
+                    },
+                    "type": "text",
+                    "content": "UP TO 50% OFF ALL COFFEE BEANS & MERCHANDISE!",
+                    "font": {
+                        "family": "Montserrat",
+                        "size": 60,
+                        "weight": 700
+                    },
+                    "color": "#A0522D"
+                },
+                {
+                    "id": "product_grid",
+                    "position": {
+                        "x": 30,
+                        "y": 250
+                    },
+                    "type": "image",
+                    "assetQuery": "coffee beans stack",
+                    "fit": "contain",
+                    "size": "full"
+                },
+                {
+                    "id": "offer_blocks",
+                    "position": {
+                        "x": 30,
+                        "y": 380
+                    },
+                    "type": "text",
+                    "content": "• Signature Roast: Buy 2 Get 1 Free\n• Espresso Blend: 25% Off\n• Seasonal Latte Mix: Special Bundle Deal",
+                    "font": {
+                        "family": "Poppins",
+                        "size": 26,
+                        "weight": 400
+                    },
+                    "color": "#6F4E37"
+                },
+                {
+                    "id": "call_to_action",
+                    "position": {
+                        "x": 0,
+                        "y": 550
+                    },
+                    "zIndex": 10,
+                    "type": "button",
+                    "text": "SHOP NOW AT [YourWebsite.com]",
+                    "style": "primary"
+                },
+                {
+                    "id": "footer",
+                    "position": {
+                        "x": 0,
+                        "y": 620
+                    },
+                    "type": "text",
+                    "content": "Sale ends October 31st | Follow us @CoffeeBlissCo",
+                    "font": {
+                        "family": "Poppins",
+                        "size": 18,
+                        "weight": 300
+                    },
+                    "color": "#A0522D"
+                }
+            ]
+        }
+    }
+}
 
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -7754,8 +7896,10 @@ useEffect(()=>{
   }
 
   const fontSelectionCallback = (value) => {
-    const selectedFont = fonts.find((font)=> font.label === value)
-    setSelectedFont(selectedFont.label)
+    const selectedFont = FONTS.find((font)=> font.family === value)
+    console.log('selectedFont', selectedFont)
+
+    setSelectedFont(selectedFont.family)
     setFontWeights(selectedFont.weights)
     setFontStyles(selectedFont.styles)
     const active = getActiveElement();
@@ -9921,8 +10065,8 @@ const FontSelection = ({callBack, selectedFont}) => {
     <div>
       <p className='font-label'>Font</p>
       <select id="font" className="form-input select font-label-input" onChange={(e) => setFontFunction(e.target.value)} value={font}>
-        {fonts.map((font, index)=>{
-          return <option key={index} value={font.label}>{font.label}</option>
+        {FONTS.map((font, index)=>{
+          return <option key={index} value={font.family}>{font.family}</option>
         })
         }
       </select>
@@ -11655,7 +11799,7 @@ const PropertiesPanel = ({
 
   if (element === null) return <div></div>
 
-  const selectedFont = fonts.find((font)=> font.label === element?.fontFamily)
+  const selectedFont = FONTS.find((font)=> font.family === element?.fontFamily)
 
   return(
     <div>
@@ -11677,8 +11821,8 @@ const PropertiesPanel = ({
             <div>
               <p className='font-label'>Font</p>
               <select id="font" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontFamily', e.target.value)} value={element.fontFamily}>
-                {fonts.map((font, index)=>{
-                  return <option key={index} value={font.label}>{font.label}</option>
+                {FONTS.map((font, index)=>{
+                  return <option key={index} value={font.family}>{font.family}</option>
                 })
                 }
               </select>

@@ -39,6 +39,7 @@ const poppins = Poppins({
 
 import "./globals.css"
 import "./theme.css"
+import "./fonts.css"
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -55,7 +56,8 @@ export const metadata = {
 export default async function RootLayout({ children, params  }) {
 
   return (
-    <html lang="en" className={`${poppins.variable} ${raleway.variable}`} suppressHydrationWarning>
+    //<html lang="en" className={`${poppins.variable} ${raleway.variable}`} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className="bg-background text-foreground">
         <script
           dangerouslySetInnerHTML={{
