@@ -1,4 +1,10 @@
-
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "10mb"
+    }
+  }
+}
 
 export async function POST(req) {
   const {prompt, width, height} = await req.json();
@@ -24,6 +30,7 @@ export async function POST(req) {
 
 
     const data = await response.json();
+    console.log('data', data)
 
      return Response.json({base64Image:data.image},{status: 200});
 

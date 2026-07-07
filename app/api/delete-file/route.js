@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { r2Client } from '@/lib/r2'
-import { DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
-//Cloudflare R2
+
+
+//Cloudflare S3
 
 export async function DELETE(req) {
 
@@ -14,13 +15,21 @@ export async function DELETE(req) {
      return NextResponse.json({ error: 'Missing file key' }, { status: 400 })
    }
 
+   const s3 = new S3Client({
+     region: process.env.AWS_REGION,
+     credentials: {
+       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+     },
+   });
+
    const command = new DeleteObjectCommand({
-     Bucket: process.env.R2_PUBLIC_BUCKET,
+     Bucket: process.env.AWS_S3_BUCKET,
      Key: key,
    })
 
 
-   await r2Client.send(command)
+   await s3.send(command)
 
    return NextResponse.json({ message: `Deleted: ${key}` }, { status: 200 })
  } catch (err) {

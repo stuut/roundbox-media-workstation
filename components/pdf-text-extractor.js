@@ -323,7 +323,7 @@ export default function PdfTextExtractor({user, feeds}) {
             file_url : entry?.source_url??null,
             width: entry?.media_details.width??null,
             height: entry?.media_details.height??null,
-            caption: entry?.caption.rendered?removeTags(entry.caption.rendered):null,
+            file_description: entry?.caption.rendered?removeTags(entry.caption.rendered):null,
             file_type: entry?.mime_type??null,
             source:'wordpress'
           }
@@ -401,11 +401,9 @@ export default function PdfTextExtractor({user, feeds}) {
     const imageFolder = zip.folder(folderName);
 
     for (const image of images) {
+
       if (image.file_url.startsWith('data:image/')){
         const rawBase64 = image.file_url.split(',')[1];
-
-
-
 
         imageFolder.file(image.file_name, rawBase64, { base64: true });
       }else{
@@ -545,8 +543,18 @@ async function downloadImage(image) {
         }
       })
 
-      setImages(images => [...newImages, ...images])
+
+      setImages(images => [...images, ...newImages])
+
+      const updatingItems = [...images, ...newImages]
+
+      reflowImages(updatingItems)
     }
+
+
+
+
+
     setSelectedFiles([])
   }
 
@@ -584,12 +592,6 @@ async function downloadImage(image) {
     const dragRect = dragAreaRef.current.getBoundingClientRect();
       const canvasEl = dragAreaRef.current.querySelector('canvas'); // adjust selector if needed
       const canvasRect = canvasEl.getBoundingClientRect();
-      console.log('drag-area:', dragRect.left, dragRect.top);
-      console.log('canvas:', canvasRect.left, canvasRect.top);
-
-      console.log('devicePixelRatio:', window.devicePixelRatio);
-
-
   };
 
 
@@ -717,9 +719,6 @@ const sendAreaData = async(selectionArea) => {
     const paragraphs = paragraphsJson.paragraphs
 
 
-    console.log('paragraphs', paragraphs)
-
-
     if (paragraphs){
       setParagraphsState(prev => [...prev, ...paragraphs])
     }
@@ -759,7 +758,7 @@ const addCaptions = (images, captions) => {
 
   return images.map((image, index)=>{
       return{
-        caption: captions[index],
+        file_description: captions[index],
         ...image
       }
     })
@@ -886,7 +885,7 @@ const addWordPressArticle = (paragraphs, images) => {
 
   let combinedContent
 
-  if (paragraphs.length>0){
+  if (paragraphs && paragraphs.length>0){
 
     let paragraphText = ''
 
@@ -1000,8 +999,8 @@ const createImageHTML = (image) => {
   let imageHTML = ''
 
       let img = '<img id="image-'+image?.id+'" data-id="'+image?.id+'" width="'+image.width+'" height="'+image.height+'" src="'+image.file_url+'" style="width:100%; height:auto" class="size-full"/>'
-      if (image.caption){
-        imageHTML = '<div class="wp-caption alignnone social-scheduler-image">'+img+'<p id="image-caption-'+image?.id+'" data-id="caption-'+image?.id+'" class="wp-caption-text">'+image.caption+'</p></div>'
+      if (image.file_description){
+        imageHTML = '<div class="wp-caption alignnone social-scheduler-image">'+img+'<p id="image-caption-'+image?.id+'" data-id="caption-'+image?.id+'" class="wp-caption-text">'+image.file_description+'</p></div>'
       }else{
         imageHTML = '<div class="wp-caption alignnone social-scheduler-image">'+img+'</div>'
       }
@@ -1016,8 +1015,8 @@ const createImageMd = (image) => {
   let imageHTML = ''
 
       let img = '!['+image.file_name+']('+image.file_url+')'
-      if (image.caption){
-        imageHTML = img+image.caption+'\n'
+      if (image.file_description){
+        imageHTML = img+image.file_description+'\n'
       }else{
         imageHTML = img+'\n'
       }
@@ -1031,8 +1030,8 @@ const createWPImageHTML = (image) => {
   let imageHTML = ''
 
   let img = '<img id="image-'+image.id+'" data-id="'+image.id+'" width="'+image.width+'" height="'+image.height+'" src="'+image.image.image_path+'" style="width:100%" class="size-full"/>'
-      if (image.caption){
-        imageHTML = '[caption id="" align="alignnone" width="748"]'+img+' '+image.caption+'[/caption]'
+      if (image.file_description){
+        imageHTML = '[caption id="" align="alignnone" width="748"]'+img+' '+image.file_description+'[/caption]'
       }else{
         imageHTML = img
       }
@@ -1111,7 +1110,7 @@ function detectArticle(data) {
     // one-letter word ("a", "I") has normal height and must NOT glue.
     if (text.length === 1 && block.height > 20) noSpace = true
 
-    if (block.height < 8) {
+    if (block.height < 9) {
       currentSection = 'caption';
       const endsWithPeriod = currentCaption.trim().endsWith('.');
       const endsWithQuotePeriod = currentCaption.trim().endsWith('".');
@@ -1203,7 +1202,7 @@ const reflowImages = (images) => {
   if (inputTypeRef.current === 'articles'){
     if (selectedFeedRef.current.CMSType === 'wordpress'){
         setTinymceContent('')
-        selectedFeedRef.current.CMSType(null, images)
+        addWordPressArticle(null, images)
     }else if (selectedFeedRef.current.CMSType === 'contentful'){
         handleMDEditorChange('')
         addContentfulArticle(null, images)
@@ -1339,7 +1338,7 @@ const handleEditorInit = (event, editor) => {
             },
             width:imgWidth?imgWidth:'',
             height:imgHeight?imgHeight:'',
-            caption:imageCaptionRef.current?imageCaptionRef.current:''
+            file_description:imageCaptionRef.current?imageCaptionRef.current:''
           }
         }else if (imgtype === 'media'){
 
@@ -1354,7 +1353,7 @@ const handleEditorInit = (event, editor) => {
               },
               width:imgWidth?imgWidth:'',
               height:imgHeight?imgHeight:'',
-              caption:filterImage?.caption.rendered?removeTags(filterImage.caption.rendered):''
+              file_description:filterImage?.file_description?filterImage?.file_description:''
           }
         }else if (imgtype === 'extracted-image'){
 
@@ -1369,7 +1368,7 @@ const handleEditorInit = (event, editor) => {
             },
             width:imgWidth?imgWidth:'',
             height:imgHeight?imgHeight:'',
-            caption:filterImage?.caption? filterImage.caption:''
+            file_description:filterImage?.file_descriptionn? filterImage.file_description:''
           }
 
         }
@@ -1475,8 +1474,8 @@ const handleDrop = (e, id) => {
 
       } else if (draggedType === 'caption') {
 
-          [updatedItems[draggedItemIndex].caption, updatedItems[targetItemIndex].caption] =
-          [updatedItems[targetItemIndex].caption, updatedItems[draggedItemIndex].caption];
+          [updatedItems[draggedItemIndex].file_description, updatedItems[targetItemIndex].file_description] =
+          [updatedItems[targetItemIndex].file_description, updatedItems[draggedItemIndex].file_description];
       } else if (draggedType === 'container') {
         const [draggedItem] = updatedItems.splice(draggedItemIndex, 1);
         updatedItems.splice(targetItemIndex, 0, draggedItem);
@@ -1547,8 +1546,7 @@ const editMedia = (media, index, tool) => {
 }
 
 const handleEditReplace = async(index, newItem) => {
-
-
+  console.log(' newItem',  newItem)
 
   const checkedImages = await checkInstagramImages([newItem])
 
@@ -1560,20 +1558,17 @@ const handleEditReplace = async(index, newItem) => {
   })
 
 
+  const updatingItems = images.map((item, i) => i === index ? newImages[0] : item)
+  reflowImages(updatingItems)
+
 
   setImages(prevItems =>
     prevItems.map((item, i) => i === index ? newImages[0] : item)
   );
 
-
 }
 
 useEffect(() => {
-
-  if (!hasMounted.current) {
-    hasMounted.current = true
-    return
-  }
 
 
   if (!displayEditItem && item) {
@@ -1582,9 +1577,6 @@ useEffect(() => {
       setItem(null)
   }
 
-  return () => {
-    hasMounted.current = false  // reset so Strict Mode's remount works correctly
-  }
 
 }, [displayEditItem, item]);
 
@@ -1663,7 +1655,7 @@ const startSSE = () => {
             file_url:result.url,
             file_type:file.type,
             file_name:file.name,
-            file_description:editImageData.current.caption??null
+            file_description:editImageData.current.file_description??null
           })
 
           console.log('setImages')
@@ -2175,6 +2167,7 @@ const changeScheduleDate = (date) => {
         <div className="form-check properties-container"
           style={{
             marginLeft: '15px',
+            marginBottom:'15px',
             position: 'relative',
             display: 'inline-flex',
             alignItems:'center'
@@ -2226,6 +2219,7 @@ const changeScheduleDate = (date) => {
                 </div>
                 <Dropdown placeholder="Add Images">
                   <button className="btn btn-sm clear" onClick={() => {
+                    setFileLimit(0)
                     setSelectedFiles([])
                     setFilePicker(true)
                     setShowFiles(prevState => !prevState)
@@ -2692,14 +2686,13 @@ const ImageComponent  = ({
   copyImageCode
 }) => {
 
-  const [caption, setCaption] = useState(image.caption)
-
+  const [caption, setCaption] = useState(image.file_description??'')
 
   useEffect(()=>{
 
-    setCaption(image.caption)
+    setCaption(image.file_description ?? '')
 
-  },[image.caption])
+  },[image.file_description])
 
 
 

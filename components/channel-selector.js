@@ -232,13 +232,20 @@ return(
           minWidth: '315px',
           zIndex: '10'
         }} className='canvas-zoom-dropdown dropshadow'>
-          <input
-            id="pageFilter"
-            type="text"
-            className={'form-input'}
-            value={pageFilter}
-            onChange={(e) => setPageFilter(e.target.value)}
-          />
+          {sortedSocialPages.length >0 &&
+            <input
+              id="pageFilter"
+              type="text"
+              className={'form-input'}
+              value={pageFilter}
+              onChange={(e) => setPageFilter(e.target.value)}
+            />
+          }
+          {sortedSocialPages.length === 0 &&
+            <div style={{marginTop:'10px'}} className='alert alert-danger'>
+              No Socials For You
+            </div>
+          }
           {sortedSocialPages
             .filter((social)=>{
               return social?.facebook?.name.toLowerCase().includes(pageFilter.toLowerCase()) ||

@@ -374,112 +374,111 @@ const copyFileUrl = (url) => {
                           )
                       })}
                     </div>
-                    <div style={{display:'flex', alignItems:'center'}}>
-                        <input
-                          style={{display:'none'}}
-                          type="file"
-                          id="file-upload"
-                          accept="image/*,.pdf,.doc"
-                          onChange={uploadFileLoop}
-                          disabled={uploading}
-                          multiple
-                        />
-                        <label
-                          className="btn secondary icon-button"
-                          htmlFor="file-upload"
-                          style={{
-                            padding: '10px 15px',
-                            marginTop:'0px',
-                            marginBottom: '0px',
-                            marginLeft: '5px'
-                          }}
-                        >
-                        <Upload className='button-icon'/>
-                          {`Upload Files`}
-                        </label>
-                        {selectedFiles.length>0 &&
-                          <>
-                            <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
-                            <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
-                            <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
-                          </>
-                        }
-                        {selectedFiles.length===1 &&
-                          <>
-                            <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>editMedia(selectedFiles[0])}>Edit Image</button>
-                          </>
-                        }
-                        </div>
-                        {/*
-                        {filePicker &&
-                          <button className='btn primary' onClick={(e) => setShowFiles(false)} disabled={selectedFiles.length===0}>Choose Files</button>
-                        }*/}
-                    <div className="properties-container" style={{display:'flex', gap:'10px', margin:'15px 0px', padding:'20px'}}>
-                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
-                        <Checkbox
-                          id={'iimages'}
-                          className="form-check-input"
-                          type="checkbox"
-                          onChange={() => checkboxFunction('images')}
-                          checked={fileFilters.includes('images')}
-                          sx={{
-                            color: 'var(--md-sys-color-secondary)',
-                            '&.Mui-checked': {
-                              color: 'var(--md-sys-color-primary)',
-                            },
-                          }}
-                        />
-                        <span style={{marginLeft:'5px'}}>Images</span>
-                      </div>
-                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
-                        <Checkbox
-                          id={'iimages'}
-                          className="form-check-input"
-                          type="checkbox"
-                          onChange={() => checkboxFunction('videos')}
-                          checked={fileFilters.includes('videos')}
-                          sx={{
-                            color: 'var(--md-sys-color-secondary)',
-                            '&.Mui-checked': {
-                              color: 'var(--md-sys-color-primary)',
-                            },
-                          }}
-                        />
-                        <span style={{marginLeft:'5px'}}>videos</span>
-                      </div>
-                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
-                        <Checkbox
-                          id={'documents'}
-                          className="form-check-input"
-                          type="checkbox"
-                          onChange={() => checkboxFunction('documents')}
-                          checked={fileFilters.includes('documents')}
-                          sx={{
-                            color: 'var(--md-sys-color-secondary)',
-                            '&.Mui-checked': {
-                              color: 'var(--md-sys-color-primary)',
-                            },
-                          }}
-                        />
-                        <span style={{marginLeft:'5px'}}>documents</span>
-                      </div>
-                      <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
-                        <Checkbox
-                          id={'iimages'}
-                          className="form-check-input"
-                          type="checkbox"
-                          onChange={() => checkboxFunction('audio')}
-                          checked={fileFilters.includes('audio')}
-                          sx={{
-                            color: 'var(--md-sys-color-secondary)',
-                            '&.Mui-checked': {
-                              color: 'var(--md-sys-color-primary)',
-                            },
-                          }}
-                        />
-                        <span style={{marginLeft:'5px'}}>audio</span>
-                      </div>
 
+
+                    <div className="properties-container" style={{marginTop:'15px'}}>
+                      <div style={{display:'flex', alignItems:'center'}}>
+                          <input
+                            style={{display:'none'}}
+                            type="file"
+                            id="file-upload"
+                            accept="image/*,.pdf,.doc"
+                            onChange={uploadFileLoop}
+                            disabled={uploading}
+                            multiple
+                          />
+                          <label
+                            className="btn secondary icon-button"
+                            htmlFor="file-upload"
+                            style={{
+                              padding: '10px 15px',
+                              marginTop:'0px',
+                              marginBottom: '0px',
+                              marginLeft: '5px'
+                            }}
+                          >
+                          <Upload className='button-icon'/>
+                            {`Upload Files`}
+                          </label>
+                          {selectedFiles.length>0 &&
+                            <>
+                              <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
+                              <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
+                              <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
+                            </>
+                          }
+                          {selectedFiles.length===1 &&
+                            <>
+                              <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>editMedia(selectedFiles[0])}>Edit Image</button>
+                            </>
+                          }
+                      </div>
+                      <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
+                        <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
+                          <Checkbox
+                            id={'iimages'}
+                            className="form-check-input"
+                            type="checkbox"
+                            onChange={() => checkboxFunction('images')}
+                            checked={fileFilters.includes('images')}
+                            sx={{
+                              color: 'var(--md-sys-color-secondary)',
+                              '&.Mui-checked': {
+                                color: 'var(--md-sys-color-primary)',
+                              },
+                            }}
+                          />
+                          <span style={{marginLeft:'5px'}}>Images</span>
+                        </div>
+                        <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
+                          <Checkbox
+                            id={'iimages'}
+                            className="form-check-input"
+                            type="checkbox"
+                            onChange={() => checkboxFunction('videos')}
+                            checked={fileFilters.includes('videos')}
+                            sx={{
+                              color: 'var(--md-sys-color-secondary)',
+                              '&.Mui-checked': {
+                                color: 'var(--md-sys-color-primary)',
+                              },
+                            }}
+                          />
+                          <span style={{marginLeft:'5px'}}>videos</span>
+                        </div>
+                        <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
+                          <Checkbox
+                            id={'documents'}
+                            className="form-check-input"
+                            type="checkbox"
+                            onChange={() => checkboxFunction('documents')}
+                            checked={fileFilters.includes('documents')}
+                            sx={{
+                              color: 'var(--md-sys-color-secondary)',
+                              '&.Mui-checked': {
+                                color: 'var(--md-sys-color-primary)',
+                              },
+                            }}
+                          />
+                          <span style={{marginLeft:'5px'}}>documents</span>
+                        </div>
+                        <div style={{marginLeft:'5px', display: 'flex', alignItems: 'center'}}>
+                          <Checkbox
+                            id={'iimages'}
+                            className="form-check-input"
+                            type="checkbox"
+                            onChange={() => checkboxFunction('audio')}
+                            checked={fileFilters.includes('audio')}
+                            sx={{
+                              color: 'var(--md-sys-color-secondary)',
+                              '&.Mui-checked': {
+                                color: 'var(--md-sys-color-primary)',
+                              },
+                            }}
+                          />
+                          <span style={{marginLeft:'5px'}}>audio</span>
+                        </div>
+                      </div>
                     </div>
                     <div style={{display:'flex', gap:'10px', margin:'15px 0px'}}>
                       <input
@@ -502,7 +501,7 @@ const copyFileUrl = (url) => {
                         display:'flex',
                         flexDirection:'row',
                         flexWrap: 'wrap',
-                        gap:'15px',
+                        gap:'10px 10px',
                         justifyContent: 'center',
                         margin: '0 auto'
                       }}>
@@ -539,6 +538,7 @@ const copyFileUrl = (url) => {
                   }
                   {filesDisplay ==='X Z Image Turbo'&&
                     <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                      <ImageTurbo/>
                     </div>
                   }
                 </div>
@@ -549,6 +549,84 @@ const copyFileUrl = (url) => {
 
 
     </>
+  )
+}
+
+export const ImageTurbo = ({
+
+})=>{
+    const [imgSrc, setImgSrc] = useState('')
+    const [prompt, setPrompt] = useState('An Image of a golden retriever puppy');
+    const [loader, setLoader] = useState('')
+
+
+    const createImage = async () => {
+
+      try{
+        setLoader(true)
+        const response = await fetch("/api/image-turbo/create-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt:prompt,
+            width:1024,
+            height:1024
+          })
+
+        });
+
+        const responseData = await response.json()
+
+        setImgSrc(`data:image/png;base64,${responseData.base64Image}`)
+
+        console.log('responseData')
+      }catch(err){
+        console.log(err)
+        showError(err)
+      }finally{
+        setLoader(false)
+      }
+
+    }
+
+    const saveImage = async () => {
+
+    }
+
+
+
+  return(
+    <div style={{position:'relative', height:'100%'}}>
+      <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+          <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+      </div>
+      {imgSrc&&
+        <>
+          <img src={imgSrc} style={{maxWidth: '400px'}}/>
+          <button className="btn btn-sm primary"> Save </button>
+        </>
+      }
+      <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+        <input style={{
+          width:"100%",
+          margin:'15px 0px',
+        }}
+          id='guest-author'
+          type="text"
+          className="form-input"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Prompt..."
+        />
+        <button style={{
+          maxHeight: '35px',
+          verticalAlign: 'middle',
+          paddingTop: '7px'
+        }} onClick={createImage} className='btn btn-small primary'>Create</button>
+      </div>
+    </div>
   )
 }
 

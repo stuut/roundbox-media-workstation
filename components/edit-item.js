@@ -114,6 +114,7 @@ const CropComponent = ({
   newFile
 }) => {
 
+  console.log('image', image)
   const [fileUrl, setFileUrl] = useState(image.file_url);
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -220,14 +221,14 @@ const CropComponent = ({
            const fileinfo = await storeFileInfo({
              user_id:user.id,
              file_url: fileData.file_url,
-             file_type:fileData.file_type,
+             file_type:'image/jpeg',
              file_name:fileData.file_name,
              file_description:fileData.file_description??null
            })
 
            setNewFile({
              created_at: fileinfo.created_at,
-             file_type: fileData.file_type,
+             file_type: 'image/jpeg',
              file_url: fileData.file_url,
              file_name:fileData.file_name,
              file_description:fileData.file_description??null,
@@ -2142,6 +2143,9 @@ const NewCropper = ({
     });
 
     const formData = new FormData()
+
+      console.log('file', file)
+
       formData.append('file', file)
       formData.append('tag', '.jpg');
 
@@ -2163,14 +2167,14 @@ const NewCropper = ({
           const fileinfo = await storeFileInfo({
             user_id:user.id,
             file_url: fileData.file_url,
-            file_type:fileData.file_type,
+            file_type:'image/jpeg',
             file_name:fileData.file_name,
             file_description:fileData.file_description??null
           })
 
           setNewFile({
             created_at: fileinfo.created_at,
-            file_type: fileData.file_type,
+            file_type: 'image/jpeg',
             file_url: fileData.file_url,
             file_name:fileData.file_name,
             file_description:fileData.file_description??null,
@@ -2178,7 +2182,7 @@ const NewCropper = ({
             user_id: user.id
           })
 
-          setFileUrl(fileData.file_url)
+          //setFileUrl(fileData.file_url)
 
         } else {
           showError(result.error)

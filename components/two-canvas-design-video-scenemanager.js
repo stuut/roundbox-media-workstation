@@ -8816,12 +8816,13 @@ useEffect(() => {
             <div onClick={() => setPaintType('pen')} className={`tool-option ${paintType === 'pen'? 'active':''}`}><img src='pen.svg' style={{marginRight:'5px', width:'15px'}}/>Pen</div>
             <div onClick={() => setPaintType('air brush')} className={`tool-option ${paintType === 'air brush'? 'active':''}`}><img src='brush.svg' style={{marginRight:'5px', width:'15px'}}/>Air Brush</div>
               <div>
-                <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
-                    <label style={{marginRight:'5px'}}>Size</label>
-                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={5} max={500} value={brushSize} onChange={(e) => setBrushSize(e.target.value)}/>
-                    <span className="size_display" style={{width:'30px'}}>{brushSize}</span>
-                </div>
-
+                {(paintType === 'air brush' || paintType === 'pen') &&
+                  <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
+                      <label style={{marginRight:'5px'}}>Size</label>
+                      <Slider style={{marginRight:'5px'}} type="range" id="size" min={5} max={500} value={brushSize} onChange={(e) => setBrushSize(e.target.value)}/>
+                      <span className="size_display" style={{width:'30px'}}>{brushSize}</span>
+                  </div>
+                }
                 {paintType === 'air brush' &&
                   <>
                     <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
@@ -10284,7 +10285,7 @@ const deleteCallback = (fileId) => {
     }}>
 
       {files.length === 0?(
-          <p>{`No files`}</p>
+          <div className='alert alert-danger'>{`No files for you`}</div>
       ):(
         <>
           {files
@@ -11088,6 +11089,7 @@ const TemplatePanel = ({
 }) => {
 
   const [templates, setTemplates] = useState([]);
+  const [prompt, setPrompt] = useState('Create an A4 poster for a coffee brand sale.');
 
   const getData = async (userId) => {
 
@@ -11108,10 +11110,55 @@ const TemplatePanel = ({
   }, [user])
 
 
+  const createDesign = async () => {
+
+    try{
+      const response = await fetch("/api/design/create-design", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt:prompt
+        })
+
+      });
+
+      const responseData = await response.json()
+
+      console.log('responseData')
+    }catch(err){
+      console.log(err)
+      showError(err)
+    }
+
+
+
+  }
+
+
 
 
   return(
     <div>
+      <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+        <input style={{
+          width:"100%",
+          margin:'15px 0px',
+        }}
+          id='guest-author'
+          type="text"
+          className="form-input"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Prompt..."
+        />
+        <button style={{
+          maxHeight: '35px',
+          verticalAlign: 'middle',
+          paddingTop: '7px'
+        }} onClick={createDesign} className='btn btn-small primary'>Go</button>
+      </div>
       <p className='font-label'>Videos</p>
     {TEMPLATES.videos.map((videoTemp, index) => {
       return(
@@ -11126,7 +11173,9 @@ const TemplatePanel = ({
 
       )
     })}
-    <p className='font-label'>Saved Templates</p>
+    {templates.length>0&&
+        <p className='font-label'>Saved Templates</p>
+    }
     {templates.map((template, index) => {
       return(
         <div key={index}>

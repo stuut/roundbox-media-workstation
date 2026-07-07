@@ -21,7 +21,6 @@ async function uploadBase64(wp, imagePath, fileName, fileType, caption) {
           description: caption
       })
 
-    console.log('image', image)
 
     return image
 }
@@ -40,7 +39,7 @@ async function uploadImageFromUrl(wp, imagePath, fileName, fileType, caption){
 
     const image = await wp.media()
         // Specify a path to the file you want to upload, or a Buffer
-        .file( buffer, fileName )
+        .file(buffer, fileName)
         .create({
             title: fileName,
             alt_text: caption,
@@ -48,7 +47,7 @@ async function uploadImageFromUrl(wp, imagePath, fileName, fileType, caption){
             description: caption
         })
 
-        console.log('image', image)
+
       return image
 
 }
@@ -99,9 +98,9 @@ export async function POST(req) {
       for (let image of images) {
 
         const imagePath = image.file_url
-        const caption = image.caption
-        const fileName = image.file_name
-        const fileType = image.file_type
+        const caption = image.file_description??''
+        const fileName = image.file_name??''
+        const fileType = image.file_type??''
 
         let publishedImage
 

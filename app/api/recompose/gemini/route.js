@@ -21,12 +21,12 @@ export async function POST(request) {
     try {
 
       // Load image (in reality this is a Buffer or base64)
-        const image = await fetch("input.png").then(res => res.arrayBuffer());
+        const imageBuffer = await fetch(image).then(res => res.arrayBuffer());
 
         //"1K", "2K", "4K"
         //"square": "1:1",
-   //"story": "9:16",
-   //"landscape": "16:9"
+        //"story": "9:16",
+         //"landscape": "16:9"
 
 
         const model = speed === 'fast'?'nano-banana-2':'gemini-3-pro-image-preview'
@@ -84,7 +84,7 @@ export async function POST(request) {
                 { text: userPrompt },
                 {
                   inlineData: {
-                    data: Buffer.from(image).toString("base64"),
+                    data: Buffer.from(imageBuffer).toString("base64"),
                     mimeType: "image/png",
                   },
                 },
