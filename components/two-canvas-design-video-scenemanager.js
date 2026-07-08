@@ -51,7 +51,9 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   ZoomIn,
   ZoomOut,
   Frame,
-  RefreshCcw
+  RefreshCcw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
 import { updateFileDescriptionValue } from "@/lib/supabase";
@@ -702,6 +704,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
    const blurHandlerRef = useRef(null);
 
   const [loadedProject, setLoadedProject] = useState('')
+  const [propertiesPanelVisibilty, setPropertiesPanelVisibilty] = useState(true)
 
 
 
@@ -9199,230 +9202,242 @@ useEffect(() => {
           canvasEditorHeight={canvasEditorHeight}
         />
       </div>
+    {!propertiesPanelVisibilty &&
+      <div className={`side_menu_right_closed dropshadow`}>
+        <Eye onClick={() => setPropertiesPanelVisibilty(true)}/>
+      </div>
+    }
+    {propertiesPanelVisibilty &&
       <div
-        style={{
-          height:`calc(${canvasEditorHeight}px - 10px)`
-        }}
-        className={`side_menu_right dropshadow`}>
-        <button className="btn primary" style={{marginTop:0}} onClick={clearAll}>Clear Canvas</button>
-        {activeSceneState &&
-          <div className='properties-container'>
-            <div className="property-label" style={{marginTop:0}}><Film className="property-icon" />
-                <p>Active Scene</p>
-                <Plus style={{marginLeft:'auto'}} onClick={()=>createScene(activeSceneState.duration,5,true)} />
-            </div>
-            <p className='font-label'>Duration</p>
-            <input
-              type='number'
-              style={{border:0}}
-              onChange={(e) => onSceneUpdateProperty('duration', e.target.value)}
-              value={activeSceneState?.duration??''}
-              className={'form-input'}
-            />
-            {activeSceneState.elements.length > 0 &&
-              <p className='font-label'>Elements</p>
-            }
-            {[...activeSceneState.elements].reverse().map((element, index)=>{
-              const isWhite = element?.fill === 'rgba(255,255,255,1)'
-              const isImage = element?.type === 'image'
-
-              var colour
-              var borderColour
-
-              if (element?.fill){
-                colour = element?.fill
-                borderColour = lightenRgba(element?.fill, .5)
-              }else{
-                colour = 'var(--md-sys-color-secondary-container)'
-                borderColour = 'var(--md-sys-color-secondary-container)'
-              }
-
-              if (!element || element.type==='eraser') return null
-
-              return(
-                  <div key={index} className='no-highlight timeline-bar'
-                    style={{
-                      height:'35px',
-                      marginTop: '5px',
-                      width: '100%',
-                      //backgroundImage: 'url("/transparent-background.jpg")',
-                      background: activeElement?.id === element.id
-                              ? isImage? 'url("/transparent-background.jpg")' : 'var(--md-sys-color-primary)'
-                              : isWhite ? 'var(--md-sys-color-surface)' : colour,
-                      borderRadius:'var(--input-border-radius)',
-                      borderColor: activeElement?.id === element.id
-                              ? 'var(--md-sys-color-secondary-container)'
-                              : isWhite ? 'var(--md-sys-color-surface-container)' : borderColour,
-
-                      alignItems: 'center',
-                      borderWidth:'3px',
-                      borderStyle: 'solid',
-                      boxSizing: 'border-box',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                    onClick={(e) => {
-                      onSelectElement(element.id);
-                    }}>
-                      {element.type === 'video'&&
-                        <VideoTimelineBar videoElement={element} />
-                      }
-                      {element.type === 'image'&&
-                        <div style={{width: '100%' }} className='repeater-timeline-bar'>
-                          {Array(Math.round(activeSceneState.duration)).fill(0).map((_, index) => (
-                            <img
-                              key={index}
-                              src={element.imageSrc} // Replace with your image source
-                              alt="Repeated image"
-                            />
-                          ))}
-                        </div>
-                      }
-                      {element.type === 'text'&&
-                        <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
-                          {element.type === 'text' ? `"${element.text?.slice(0, 20) || 'Text'}..."` :
-                           element.type}
-                        </span>
-                      }
-                      {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle') &&
-                        <span style={{color:'#ffffff',paddingLeft:'10px', fontSize:'.8em'}} >
-                          {element.type}
-                        </span>
-                      }
-
-                </div>
-              )
-            })
-
-            }
-
-            <div className='col-2 column-gap-2'>
-              <button onClick={() => duplicateScene(activeSceneState)} style={{flex: 4, marginBottom:0}} className='btn secondary icon-button'>
-                <Copy className='button-icon'/>
-                Duplicate
-              </button>
-              {sceneManagerRef.current?.scenes.length>1&&
-              <button style={{marginBottom:0}} onClick={() => removeScene(activeSceneState)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
-              }
-            </div>
-          </div>
-        }
-
-        {postInfo&&
-          <div className='properties-container' style={{marginTop:'10px'}}>
-            <div className="property-label" style={{marginTop:0}}><Rss className="property-icon" /><p>Post Info</p></div>
-            {postInfo?.data.scheduled &&
-              <div className="scheduled_badge">
-                <strong>Scheduled</strong>
-                <CircleCheck />
+          style={{
+            height:`calc(${canvasEditorHeight}px - 10px)`
+          }}
+          className={`side_menu_right dropshadow`}>
+          <EyeOff style={{
+            position: 'absolute',
+            right: '7px',
+            top: '20px'
+          }}onClick={() => setPropertiesPanelVisibilty(false)}/>
+          <button className="btn primary" style={{marginTop:0}} onClick={clearAll}>Clear Canvas</button>
+          {activeSceneState &&
+            <div className='properties-container'>
+              <div className="property-label" style={{marginTop:0}}><Film className="property-icon" />
+                  <p>Active Scene</p>
+                  <Plus style={{marginLeft:'auto'}} onClick={()=>createScene(activeSceneState.duration,5,true)} />
               </div>
-            }
-
-            <p className='font-label'>Post Link</p>
-            <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
+              <p className='font-label'>Duration</p>
               <input
-                id="post-link"
-                type='text'
-                style={{border:0, margin: '1px'}}
-                defaultValue={`https://${postInfo.data.base_url}/${postInfo.data.slug}`}
+                type='number'
+                style={{border:0}}
+                onChange={(e) => onSceneUpdateProperty('duration', e.target.value)}
+                value={activeSceneState?.duration??''}
                 className={'form-input'}
               />
-              <Copy onClick={()=>copyText(`https://${postInfo.data.base_url}/${postInfo.data.slug}`)}/>
+              {activeSceneState.elements.length > 0 &&
+                <p className='font-label'>Elements</p>
+              }
+              {[...activeSceneState.elements].reverse().map((element, index)=>{
+                const isWhite = element?.fill === 'rgba(255,255,255,1)'
+                const isImage = element?.type === 'image'
+
+                var colour
+                var borderColour
+
+                if (element?.fill){
+                  colour = element?.fill
+                  borderColour = lightenRgba(element?.fill, .5)
+                }else{
+                  colour = 'var(--md-sys-color-secondary-container)'
+                  borderColour = 'var(--md-sys-color-secondary-container)'
+                }
+
+                if (!element || element.type==='eraser') return null
+
+                return(
+                    <div key={index} className='no-highlight timeline-bar'
+                      style={{
+                        height:'35px',
+                        marginTop: '5px',
+                        width: '100%',
+                        //backgroundImage: 'url("/transparent-background.jpg")',
+                        background: activeElement?.id === element.id
+                                ? isImage? 'url("/transparent-background.jpg")' : 'var(--md-sys-color-primary)'
+                                : isWhite ? 'var(--md-sys-color-surface)' : colour,
+                        borderRadius:'var(--input-border-radius)',
+                        borderColor: activeElement?.id === element.id
+                                ? 'var(--md-sys-color-secondary-container)'
+                                : isWhite ? 'var(--md-sys-color-surface-container)' : borderColour,
+
+                        alignItems: 'center',
+                        borderWidth:'3px',
+                        borderStyle: 'solid',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      onClick={(e) => {
+                        onSelectElement(element.id);
+                      }}>
+                        {element.type === 'video'&&
+                          <VideoTimelineBar videoElement={element} />
+                        }
+                        {element.type === 'image'&&
+                          <div style={{width: '100%' }} className='repeater-timeline-bar'>
+                            {Array(Math.round(activeSceneState.duration)).fill(0).map((_, index) => (
+                              <img
+                                key={index}
+                                src={element.imageSrc} // Replace with your image source
+                                alt="Repeated image"
+                              />
+                            ))}
+                          </div>
+                        }
+                        {element.type === 'text'&&
+                          <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
+                            {element.type === 'text' ? `"${element.text?.slice(0, 20) || 'Text'}..."` :
+                             element.type}
+                          </span>
+                        }
+                        {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle') &&
+                          <span style={{color:'#ffffff',paddingLeft:'10px', fontSize:'.8em'}} >
+                            {element.type}
+                          </span>
+                        }
+
+                  </div>
+                )
+              })
+
+              }
+
+              <div className='col-2 column-gap-2'>
+                <button onClick={() => duplicateScene(activeSceneState)} style={{flex: 4, marginBottom:0}} className='btn secondary icon-button'>
+                  <Copy className='button-icon'/>
+                  Duplicate
+                </button>
+                {sceneManagerRef.current?.scenes.length>1&&
+                <button style={{marginBottom:0}} onClick={() => removeScene(activeSceneState)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
+                }
+              </div>
             </div>
-            <p className='font-label'>Schedule Date</p>
-              <input
-                id="post-link"
-                type='datetime'
-                defaultValue={new Date(postInfo.data.scheduleDate)}
+          }
+
+          {postInfo&&
+            <div className='properties-container' style={{marginTop:'10px'}}>
+              <div className="property-label" style={{marginTop:0}}><Rss className="property-icon" /><p>Post Info</p></div>
+              {postInfo?.data.scheduled &&
+                <div className="scheduled_badge">
+                  <strong>Scheduled</strong>
+                  <CircleCheck />
+                </div>
+              }
+
+              <p className='font-label'>Post Link</p>
+              <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
+                <input
+                  id="post-link"
+                  type='text'
+                  style={{border:0, margin: '1px'}}
+                  defaultValue={`https://${postInfo.data.base_url}/${postInfo.data.slug}`}
+                  className={'form-input'}
+                />
+                <Copy onClick={()=>copyText(`https://${postInfo.data.base_url}/${postInfo.data.slug}`)}/>
+              </div>
+              <p className='font-label'>Schedule Date</p>
+                <input
+                  id="post-link"
+                  type='datetime'
+                  defaultValue={new Date(postInfo.data.scheduleDate)}
+                  className={'form-input'}
+                />
+              <p className='font-label'>Post Caption</p>
+              <textarea
+                id="post-caption"
+                rows="4"
+                defaultValue={postInfo.data.caption}
                 className={'form-input'}
               />
-            <p className='font-label'>Post Caption</p>
-            <textarea
-              id="post-caption"
-              rows="4"
-              defaultValue={postInfo.data.caption}
-              className={'form-input'}
-            />
-          </div>
-        }
-
-        {activeElement &&
-          <>
-            <div style={{marginTop: '20px'}} className="property-label"><SquareMousePointer className="property-icon" /><p>Active Element</p></div>
-
-            <div className='col-2 column-gap-2'>
-              <button onClick={() => duplicate(activeElement)} style={{flex: 4}} className='btn secondary icon-button'>
-                <Copy className='button-icon'/>
-                Duplicate
-              </button>
-              <button style={{}} onClick={() => removeElement(activeElement)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
             </div>
+          }
 
-            <div className='col-2 column-gap-2'>
-                <button style={{flex:1}} className={`btn  btn-sm ${showEffects? 'primary':''}`} onClick={()=> {
-                    setShowEffects(prev => !prev)
-                    if (!showEffects){
-                      setShowAnimate(false)
-                      setShowProperties(false)
+          {activeElement &&
+            <>
+              <div style={{marginTop: '20px'}} className="property-label"><SquareMousePointer className="property-icon" /><p>Active Element</p></div>
+
+              <div className='col-2 column-gap-2'>
+                <button onClick={() => duplicate(activeElement)} style={{flex: 4}} className='btn secondary icon-button'>
+                  <Copy className='button-icon'/>
+                  Duplicate
+                </button>
+                <button style={{}} onClick={() => removeElement(activeElement)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
+              </div>
+
+              <div className='col-2 column-gap-2'>
+                  <button style={{flex:1}} className={`btn  btn-sm ${showEffects? 'primary':''}`} onClick={()=> {
+                      setShowEffects(prev => !prev)
+                      if (!showEffects){
+                        setShowAnimate(false)
+                        setShowProperties(false)
+                      }
                     }
                   }
-                }
-                >Effects</button>
-                <button style={{flex:1}} className={`btn  btn-sm ${showAnimate? 'primary':''}`} onClick={()=> {
-                  setShowAnimate(prev => !prev)
-                    if (!showAnimate){
-                      setShowProperties(false)
+                  >Effects</button>
+                  <button style={{flex:1}} className={`btn  btn-sm ${showAnimate? 'primary':''}`} onClick={()=> {
+                    setShowAnimate(prev => !prev)
+                      if (!showAnimate){
+                        setShowProperties(false)
+                        setShowEffects(false)
+                      }
+                    }
+                  }
+                  >Animate</button>
+                  <button style={{flex:1}} className={`btn  btn-sm ${showProperties? 'primary':''}`} onClick={()=> {
+                    setShowProperties(prev => !prev)
+                    if (!showProperties){
+                      setShowAnimate(false)
                       setShowEffects(false)
                     }
                   }
-                }
-                >Animate</button>
-                <button style={{flex:1}} className={`btn  btn-sm ${showProperties? 'primary':''}`} onClick={()=> {
-                  setShowProperties(prev => !prev)
-                  if (!showProperties){
-                    setShowAnimate(false)
-                    setShowEffects(false)
-                  }
-                }
 
-            }
-                >Properties</button>
-            </div>
-          </>
-        }
-        {showEffects &&
-          <EffectsPanel
+              }
+                  >Properties</button>
+              </div>
+            </>
+          }
+          {showEffects &&
+            <EffectsPanel
+              element={activeElement}
+              scene={activeSceneState}
+              onUpdateElement={onElementUpdateProperty}
+            />
+          }
+
+          {showAnimate &&
+            <AnimatePanel
             element={activeElement}
             scene={activeSceneState}
             onUpdateElement={onElementUpdateProperty}
-          />
-        }
-
-        {showAnimate &&
-          <AnimatePanel
-          element={activeElement}
-          scene={activeSceneState}
-          onUpdateElement={onElementUpdateProperty}
-          duration={duration}
-          />
-        }
-        {showProperties &&
-          <PropertiesPanel
-          element={activeElement}
-          onElementUpdateProperty={onElementUpdateProperty}
-          selectedIndex={selectedIndexRef.current}
-          removeItem={removeElement}
-          resizeImage={resizeImage}
-          bringToFront={bringToFront}
-          sendToBack={sendToBack}
-          moveBackwards={moveBackwards}
-          moveForward={moveForward}
-          toolCallback={toolCallback}
-          activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
-          />
-        }
+            duration={duration}
+            />
+          }
+          {showProperties &&
+            <PropertiesPanel
+            element={activeElement}
+            onElementUpdateProperty={onElementUpdateProperty}
+            selectedIndex={selectedIndexRef.current}
+            removeItem={removeElement}
+            resizeImage={resizeImage}
+            bringToFront={bringToFront}
+            sendToBack={sendToBack}
+            moveBackwards={moveBackwards}
+            moveForward={moveForward}
+            toolCallback={toolCallback}
+            activeTool={activeTool}
+            canvasEditorHeight={canvasEditorHeight}
+            />
+          }
       </div>
+    }
       <div ref={topToolbarRef} className='canvas-top-toolbar dropshadow'>
         <div style={{display:'flex', alignItems:'center'}}>
           {/*}<input type="file" id="myFile" name="myFile" onChange={sendApiWorkflow}/>*/}
@@ -11807,233 +11822,237 @@ const PropertiesPanel = ({
   canvasEditorHeight
 }) => {
 
+
   if (element === null) return <div></div>
 
   const selectedFont = FONTS.find((font)=> font.family === element?.fontFamily)
 
   return(
-    <div>
-      <div className="property-label" style={{marginTop:10}}>
-          <Settings className="property-icon"  />
-          <p>Properties</p>
-      </div>
-      <div style={{padding:'0px 10px'}}>
-        {element.type === 'text' &&
-          <div>
-            <p className='font-label'>Text</p>
-            <textarea
-                rows="4"
-                name="elementContent"
-                className="form-input input"
-                value={element.text}
-                onChange={(e) => onElementUpdateProperty('text', e.target.value)}
-            />
+      <div>
+
+        <div className="property-label" style={{marginTop:10}}>
+            <Settings className="property-icon"  />
+            <p>Properties</p>
+        </div>
+        <div style={{padding:'0px 10px'}}>
+          {element.type === 'text' &&
             <div>
-              <p className='font-label'>Font</p>
-              <FontDropdown placeholder={element.fontFamily}>
-                {FONTS.map((font, index)=>{
-                  return <p key={index} onClick={() => onElementUpdateProperty('fontFamily', font.family)} style={{fontFamily:font.family, cursor: "pointer"}} className="no-highlight">{font.family}</p>
-                })
-                }
-              </FontDropdown>
-            </div>
-            <div>
-              <p className='font-label'>Font Styles</p>
-              <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontStyle', e.target.value)} value={element.fontStyle}>
-                {selectedFont.styles.map((fontStyle, index)=>{
-                  return <option key={index} value={fontStyle}>{fontStyle}</option>
-                })
-                }
-              </select>
-            </div>
-            <div className='col-2 column-gap-2'>
+              <p className='font-label'>Text</p>
+              <textarea
+                  rows="4"
+                  name="elementContent"
+                  className="form-input input"
+                  value={element.text}
+                  onChange={(e) => onElementUpdateProperty('text', e.target.value)}
+              />
               <div>
-                <p className='font-label'>Font Size</p>
-                <input id='font-size' className="form-input input font-label-input" value={element.fontSize} type='number' onChange={(e) => onElementUpdateProperty('fontSize', e.target.value)}/>
+                <p className='font-label'>Font</p>
+                <FontDropdown placeholder={element.fontFamily}>
+                  {FONTS.map((font, index)=>{
+                    return <p key={index} onClick={() => onElementUpdateProperty('fontFamily', font.family)} style={{fontFamily:font.family, cursor: "pointer"}} className="no-highlight">{font.family}</p>
+                  })
+                  }
+                </FontDropdown>
               </div>
               <div>
-                <p className='font-label'>Font Weight</p>
-                <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontWeight', e.target.value)} value={element.fontWeight}>
-                  {selectedFont.weights.map((fontWeight, index)=>{
-                    return <option key={index} value={fontWeight}>{fontWeight}</option>
+                <p className='font-label'>Font Styles</p>
+                <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontStyle', e.target.value)} value={element.fontStyle}>
+                  {selectedFont.styles.map((fontStyle, index)=>{
+                    return <option key={index} value={fontStyle}>{fontStyle}</option>
                   })
                   }
                 </select>
               </div>
-            </div>
-            <div className='col-2 column-gap-2'>
-              <div>
-                <p className='font-label'>Align</p>
-                <div style={{display:'flex', alignItems:'center', height: '38px', margin: '5px 0px 10px 0px'}}>
-                    <img style={{width:30}} src={element.textAlign === 'left'? '/text_align_left_active.svg':'/text_align_left.svg'} onClick={() => onElementUpdateProperty('textAlign', 'left')}/>
-                    <img style={{width:30}} src={element.textAlign === 'center'? '/text_align_center_active.svg':'/text_align_center.svg'} onClick={() => onElementUpdateProperty('textAlign', 'center')}/>
-                    <img style={{width:30}} src={element.textAlign === 'right'? '/text_align_right_active.svg':'/text_align_right.svg'} onClick={() => onElementUpdateProperty('textAlign', 'right')}/>
-                </div>
-              </div>
-              <div>
-                <p className='font-label'>Line Height</p>
-                <input id='line-Height' className="form-input input font-label-input" value={element.lineHeight} type='number' onChange={(e) => onElementUpdateProperty('lineHeight', e.target.value)}/>
-              </div>
-            </div>
-          </div>
-        }
-
-        {element.type !== 'text' &&
-          <>
-            <hr/>
-            <div className="property-container">
-              <div className="property-label"><Maximize2 className="property-icon" /><p>Size</p></div>
-              {element.type === 'image' &&
-                <div className='col-2 column-gap-2' style={{margin: '10px 0px 10px 0px'}}>
-                  <div>
-                    <p className='font-label'>Scale Width</p>
-                    {`${toPercent(element.width/element.originalWidth)} %`}
-                  </div>
-                  <div>
-                    <p className='font-label'>Scale Height</p>
-                    {`${toPercent(element.h/element.originalHeight)} %`}
-                  </div>
-                </div>
-              }
               <div className='col-2 column-gap-2'>
-                <div style={{margin: '0px 0px 10px 0px'}}>
-                  <p className='font-label'>Width</p>
-                  <input
-                    id='properties-width'
-                    type='number'
-                    value={element.width}
-                    onChange={(e) => onElementUpdateProperty('width', e.target.value)}
-                    step={1}
-                    className="form-input input font-label-input"
-                  />
+                <div>
+                  <p className='font-label'>Font Size</p>
+                  <input id='font-size' className="form-input input font-label-input" value={element.fontSize} type='number' onChange={(e) => onElementUpdateProperty('fontSize', e.target.value)}/>
                 </div>
-                <div style={{margin: '0px 0px 0px px'}}>
-                  <p className='font-label'>Height</p>
-                  <input
-                    id='properties-height'
-                    type='number'
-                    value={element.h}
-                    onChange={(e) => onElementUpdateProperty('h', e.target.value)}
-                    step={1}
-                    className="form-input input font-label-input"
-                  />
+                <div>
+                  <p className='font-label'>Font Weight</p>
+                  <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontWeight', e.target.value)} value={element.fontWeight}>
+                    {selectedFont.weights.map((fontWeight, index)=>{
+                      return <option key={index} value={fontWeight}>{fontWeight}</option>
+                    })
+                    }
+                  </select>
                 </div>
               </div>
-              {element.type === 'image' &&
-                <>
+              <div className='col-2 column-gap-2'>
+                <div>
+                  <p className='font-label'>Align</p>
+                  <div style={{display:'flex', alignItems:'center', height: '38px', margin: '5px 0px 10px 0px'}}>
+                      <img style={{width:30}} src={element.textAlign === 'left'? '/text_align_left_active.svg':'/text_align_left.svg'} onClick={() => onElementUpdateProperty('textAlign', 'left')}/>
+                      <img style={{width:30}} src={element.textAlign === 'center'? '/text_align_center_active.svg':'/text_align_center.svg'} onClick={() => onElementUpdateProperty('textAlign', 'center')}/>
+                      <img style={{width:30}} src={element.textAlign === 'right'? '/text_align_right_active.svg':'/text_align_right.svg'} onClick={() => onElementUpdateProperty('textAlign', 'right')}/>
+                  </div>
+                </div>
+                <div>
+                  <p className='font-label'>Line Height</p>
+                  <input id='line-Height' className="form-input input font-label-input" value={element.lineHeight} type='number' onChange={(e) => onElementUpdateProperty('lineHeight', e.target.value)}/>
+                </div>
+              </div>
+            </div>
+          }
+
+          {element.type !== 'text' &&
+            <>
+              <hr/>
+              <div className="property-container">
+                <div className="property-label"><Maximize2 className="property-icon" /><p>Size</p></div>
+                {element.type === 'image' &&
+                  <div className='col-2 column-gap-2' style={{margin: '10px 0px 10px 0px'}}>
+                    <div>
+                      <p className='font-label'>Scale Width</p>
+                      {`${toPercent(element.width/element.originalWidth)} %`}
+                    </div>
+                    <div>
+                      <p className='font-label'>Scale Height</p>
+                      {`${toPercent(element.h/element.originalHeight)} %`}
+                    </div>
+                  </div>
+                }
+                <div className='col-2 column-gap-2'>
                   <div style={{margin: '0px 0px 10px 0px'}}>
-                    <p className='font-label'>Image Sizing</p>
-                    <div style={{display:'flex', gap:'2px', marginTop:'10px'}}>
-                      <img src='/fit_width.svg' onClick={() => resizeImage('Fit Width')} style={{width:'28px', marginRight:'10px'}} alt='Fit Width'/>
-                      <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'10px'}} alt='Fit Page'/>
-                      <ToolSVG
-                        icon={Crop}
-                        callBack={toolCallback}
-                        tool='cropping'
-                        label='Cropping'
-                        position={'right'}
-                        activeTool={activeTool}
-                        canvasEditorHeight={canvasEditorHeight}
-                      />
-                    </div>
+                    <p className='font-label'>Width</p>
+                    <input
+                      id='properties-width'
+                      type='number'
+                      value={element.width}
+                      onChange={(e) => onElementUpdateProperty('width', e.target.value)}
+                      step={1}
+                      className="form-input input font-label-input"
+                    />
                   </div>
-                  <div className="property-container">
-                    <div className="property-label"><FileImage className="property-icon" /><p>Image Details</p></div>
-                    <div style={{margin: '0px 0px 0px px', }}>
-                      <p className='font-label'>Caption</p>
-                      <textarea
-                          rows="3"
-                          name="elementContent"
-                          className="form-input input"
-                          value={element.mediaCaption??''}
-                          onChange={(e) => onElementUpdateProperty('mediaCaption', e.target.value)}
-                      />
-                    </div>
+                  <div style={{margin: '0px 0px 0px px'}}>
+                    <p className='font-label'>Height</p>
+                    <input
+                      id='properties-height'
+                      type='number'
+                      value={element.h}
+                      onChange={(e) => onElementUpdateProperty('h', e.target.value)}
+                      step={1}
+                      className="form-input input font-label-input"
+                    />
                   </div>
-                </>
-              }
+                </div>
+                {element.type === 'image' &&
+                  <>
+                    <div style={{margin: '0px 0px 10px 0px'}}>
+                      <p className='font-label'>Image Sizing</p>
+                      <div style={{display:'flex', gap:'2px', marginTop:'10px'}}>
+                        <img src='/fit_width.svg' onClick={() => resizeImage('Fit Width')} style={{width:'28px', marginRight:'10px'}} alt='Fit Width'/>
+                        <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'10px'}} alt='Fit Page'/>
+                        <ToolSVG
+                          icon={Crop}
+                          callBack={toolCallback}
+                          tool='cropping'
+                          label='Cropping'
+                          position={'right'}
+                          activeTool={activeTool}
+                          canvasEditorHeight={canvasEditorHeight}
+                        />
+                      </div>
+                    </div>
+                    <div className="property-container">
+                      <div className="property-label"><FileImage className="property-icon" /><p>Image Details</p></div>
+                      <div style={{margin: '0px 0px 0px px', }}>
+                        <p className='font-label'>Caption</p>
+                        <textarea
+                            rows="3"
+                            name="elementContent"
+                            className="form-input input"
+                            value={element.mediaCaption??''}
+                            onChange={(e) => onElementUpdateProperty('mediaCaption', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
+                }
+              </div>
+              <hr/>
+            </>
+          }
+          <div className="property-container">
+            <div className="property-label"><Move className="property-icon" /><p>Position</p></div>
+            <div className='col-2 column-gap-2'>
+              <div style={{margin: '0px 0px 0px px'}}>
+                <p className='font-label'>X</p>
+                <input
+                  id='properties-x'
+                  type='number'
+                  value={element.cx}
+                  onChange={(e) => onElementUpdateProperty('cx', e.target.value)}
+                  step={1}
+                  className="form-input input font-label-input"
+                />
+              </div>
+              <div style={{margin: '0px 0px 0px px'}}>
+                <p className='font-label'>Y</p>
+                <input
+                  id='properties-y'
+                  type='number'
+                  value={element.cy}
+                  onChange={(e) => onElementUpdateProperty('cy', e.target.value)}
+                  step={1}
+                  className="form-input input font-label-input"
+                />
+              </div>
             </div>
-            <hr/>
-          </>
-        }
-        <div className="property-container">
-          <div className="property-label"><Move className="property-icon" /><p>Position</p></div>
-          <div className='col-2 column-gap-2'>
+            <p className='font-label'>Arrange</p>
+            <div className='col-2' style={{columnGap : '2%'}}>
+              <button className="btn secondary icon-button btn-sm" onClick={bringToFront} style={{flex:1, marginBottom:0}}><BringToFront className='button-icon'/>To Front</button>
+              <button className="btn secondary icon-button btn-sm" onClick={sendToBack} style={{flex:1, marginBottom:0}}><SendToBack className='button-icon'/>To Back</button>
+            </div>
+            <div className='col-2' style={{columnGap : '2%'}}>
+              <button className="btn secondary icon-button btn-sm" onClick={moveBackwards} style={{flex:1}}><BringToFront className='button-icon'/>Backward</button>
+              <button className="btn secondary icon-button btn-sm" onClick={moveForward} style={{flex:1}}><SendToBack className='button-icon'/>Forward</button>
+            </div>
+          </div>
+          {(element.type !== 'text') &&
             <div style={{margin: '0px 0px 0px px'}}>
-              <p className='font-label'>X</p>
+              <p className='font-label'>Stroke Weight</p>
               <input
-                id='properties-x'
+                id='stroke-weight'
                 type='number'
-                value={element.cx}
-                onChange={(e) => onElementUpdateProperty('cx', e.target.value)}
+                value={element.strokeWeight}
+                onChange={(e) => onElementUpdateProperty('strokeWeight', Number(e.target.value))}
                 step={1}
-                className="form-input input font-label-input"
+                className="form-input input"
               />
             </div>
-            <div style={{margin: '0px 0px 0px px'}}>
-              <p className='font-label'>Y</p>
-              <input
-                id='properties-y'
-                type='number'
-                value={element.cy}
-                onChange={(e) => onElementUpdateProperty('cy', e.target.value)}
-                step={1}
-                className="form-input input font-label-input"
-              />
-            </div>
-          </div>
-          <p className='font-label'>Arrange</p>
-          <div className='col-2' style={{columnGap : '2%'}}>
-            <button className="btn secondary icon-button btn-sm" onClick={bringToFront} style={{flex:1, marginBottom:0}}><BringToFront className='button-icon'/>To Front</button>
-            <button className="btn secondary icon-button btn-sm" onClick={sendToBack} style={{flex:1, marginBottom:0}}><SendToBack className='button-icon'/>To Back</button>
-          </div>
-          <div className='col-2' style={{columnGap : '2%'}}>
-            <button className="btn secondary icon-button btn-sm" onClick={moveBackwards} style={{flex:1}}><BringToFront className='button-icon'/>Backward</button>
-            <button className="btn secondary icon-button btn-sm" onClick={moveForward} style={{flex:1}}><SendToBack className='button-icon'/>Forward</button>
-          </div>
-        </div>
-        {(element.type !== 'text') &&
-          <div style={{margin: '0px 0px 0px px'}}>
-            <p className='font-label'>Stroke Weight</p>
-            <input
-              id='stroke-weight'
-              type='number'
-              value={element.strokeWeight}
-              onChange={(e) => onElementUpdateProperty('strokeWeight', Number(e.target.value))}
+          }
+
+          <div style={{margin: '0px 0px 0px px', }}>
+            <div style={{display:'flex', gap:'5px'}} className='font-label'>  <p>Opacity</p> <p>{Math.round(element.opacity * 100)}%</p></div>
+            <Slider
+              id='properties-opacity'
+              type='range'
+              value={[(element.opacity ?? 1) * 100]}
+              onChange={(e) => onElementUpdateProperty('opacity', (e.target.value / 100).toFixed(2))}
+              min={0}
+              max={100}
               step={1}
-              className="form-input input"
             />
           </div>
-        }
-
-        <div style={{margin: '0px 0px 0px px', }}>
-          <div style={{display:'flex', gap:'5px'}} className='font-label'>  <p>Opacity</p> <p>{Math.round(element.opacity * 100)}%</p></div>
-          <Slider
-            id='properties-opacity'
-            type='range'
-            value={[(element.opacity ?? 1) * 100]}
-            onChange={(e) => onElementUpdateProperty('opacity', (e.target.value / 100).toFixed(2))}
-            min={0}
-            max={100}
-            step={1}
-          />
-        </div>
-        <div style={{margin: '0px 0px 0px px', }}>
-          <div style={{display:'flex', gap:'5px'}} className='font-label'><p>Rotation</p> <p>{Math.round(radToDeg(element.angle))}</p></div>
-          <Slider
-            id="properties-angle"
-            type="range"
-            value={radToDeg(element.angle || 0)}
-            onChange={(e) =>
-              onElementUpdateProperty('angle', degToRad(parseFloat(e.target.value)))
-            }
-            min={0}
-            max={360}
-            step={1}
-          />
+          <div style={{margin: '0px 0px 0px px', }}>
+            <div style={{display:'flex', gap:'5px'}} className='font-label'><p>Rotation</p> <p>{Math.round(radToDeg(element.angle))}</p></div>
+            <Slider
+              id="properties-angle"
+              type="range"
+              value={radToDeg(element.angle || 0)}
+              onChange={(e) =>
+                onElementUpdateProperty('angle', degToRad(parseFloat(e.target.value)))
+              }
+              min={0}
+              max={360}
+              step={1}
+            />
+          </div>
         </div>
       </div>
-    </div>
+
+
   )
 }
 
