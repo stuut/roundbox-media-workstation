@@ -7,26 +7,6 @@ import { BufferedBrush } from "@/lib/buffered-brush"
 import '@/app/canvas_styles.css'
 import { convertMMToPixels } from "@/lib/calculations"
 import { useFilesContext } from "@/context/files-context"
-import { buildScenesWithTiming } from "@/lib/scene-segmentation"
-import { preprocessScenes } from "@/lib/scene-segmentation"
-import { getSceneDuration } from "@/lib/scene-segmentation"
-import { deleteFiles } from "@/lib/supabase";
-import { createTemplate } from "@/lib/supabase";
-import { getTemplates } from "@/lib/supabase";
-import { getChannels } from "@/lib/supabase";
-import { savePost } from "@/lib/supabase";
-import { savePostFile } from "@/lib/supabase";
-import { savePostPublications } from "@/lib/supabase";
-import { getPostsWithDate } from "@/lib/supabase";
-import { updatePostPublication } from "@/lib/supabase";
-import { createVideoFromImages } from  "@/lib/createVideoFromImages"
-import Cropper from 'cropperjs';
-import { Summary } from '@/components/summary'
-import Slider from '@mui/material/Slider';
-import { Caption } from '@/components/caption'
-import { getFilesSearch } from "@/lib/supabase";
-import { useEditItemContext } from "@/context/edit-item-context"
-import { formatR2Url } from "@/lib/format-rs-url"
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
   Film, Clock, Loader2, Trash2, Maximize2, Upload, Download, Music,
@@ -44,20 +24,9 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Facebook,
   Instagram,
   ChevronDown,
-  Crop,
-  Replace,
-  EllipsisVertical,
-  ArrowLeft,
-  ZoomIn,
-  ZoomOut,
-  Frame,
-  RefreshCcw,
-  Eye,
-  EyeOff,
-  SquareArrowUpRight
+  Crop
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
-import { updateFileDescriptionValue } from "@/lib/supabase";
 import { storeFileInfo } from "@/lib/supabase";
 import { isObjectInArray } from '@/lib/utils'
 import { showSuccess } from '@/lib/toast';
@@ -76,11 +45,6 @@ import JSZip from "jszip";
 import axios from "axios";
 var WPAPI = require( 'wpapi' );
 import WavesurferPlayer from '@wavesurfer/react'
-const workflowJson = require('../outpainting_api.json');
-import { FONTS } from '@/utils/fonts.config.js';
-import { FontDropdown } from  "@/components/font-dropdown"
-//const workflowJson = require('../outpainting_api_v2.json');
-
 
 /*
 import { Recorder, RecorderStatus, Encoders } from "canvas-record";
@@ -88,168 +52,7 @@ import createCanvasContext from "canvas-context";
 import { AVC } from "media-codecs";*/
 
 
-const designSample = {
-    "data": {
-        "success": true,
-        "data": {
-            "canvas": {
-                "width": 210,
-                "height": 297,
-                "format": "portrait"
-            },
-            "style": {
-                "fontProvider": "google_fonts",
-                "allowedFonts": [
-                    "Poppins",
-                    "Montserrat"
-                ],
-                "colorPalette": [
-                    "#6F4E37",
-                    "#A0522D",
-                    "#FAF0E6",
-                    "#FFC0CB"
-                ]
-            },
-            "elements": [
-                {
-                    "id": "header",
-                    "position": {
-                        "x": 0,
-                        "y": 0
-                    },
-                    "type": "text",
-                    "content": "☕ COFFEE BLISS SALE! 🍂",
-                    "font": {
-                        "family": "Poppins",
-                        "size": 48,
-                        "weight": 700
-                    },
-                    "color": "#6F4E37"
-                },
-                {
-                    "id": "main_title",
-                    "position": {
-                        "x": 0,
-                        "y": 50
-                    },
-                    "type": "text",
-                    "content": "Autumn Harvest Sale",
-                    "font": {
-                        "family": "Montserrat",
-                        "size": 80,
-                        "weight": 900
-                    },
-                    "color": "#A0522D"
-                },
-                {
-                    "id": "subtitle",
-                    "position": {
-                        "x": 0,
-                        "y": 130
-                    },
-                    "type": "text",
-                    "content": "Savor the warmth of fall with our finest blends.",
-                    "font": {
-                        "family": "Poppins",
-                        "size": 24,
-                        "weight": 400
-                    },
-                    "color": "#6F4E37"
-                },
-                {
-                    "id": "sale_details",
-                    "position": {
-                        "x": 0,
-                        "y": 180
-                    },
-                    "type": "text",
-                    "content": "UP TO 50% OFF ALL COFFEE BEANS & MERCHANDISE!",
-                    "font": {
-                        "family": "Montserrat",
-                        "size": 60,
-                        "weight": 700
-                    },
-                    "color": "#A0522D"
-                },
-                {
-                    "id": "product_grid",
-                    "position": {
-                        "x": 30,
-                        "y": 250
-                    },
-                    "type": "image",
-                    "assetQuery": "coffee beans stack",
-                    "fit": "contain",
-                    "size": "full"
-                },
-                {
-                    "id": "offer_blocks",
-                    "position": {
-                        "x": 30,
-                        "y": 380
-                    },
-                    "type": "text",
-                    "content": "• Signature Roast: Buy 2 Get 1 Free\n• Espresso Blend: 25% Off\n• Seasonal Latte Mix: Special Bundle Deal",
-                    "font": {
-                        "family": "Poppins",
-                        "size": 26,
-                        "weight": 400
-                    },
-                    "color": "#6F4E37"
-                },
-                {
-                    "id": "call_to_action",
-                    "position": {
-                        "x": 0,
-                        "y": 550
-                    },
-                    "zIndex": 10,
-                    "type": "button",
-                    "text": "SHOP NOW AT [YourWebsite.com]",
-                    "style": "primary"
-                },
-                {
-                    "id": "footer",
-                    "position": {
-                        "x": 0,
-                        "y": 620
-                    },
-                    "type": "text",
-                    "content": "Sale ends October 31st | Follow us @CoffeeBlissCo",
-                    "font": {
-                        "family": "Poppins",
-                        "size": 18,
-                        "weight": 300
-                    },
-                    "color": "#A0522D"
-                }
-            ]
-        }
-    }
-}
 
-
-const isDev = process.env.NODE_ENV === 'development';
-
-
-function getDisplayTime(text, options = {}) {
-  const {
-    wpm = 180,
-    minTime = 2,     // seconds
-    maxTime = 10,    // optional cap
-    buffer = 0.5     // extra seconds
-  } = options;
-
-  const words = text.trim().split(/\s+/).length;
-  const baseTime = (words / wpm) * 60;
-
-  let time = baseTime + buffer;
-
-  if (time < minTime) time = minTime;
-  if (maxTime && time > maxTime) time = maxTime;
-
-  return time;
-}
 
 
 function lightenRgba(rgba, amount = 0.5) {
@@ -388,68 +191,104 @@ const defaultFonts = [
   "Georgia",
 ]
 
-const EFFECTS_TYPES = [
-  {
-    type: 'dropShadowClassic',
-    label: 'Drop Shadow Classic',
-    shadowColor: "rgba(0, 0, 0, 1)",
-    shadowBlur: 8,
-    shadowOffsetX: 10,
-    shadowOffsetY: 10
-  },
-
-];
-
 const ANIMATION_TYPES = [
-  { type: 'fadeIn', label: 'Fade In', easing: 'easeOutQuad'},
-  { type: 'fadeOut', label: 'Fade Out', easing: 'easeOutQuad' },
-  { type: 'slideInLeft', label: 'Slide In Left', easing: 'easeOutQuad'},
-  { type: 'slideInRight', label: 'Slide In Right', easing: 'easeOutQuad' },
-  { type: 'slideInTop', label: 'Slide In Top', easing: 'easeOutQuad' },
-  { type: 'slideInBottom', label: 'Slide In Bottom', easing: 'easeOutQuad' },
-  { type: 'scaleIn', label: 'Scale In', easing: 'easeOutQuad' },
-  { type: 'scaleOut', label: 'Scale Out', easing: 'easeOutQuad' },
-  { type: 'rotate', label: 'Rotate 360°', easing: 'easeOutQuad' },
-  { type: 'pulse', label: 'Pulse', easing: 'pulseScale' },
-  { type: 'bounce', label: 'Bounce', easing: 'easeOutBounce' },
-  { type: 'drop', label: 'Drop', easing: 'easeOutBounce' },
-  { type: 'grow', label: 'Grow', easing: 'easeOutQuad' },
-  { type: 'rotateInLeft', label: 'Rotate In Left', easing: 'easeOutQuad' },
-  { type: 'rotateInRight', label: 'Rotate In Right', easing: 'easeOutQuad' },
-
-
+  { value: 'fadeIn', label: 'Fade In', easing: 'easeOutQuad'},
+  { value: 'fadeOut', label: 'Fade Out', easing: 'easeOutQuad' },
+  { value: 'slideInLeft', label: 'Slide In Left', easing: 'easeOutQuad'},
+  { value: 'slideInRight', label: 'Slide In Right', easing: 'easeOutQuad' },
+  { value: 'slideInTop', label: 'Slide In Top', easing: 'easeOutQuad' },
+  { value: 'slideInBottom', label: 'Slide In Bottom', easing: 'easeOutQuad' },
+  { value: 'scaleIn', label: 'Scale In', easing: 'easeOutQuad' },
+  { value: 'scaleOut', label: 'Scale Out', easing: 'easeOutQuad' },
+  { value: 'rotate', label: 'Rotate 360°', easing: 'easeOutQuad' },
+  { value: 'pulse', label: 'Pulse', easing: 'easeOutQuad' },
+  { value: 'bounce', label: 'Bounce', easing: 'easeOutQuad' },
+  { value: 'grow', label: 'Grow', easing: 'easeOutQuad' }
 ];
 
 const TEXT_ONLY_ANIMATION_TYPES = [
-  { type: 'fadeInUpLines', label: '📝 Lines: Fade In Up', easing: 'easeOutQuad' },
-  { type: 'fadeInLines', label: '📝 Lines: Fade In', easing: 'easeOutQuad' },
-  { type: 'slideInLeftLines', label: '📝 Lines: Slide Left', easing: 'easeOutQuad' },
-  { type: 'slideInRightLines', label: '📝 Lines: Slide Right', easing: 'easeOutQuad' },
-  { type: 'fadeInUpChar', label: '📝 Characters: Fade In Up', easing: 'easeOutQuad' },
-  { type: 'fadeInChar', label: '📝 Characters: Fade In', easing: 'easeOutQuad' },
-  { type: 'slideInLeftChar', label: '📝 Characters: Slide Left', easing: 'easeOutQuad' },
-  { type: 'slideInRightChar', label: '📝 Characters: Slide Right', easing: 'easeOutQuad' },
+  { value: 'fadeInUpLines', label: '📝 Lines: Fade In Up', easing: 'easeOutQuad' },
+  { value: 'fadeInLines', label: '📝 Lines: Fade In', easing: 'easeOutQuad' },
+  { value: 'slideInLeftLines', label: '📝 Lines: Slide Left', easing: 'easeOutQuad' },
+  { value: 'slideInRightLines', label: '📝 Lines: Slide Right', easing: 'easeOutQuad' },
+  { value: 'fadeInUpChar', label: '📝 Characters: Fade In Up', easing: 'easeOutQuad' },
+  { value: 'fadeInChar', label: '📝 Characters: Fade In', easing: 'easeOutQuad' },
+  { value: 'slideInLeftChar', label: '📝 Characters: Slide Left', easing: 'easeOutQuad' },
+  { value: 'slideInRightChar', label: '📝 Characters: Slide Right', easing: 'easeOutQuad' },
 ];
 
 const TEMPLATES = {
   videos : [
     {
-      label:'Reel - Heading Only',
-      image:''
-    },
-    {
-      label:'Reel - Full Story',
-      image:''
+      label:'Reel'
     }
   ],
   images : [
     {
-      label:'Story',
-      image:''
+      label:'Story'
     }
   ]
 
 }
+
+const FEEDS = [
+  {
+    label: 'Hilltops Phoenix',
+    spaceId: 'ticbtmcn8ib7',
+    accessToken: 'ZevYwQ2O4E749EFWvAWStcN_nZh9ntUhi5dzW9fk2Dw',
+    website:'www.hilltopsphoenix.com.au',
+    CMSType:'contentful',
+    scheduleDate: 'scheduleDate',
+    publishedDate: 'publishDate',
+    slug:'slug',
+    title:'title',
+    image:'heroImage',
+    text:'body',
+    facebook_page_id:'1509386042722586'
+
+  },
+  {
+    label: 'Cowra Phoenix',
+    spaceId: 'blbpa6fzvcno',
+    accessToken: '_jbLmb4SDG2TkgW42NOTAVjPoCS78mQGEjOIXJrRExI',
+    website:'www.cowraphoenix.com.au',
+    CMSType:'contentful',
+    scheduleDate: 'scheduleDate',
+    publishedDate: 'publishDate',
+    slug:'slug',
+    title:'title',
+    image:'image',
+    text:'copy',
+    facebook_page_id:'100367901935086'
+  },
+  {
+    label: 'Canowindra Phoenix',
+    username: 'editor',
+    password: 'xKGAB%ncydDFbrClXwd5Ex%t',
+    website:'www.canowindraphoenix.com.au',
+    CMSType:'wordpress',
+    facebook_page_id:'106626202692898',
+    scheduleDate: 'acf.schedule_date',
+  },
+  {
+    label: 'Parkes Phoenix',
+    username: 'roxane',
+    password: 'SOw4vSFu*ueYUBnR$4Jkip@b',
+    website:'www.parkesphoenix.com.au',
+    CMSType:'wordpress',
+    facebook_page_id:'973264922791233',
+    scheduleDate: 'acf.schedule_date',
+  },
+  {
+    label: 'Forbes Phoenix',
+    username: 'roxane',
+    password: 'f#63$^bBGRz(Om)XXcpLqt0z',
+    website:'www.forbesphoenix.com.au',
+    CMSType:'wordpress',
+    facebook_page_id:'883736781692596',
+    scheduleDate: 'acf.schedule_date',
+  },
+]
 
 const fonts = [
   {
@@ -502,8 +341,6 @@ function copyText(text) {
   });
 }
 
-
-
 function generateUniqueId() {
     // High-resolution timestamp
     const timestamp = new Date().getTime().toString();
@@ -543,8 +380,7 @@ function calculateMinAnimationDuration({
 
 
 
-export const Danva = (({postData, user, feeds}, ref) => {
-  const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
+export const Danva = (({postData, user}, ref) => {
 
   const upperRef = useRef(null);
   const lowerRef = useRef(null);
@@ -590,13 +426,11 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const rotatingRef = useRef(false)
   const offsetRef = useRef(null)
   const selectedIndexRef = useRef(null)
-  const selectedIndexsRef = useRef(null)
   const draggingRef = useRef(null);
   const handMode = useRef(false); // spacebar toggles this
   const isPanning = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const topToolbarRef = useRef(null);
-  const toolbarRef = useRef(null);
   const brushTextureRef = useRef(null)
   const eraserTextureRef = useRef(null)
   const textHilightRef = useRef(false)
@@ -604,9 +438,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const [strokeColour, setStrokeColour] = useState('rgba(0,0,0,1)');
   const [strokeWeight, setStrokeWeight] = useState(0);
   const isPaintingRef = useState(null);
-  const isErasingRef = useRef(false);
-  const isErasingObjectRef = useRef(null);
-
+  const isErasingRef = useState(null);
 
   // Resize effect
   const [brushSize, setBrushSize] = useState(200)
@@ -645,7 +477,6 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const startTimeRef = useRef(null);
   const [showAnimate, setShowAnimate] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
-  const [showEffects, setShowEffects] = useState(false);
   const [duration, setDuration] = useState(5);
   const [fps, setFps] = useState(30);
   const [isExporting, setIsExporting] = useState(false);
@@ -671,6 +502,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const [dragMedia, setDragMedia] = useState(null)
   const postDataArrayRef = useRef([]);
   const [postInfo, setPostInfo] = useState(null);
+  const [textEditing, setTextEditing] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [videoFrameProgress, setVideoFrameProgress] = useState(0);
   const [videoConvertProgress, setVideoConvertProgress] = useState(0);
@@ -681,42 +513,12 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const [activeElement, setActiveElement] = useState(null);
   const [activeSceneState, setActiveSceneState] = useState(null);
 
-  const [selectedFeed, setSelectedFeed] = useState(feeds[0])
+  const [selectedFeed, setSelectedFeed] = useState(FEEDS[0])
   const [dateFilter, setDateFilter] = useState(new Date());
   const [posts, setPosts] = useState([]);
 
    const sceneManagerRef = useRef(null);
-   const [updateTimeline, setUpdateTimeLine] = useState(false);
-   const [imageMediaLabel, setImageMediaLabel] = useState('Add Image')
-   const [imageMediaToolLabel, setImageMediaToolLabel] = useState('Images')
-   const [showFileEdit, setShowFileEdit] = useState(false)
-   const [fileEdit, setFileEdit] = useState(null)
-   const [uploadFileState, setUploadFileState] = useState(null)
-
-   const evtSourceRef = useRef(null);
-   const editImageRef = useRef(null)
-
-   const [canvasEditorHeight, setCanvasEditorHeight] = useState(500)
-
-   const tooTipHeight = 35
-
-   const keydownHandlerRef = useRef(null);
-   const pasteHandlerRef = useRef(null);
-   const blurHandlerRef = useRef(null);
-
-  const [loadedProject, setLoadedProject] = useState('')
-  const [propertiesPanelVisibilty, setPropertiesPanelVisibilty] = useState(true)
-
-
-
-  const browserFFmpeg = process.env.NODE_ENV !== 'development'
-
-  //const browserFFmpeg = process.env.NODE_ENV === 'development'
-
-
-  //console.log('browserFFmpeg', browserFFmpeg)
-
-
+   const[updateTimeline, setUpdateTimeLine] = useState(false);
 
   class SceneManager {
     constructor({
@@ -788,16 +590,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
     updateBackgroundColour(colour){
       const activeScene = this.getActiveScene()
       activeScene.updateBackgroundColour(colour)
-    }
-
-    getDuration(){
-      let duration = 0
-
-        this.scenes.forEach((scene)=>{
-          duration += scene.duration
-        })
-
-        return duration
+      console.log('activeScene', activeScene)
     }
 
   };
@@ -874,7 +667,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
   useImperativeHandle(ref, () => ({
 
     childFunction: async () => {
-
+        console.log('useImperativeHandle')
         const blob = await createVideo('mp4')
         return blob;
     }
@@ -919,47 +712,35 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
     const exportVideoFrames = async (download = true, showCanvasLoader = true) => {
 
-      activeToolRef.current = null
-      //isTextEditingRef.current = false
-
       if (showCanvasLoader){
           setCanvasLoader(true)
       }
 
-      const offscreenCanvasExport = document.createElement("canvas");
-      offscreenCanvasExport.width = PAGE_WIDTH + BLEED * 2;
-      offscreenCanvasExport.height = PAGE_HEIGHT + BLEED * 2;
-      offscreenCanvasExportRef.current = offscreenCanvasExport
 
+      return new Promise(async(resolve) => {
 
         const zip = new JSZip();
 
-        //let pending = videoRegistryRef.current.size;
+        let pending = videoRegistryRef.current.size;
+
+
         const totalFrames = duration * fps;
 
         const frames = [];
 
         for (let frame = 0; frame < totalFrames; frame++) {
+             currentTimeRef.current = frame / fps;
 
-              currentTimeRef.current = frame / fps;
 
                const scene = sceneManagerRef.current.getSceneAtTime(currentTimeRef.current);
-
-
                if (!scene) return
 
                const videos = scene.elements.filter(o => o.type === "video");
 
                if (videos.length === 0) {
-
-
                  drawLower(true);
 
-                 await new Promise(r => setTimeout(r, 0));
-
-
                }else{
-
                  let pending = videos.length;
 
                  const localTime = currentTimeRef.current - scene.start;
@@ -980,125 +761,61 @@ export const Danva = (({postData, user, feeds}, ref) => {
                }
 
                //const blob = await new Promise(resolve => lowerRef.current.toBlob(resolve, "image/jpeg", 0.9));
-
-               let blob = await Promise.race([
-                 new Promise(resolve =>
-                   offscreenCanvasExportRef.current.toBlob(
-                     resolve,
-                     "image/jpeg",
-                     0.8
-                   )
-                 ),
-                 new Promise((_, reject) =>
-                   setTimeout(
-                     () => reject(new Error(`toBlob timeout at frame ${frame}`)),
-                     10000
-                   )
-                 )
-               ]);
-
-               if (!blob) {
-                 throw new Error(`Blob generation failed at frame ${frame}`);
-               }
-
-               if (blob.size === 0) {
-                 throw new Error(`Empty blob at frame ${frame}`);
-               }
-
-               zip.file(`frame${String(frame).padStart(4, "0")}.jpg`, blob);
-
-               if (browserFFmpeg){
-                 frames.push(blob);
-               }
-
-               blob = null; // OK now, because blob is a `let`
-
-               if (frame % 5 === 0 || frame === totalFrames - 1) {
-                  setVideoFrameProgress(Math.floor(((frame + 1) / totalFrames) * 100));
-                }
+               const blob = await new Promise(resolve => offscreenCanvasExportRef.current.toBlob(resolve, "image/jpeg", 0.9));
+               frames.push(blob);
+               setVideoFrameProgress(Math.floor(((frame + 1) / totalFrames) * 100));
 
         }
-
 
         currentTimeRef.current = 0
         changeTime(0)
 
-
-        var mp4Blob
-
-        if (browserFFmpeg){
-
-          var audioBlob = null
-
-          if (audioUrl) {
-            audioBlob = await fetchAudioBlob(audioUrl);
-          }
-
-          const files = frames.map((blob, i) => {
-            return new File([blob], `frame${String(i + 1).padStart(4, '0')}.jpg`, {
-              type: 'image/jpeg'
-            })
-          })
-
-          mp4Blob = await createVideoFromImages(
-            files,
-            audioBlob,
-            fps,
-            setVideoConvertProgress
-          )
-
-          setVideoConvertProgress(0);
-
-        }else{
-
-          const zipBlob = await zip.generateAsync({
-            type: "blob",
-            streamFiles: true
-          });
-          const formData = new FormData();
-
-          formData.append("framesZip", zipBlob);
-          formData.append("fps", fps);
-
-          //frames.forEach((frame, i) => formData.append(`frame${i}`, frame));
-          if (audioUrl) {
-            const audioBlob = await fetchAudioBlob(audioUrl);
-            formData.append('audio', audioBlob);
-          }
-
-          const totalSize = Array.from(formData.entries()).reduce((acc, [key, value]) => {
-            if (value instanceof File) return acc + value.size;
-            return acc;
-          }, 0);
-
-          //const convertEndpoint = process.env.NEXT_PUBLIC_RENDER_SERVER+'/process'
-
-          const convertEndpoint = '/api/encode-video-frames'
-
-          const res = await axios.post(convertEndpoint, formData, {
-
-            onUploadProgress: (progressEvent) => {
-
-              const percentCompleted = Math.min(
-                  100,
-                  Math.round((progressEvent.loaded * 100) / totalSize)
-                );
-
-
-
-
-               setVideoConvertProgress(percentCompleted);
-            },
-            responseType: 'blob', // important to get a Blob instead of JSON
-          });
-
-
-          setVideoConvertProgress(0);
-          mp4Blob = res.data;
-
+        // Add each frame as frame0001.jpg, frame0002.jpg, ...
+        for (let i = 0; i < frames.length; i++) {
+          const blob = frames[i];
+          zip.file(`frame${String(i).padStart(4, "0")}.jpg`, blob);
         }
 
+        // Generate zip as blob
+        const zipBlob = await zip.generateAsync({ type: "blob" });
 
+        const formData = new FormData();
+
+        formData.append("framesZip", zipBlob);
+
+        //frames.forEach((frame, i) => formData.append(`frame${i}`, frame));
+        if (audioUrl) {
+          const audioBlob = await fetchAudioBlob(audioUrl);
+          formData.append('audio', audioBlob);
+        }
+
+        const totalSize = Array.from(formData.entries()).reduce((acc, [key, value]) => {
+          if (value instanceof File) return acc + value.size;
+          return acc;
+        }, 0);
+
+        const convertRenderEndpoint = process.env.NEXT_PUBLIC_RENDER_SERVER+'/process'
+
+        const convertEndpoint = '/api/encode-video-frames'
+
+
+        const res = await axios.post(convertEndpoint, formData, {
+          //headers: {
+          //  'Content-Type': 'multipart/form-data',
+        //  },
+          onUploadProgress: (progressEvent) => {
+            // progressEvent.loaded = bytes uploaded so far
+            // progressEvent.total = total bytes to upload
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / totalSize);
+             console.log(`Upload Progress: ${percentCompleted}%`);
+             setVideoConvertProgress(percentCompleted);
+          },
+          responseType: 'blob', // important to get a Blob instead of JSON
+        });
+
+
+
+        const mp4Blob = res.data;
         if (download){
           const url = URL.createObjectURL(mp4Blob);
           const a = document.createElement('a');
@@ -1106,7 +823,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
           a.download = `${projectTitle || 'video'}.mp4`;
           a.click();
           URL.revokeObjectURL(url);
-
+          resolve()
             if (showCanvasLoader){
               setCanvasLoader(false)
             }
@@ -1115,7 +832,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
         }else{
           showSuccess('Converted To Video')
-          return mp4Blob
+          resolve(mp4Blob)
           if (showCanvasLoader){
             setCanvasLoader(false)
           }
@@ -1123,7 +840,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
           setVideoConvertProgress(0)
         }
 
-
+      })
 
     }
 
@@ -1139,7 +856,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
 
 
-
+    console.log('type', type)
     return new Promise(async(resolve) => {
 
     await loadCCapture();
@@ -1184,7 +901,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
             // Update progress (0 → 100%)
             setProgress(Math.floor(((frame + 1) / totalFrames) * 100));
-
+            console.log(Math.floor(((frame + 1) / totalFrames) * 100))
          // optional: yield to UI thread to keep it responsive
 
       }
@@ -1267,6 +984,9 @@ async function fetchAudioBlob(url) {
 
 
 
+
+
+
 useEffect(()=>{
 
   scaleRef.current = scale
@@ -1328,10 +1048,10 @@ const moveBackwards = () => {
   const activeScene = sceneManagerRef.current.getActiveScene()
   if (!activeScene) return
 
-  const index = activeScene.elements.findIndex(o => o.id === activeElement.id);
+  const index = activeScene.objects.findIndex(o => o.id === activeElement.id);
 
 
-  const items = activeScene.elements
+  const items = activeScene.objects
 
   // Cannot move the last item backwards
 
@@ -1352,7 +1072,7 @@ const moveBackwards = () => {
 
 
   // Update scene
-  activeScene.elements = newItemsArray
+  activeScene.objects = newItemsArray
   handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
 
   drawLower()
@@ -1360,23 +1080,20 @@ const moveBackwards = () => {
 
 
 const changeTime = (time) => {
+  console.log('change time', time)
 
   if (time === null) return
-
-  console.log('changeTime')
   setCurrentTime(time)
   currentTimeRef.current = time
 
-  //drawLower()
-  //drawArtboard()
-  //drawUpper()
+  drawLower()
+  drawArtboard()
+  drawUpper()
 }
 
 
 
 const moveForward = () => {
-
-//console.log('move forward')
 
 const activeElement = getActiveElement()
 if (!activeElement) return
@@ -1384,11 +1101,10 @@ if (!activeElement) return
 const activeScene = sceneManagerRef.current.getActiveScene()
 if (!activeScene) return
 
-const index = activeScene.elements.findIndex(o => o.id === activeElement.id);
 
-//console.log('index', index)
+const index = activeScene.objects.findIndex(o => o.id === activeElement.id);
 
-const items = activeScene.elements
+const items = activeScene.objects
 
 
 // Cannot move the last item forward
@@ -1398,16 +1114,10 @@ if (index >= items.length - 1) return;
 // Create a new array copy
 const newItemsArray = [...items];
 
-
-
-
 // Swap item at index with the next item
 const temp = newItemsArray[index];
 newItemsArray[index] = newItemsArray[index + 1];
 newItemsArray[index + 1] = temp;
-
-
-
 
 // Update state
 selectedIndexRef.current = selectedIndexRef.current+1
@@ -1416,7 +1126,7 @@ objectsRef.current=newItemsArray
 
 
 // Update scene
-activeScene.elements = newItemsArray
+activeScene.objects = newItemsArray
 handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
 
 
@@ -1433,7 +1143,7 @@ const sendToBack = () => {
 
 
 // 1. Filter out the object to move from its current position
-const otherItems = activeScene.elements.filter(item => item.id !== activeElement.id);
+const otherItems = activeScene.objects.filter(item => item.id !== activeElement.id);
 
 // 2. Create a new array with the object at the front
 const newItemsArray = [activeElement, ...otherItems];
@@ -1442,9 +1152,11 @@ const newItemsArray = [activeElement, ...otherItems];
 selectedIndexRef.current = 0
 setActiveElementId(0)
 
+activeScene.objects = newItemsArray
+updateActiveScene({objects:newItemsArray})
 
 // Update scene
-activeScene.elements = newItemsArray
+activeScene.objects = newItemsArray
 handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
 
 drawLower()
@@ -1463,7 +1175,7 @@ if (!activeScene) return
 
 
 
-const otherItems = activeScene.elements.filter(item => item.id !== activeElement.id);
+const otherItems = activeScene.objects.filter(item => item.id !== activeElement.id);
 
 // 2. Create a new array with the object at the front
 const newItemsArray = [...otherItems, activeElement];
@@ -1476,7 +1188,7 @@ objectsRef.current=newItemsArray
 
 
 // Update scene
-activeScene.elements = newItemsArray
+activeScene.objects = newItemsArray
 handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
 
 
@@ -1509,13 +1221,6 @@ const onSelectElement = (id) => {
   setActiveElement(objectsRef.current[index]);
   selectedIndexRef.current = index;
   setActiveElementId(index)
-
-  if (objectsRef.current[index].type === 'text'){
-    toolCallback('edit text', true)
-  }else{
-    toolCallback('size-position', true)
-  }
-
   drawUpper();
 }
 
@@ -1599,10 +1304,6 @@ const onSelectScene = (id) => {
     caretAbsIndex = null,
     imageSrc = null,
     videoSrc = null,
-    mediaCaption = null,
-    mediaDataBaseId = null,
-    mediaFileName = null,
-    mediaFileType = null,
     animations = [],
     currentTime = 0,
     frames = [],
@@ -1611,8 +1312,7 @@ const onSelectScene = (id) => {
     scale = 1,
     imageBitmap = null,
     airbrushBufferBitmap = null,
-    clippingPath = null,
-    effects = []
+    clippingPath = null
 
   } = {}) {
     // Basic properties
@@ -1662,10 +1362,6 @@ const onSelectScene = (id) => {
     this.selectionEnd = selectionEnd;
     this.imageSrc = imageSrc
     this.videoSrc = videoSrc
-    this.mediaCaption = mediaCaption
-    this.mediaDataBaseId = mediaDataBaseId
-    this.mediaFileName = mediaFileName
-    this.mediaFileType = mediaFileType
     this.animations = animations
     this.currentTime = currentTime
     this.frames = frames
@@ -1675,7 +1371,6 @@ const onSelectScene = (id) => {
     this.imageBitmap = imageBitmap
     this.airbrushBufferBitmap = airbrushBufferBitmap
     this.clippingPath = clippingPath
-    this.effects = effects
     this.init();
 
     // ✅ Only update lines if text exists and canvas context is available
@@ -1747,6 +1442,8 @@ const onSelectScene = (id) => {
 
   updateLines() {
 
+    console.log('updateLines')
+
     const lower = lowerRef.current;
     if (!lower) return;
     const ctx = lower.getContext('2d');
@@ -1756,6 +1453,8 @@ const onSelectScene = (id) => {
 
     const paragraphs = this.text.split('\n');
 
+    console.log('paragraphs', paragraphs)
+
     paragraphs.forEach((paragraph, paragraphIndex) => {
       if (paragraph.trim() === '') {
         this.lines.push('');
@@ -1763,6 +1462,8 @@ const onSelectScene = (id) => {
       }
 
       const words = paragraph.split(' ');
+
+      console.log('words', words)
 
       let currentLine = '';
       let lineIndex = this.lines.length; // current line index across paragraphs
@@ -1787,17 +1488,25 @@ const onSelectScene = (id) => {
       }
     });
 
+    console.log('this.lines', this.lines)
 
     // Compute total height dynamically based on styled lines
     let totalHeight = 0;
     for (let i = 0; i < this.lines.length; i++) {
+      console.log('this.measureTextHeight(i, this.lines[i])', this.measureTextHeight(i, this.lines[i]))
       totalHeight += this.measureTextHeight(i, this.lines[i]); // use the earlier helper we discussed
     }
+
 
     this.totalHeight = totalHeight + this.textPadding;
     this.h = this.totalHeight;
     this.x = this.cx - this.width / 2;
     this.y = this.cy - this.totalHeight / 2;
+
+    console.log('totalHeight', totalHeight)
+
+    console.log('this', this)
+
   }
 
 
@@ -1892,20 +1601,12 @@ const onSelectScene = (id) => {
     return abs + char;
   }
 
-  hasTexthilight(){
-    let start = this.selectionStart;
-    let end = this.selectionEnd;
-    if (!start || !end){
-      return false
-    }else{
-      return true
-    }
-
-  }
 
 
-  drawHilightTextArtboard(ctx, scale, animationProps, editingText) {
 
+  drawHilightTextArtboard(ctx, scale) {
+
+    console.log('drawHilightTextArtboard', scale)
 
     ctx.save();
     ctx.font =  this.font();
@@ -1915,7 +1616,7 @@ const onSelectScene = (id) => {
     // Normalize selection order
     let start = this.selectionStart;
     let end = this.selectionEnd;
-    if (!start || !end) return this.drawTextArtboard(ctx, scale, animationProps, editingText);
+    if (!start || !end) return this.drawTextChars(ctx);
 
     if (
       start.line > end.line ||
@@ -1959,34 +1660,35 @@ const onSelectScene = (id) => {
     });
     ctx.restore();
 
-    this.drawTextArtboard(ctx, scale, animationProps, editingText)
+    this.drawTextArtboard(ctx, scale)
 
 
   }
 
-  measureTextHeight(lineIndex, line) {
+  measureTextHeight(lineIndex, line){
 
-    // Handle empty line (e.g. "\n")
-    if (!line || line.length === 0) {
-      return Number(this.lineHeight || this.fontSize * 1.2);
-    }
+      let maxHeight = 0;
 
-    let maxHeight = 0;
+      if (line){
+        for (let charIndex = 0; charIndex < line.length; charIndex++) {
+          const style = this.charStyles?.[`${lineIndex}:${charIndex}`] || {};
 
-    for (let charIndex = 0; charIndex < line.length; charIndex++) {
-      const style = this.charStyles?.[`${lineIndex}:${charIndex}`] || {};
 
-      const fontSize = style.fontSize || this.fontSize;
-      const lineHeight = style.lineHeight || this.lineHeight || this.fontSize * 1.2;
+          const fontSize = style.fontSize || this.fontSize;
+          const lineHeight = style.lineHeight || this.lineHeight || this.fontSize * 1.2;
 
-      const height = lineHeight;
 
-      if (height > maxHeight) {
-        maxHeight = height;
+          const height = lineHeight
+
+          if (height > maxHeight) {
+            maxHeight = height;
+          }
+        }
+
+        return Number(maxHeight);
       }
-    }
 
-    return Number(maxHeight);
+
   }
 
 measureTextWidthHilight(line, lineIndex, ctx, startCharIndex = 0) {
@@ -2094,18 +1796,29 @@ measureTextWidthHilight(line, lineIndex, ctx, startCharIndex = 0) {
 
 
 
-  drawHilightText(ctx, animationProps, editingText, scale = 1) {
+  drawHilightText(ctx, animationProps, editingText) {
+
+
+
+    console.log('drawHilightText')
+
+    console.log(this)
+
 
     ctx.save();
 
+    // Apply the same transform used in drawObject()
+    //ctx.translate(this.cx, this.cy);
+    //ctx.rotate(this.angle);
+
     ctx.font =  this.font();
     ctx.textBaseline = "top";
-    const lineHeight = this.getLineHeight() * scale;
+    const lineHeight = this.getLineHeight();
 
     // Normalize selection order
     let start = this.selectionStart;
     let end = this.selectionEnd;
-    if (!start || !end) return this.drawTextChars(ctx, animationProps, editingText, scale);
+    if (!start || !end) return this.drawTextChars(ctx, animationProps, editingText);
 
     if (
       start.line > end.line ||
@@ -2141,17 +1854,17 @@ measureTextWidthHilight(line, lineIndex, ctx, startCharIndex = 0) {
       const selectedWidth = this.measureTextWidthHilight(selected, index, ctx, startChar);
 
       const startX = -this.width / 2 + this.textPadding + offsetX + prefixWidth;
-      const startY = (-this.h / 2 + this.textPadding / 2) * scale  + (index * lineHeight);
+      const startY = (-this.h / 2 + this.textPadding / 2) + index * lineHeight;
 
       const hilightHeight = this.measureTextHeight(index, line)
 
       ctx.fillStyle = HILIGHTCOLOUR;
-      ctx.fillRect(startX * scale, startY, selectedWidth * scale, hilightHeight * scale);
+      ctx.fillRect(startX, startY, selectedWidth, hilightHeight);
     });
     ctx.restore();
 
 
-    this.drawTextChars(ctx, animationProps, editingText, scale)
+    this.drawTextChars(ctx, animationProps, editingText)
 
 
   }
@@ -2165,11 +1878,7 @@ async drawVideoInit(ctx) {
     const videoEl = document.createElement('video');
 
     videoEl.crossOrigin = 'anonymous';
-
-    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(this.videoSrc)}`;
-
-
-    videoEl.src = proxiedUrl;
+    videoEl.src = this.videoSrc;
 
     videoEl.muted = true;
     videoEl.preload = 'auto';
@@ -2196,6 +1905,8 @@ async drawVideoInit(ctx) {
         );
 
       });
+
+      //this.captureFrames()
 
       videoRegistryRef.current.set(this.id, this.video);
       await this.generateThumbnails()
@@ -2293,86 +2004,6 @@ getFrameAtTime(time) {
   return this.frames[frameIndex]?.bitmap || null;
 }
 
-async updateImage(image){
-
-  return new Promise( async(resolve, reject) => {
-    const ctx = lowerRef.current.getContext('2d');
-    if (!ctx) return;
-
-    const scaleX = this.width / this.originalWidth
-    const scaleY = this.h / this.originalHeight
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-
-
-
-    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(image)}`;
-
-
-
-
-    img.src = proxiedUrl
-
-    await img.decode(); // waits until fully loaded
-
-    const scale = Math.min(
-      this.originalWidth / img.naturalWidth,
-      this.originalHeight / img.naturalHeight
-    )
-
-
-    this.img = img;
-    this.width = img.naturalWidth * scaleX;
-    this.h = img.naturalHeight * scaleY;
-    //this.width = img.naturalWidth * scale;
-    //this.h = img.naturalHeight * scale;
-    this.originalWidth = img.naturalWidth
-    this.originalHeight = img.naturalHeight
-    this.imageSrc = img.src
-
-    resolve(true);
-  })
-
-}
-
-async replaceImage(image){
-
-  return new Promise( async(resolve, reject) => {
-    const ctx = lowerRef.current.getContext('2d');
-    if (!ctx) return;
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-
-
-    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(image)}`;
-
-
-    img.src = proxiedUrl
-
-    await img.decode(); // waits until fully loaded
-    this.img = img;
-    this.width = img.naturalWidth;
-    this.h = img.naturalHeight;
-    this.originalWidth = img.naturalWidth
-    this.originalHeight = img.naturalHeight
-    this.imageSrc = img.src
-    /*
-    ctx.drawImage(
-      img,
-      this.cx - this.width / 2,
-      this.cy - this.h / 2,
-      this.width,
-      this.h
-    );
-    */
-
-    resolve(true);
-  })
-
-}
-
 
 async drawImageInit() {
 
@@ -2382,42 +2013,37 @@ async drawImageInit() {
 
     try{
 
-      const img = new Image();
-      img.crossOrigin = "anonymous";
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = this.imageSrc;
+
+    await img.decode(); // waits until fully loaded
+
+      //this.img = img; // ✅ store image reference
+      this.width = img.naturalWidth;
+      this.h = img.naturalHeight;
+      this.originalWidth = img.naturalWidth
+      this.originalHeight = img.naturalHeight
+
+      ctx.drawImage(
+        img,
+        this.cx - this.width / 2,
+        this.cy - this.h / 2,
+        this.width,
+        this.h
+      );
+
+      this.img = img;
 
 
-      const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(this.imageSrc)}`;
+      // ✅ create ImageBitmap safely
+      const bitmap = await createImageBitmap(img);
+      this.imageBitmap = bitmap; // store for worker
+
+      resolve(true);
 
 
-      img.src = proxiedUrl;
-
-      await img.decode(); // waits until fully loaded
-
-        //this.img = img; // ✅ store image reference
-        this.width = img.naturalWidth;
-        this.h = img.naturalHeight;
-        this.originalWidth = img.naturalWidth
-        this.originalHeight = img.naturalHeight
-
-        ctx.drawImage(
-          img,
-          this.cx - this.width / 2,
-          this.cy - this.h / 2,
-          this.width,
-          this.h
-        );
-
-        this.img = img;
-
-
-        // ✅ create ImageBitmap safely
-        const bitmap = await createImageBitmap(img);
-        this.imageBitmap = bitmap; // store for worker
-
-        resolve(true);
-
-
-        img.addEventListener("error", reject);
+      img.addEventListener("error", reject);
 
       }catch(err){
       }
@@ -2426,8 +2052,6 @@ async drawImageInit() {
 
 
 redrawImage(ctx, animationProps) {
-
-
 
   if (this.clippingPath){
 
@@ -2592,13 +2216,14 @@ getLineHeight(){
 }
 
 
-drawTextChars(ctx, animationProps, editingText=false, scale=1) {
+drawTextChars(ctx, animationProps, editingText=false) {
+
   if (!this.text) return
 
   ctx.textBaseline = "alphabetic";
   const lines = this.getLines();
 
-  const lineHeight = this.getLineHeight() * scale;
+  const lineHeight = this.getLineHeight();
   const totalCharsInBlock  = this.text.length;
   let charCounter = 0; // global char index
   // Loop through lines
@@ -2612,15 +2237,16 @@ drawTextChars(ctx, animationProps, editingText=false, scale=1) {
       this.textPadding
     );
 
-    let x = (lineOffset -this.width / 2 + this.textPadding) * scale;
+    let x = lineOffset - this.width / 2 + this.textPadding;
     const baseStyle = this.charStyles?.[`${lineIndex}:0`] || {};
     const fontSize = baseStyle?.fontSize || this.fontSize;
-    const baselineOffset = (fontSize * 0.8) * scale;
-    let y = (-this.h / 2 + this.textPadding) * scale + (lineIndex * lineHeight + baselineOffset) ;
+    const baselineOffset = fontSize * 0.8;
+    let y = -this.h / 2 + this.textPadding + lineIndex * lineHeight + baselineOffset;
 
     // Loop through characters
     for (let charIndex = 0; charIndex < line.length; charIndex++) {
       const ch = line[charIndex];
+
       // Character style
       const style = this.charStyles?.[`${lineIndex}:${charIndex}`] || {};
       const fontWeight = style?.fontWeight || this.fontWeight || "";
@@ -2629,28 +2255,27 @@ drawTextChars(ctx, animationProps, editingText=false, scale=1) {
       const fill = style?.fill || this.fill || "#000";
       const charFontSize = style?.fontSize || fontSize;
 
-      ctx.font = `${fontStyle} ${fontWeight} ${charFontSize  * scale }px ${fontFamily}`;
-
+      ctx.font = `${fontStyle} ${fontWeight} ${charFontSize}px ${fontFamily}`;
       ctx.fillStyle = fill;
 
       let drawX = x;
       let drawY = y;
 
       let alpha
-      const allowedTypes = new Set(["fadeInUpLines", "fadeInLines", "slideInLeftLines", "slideInRightLines", "fadeInUpChar", "fadeInChar", "slideInLeftChar", "slideInRightChar"]);
-      const hasTextAnim = this.animations?.some(a => allowedTypes.has(a.type));
+      const allowedTypes = new Set(["Lines", "Char"]);
+      const hasTextAnim = this.animations?.some(a => !allowedTypes.has(a.type));
 
-      if (hasTextAnim && editingText===false) {
+      if (hasTextAnim && !editingText) {
         // Get animation for this character (handles lines or chars automatically)
+        // perline
         const animProps = this.getTextAnimatedProps(lineIndex, charCounter, lines.length);
         //const animProps = this.getTextAnimatedProps(lineIndex, charCounter, lines.length);
-        drawX += animProps.x * scale;
-        drawY += animProps.y * scale;
+        drawX += animProps.x;
+        drawY += animProps.y;
         alpha = animationProps?.opacity? animationProps?.opacity * animProps.opacity:1;
       }else{
-        alpha = animationProps?.opacity ?? 1
+        alpha = animationProps?.opacity?animationProps.opacity: 1
       }
-
 
       ctx.globalAlpha = alpha;
       ctx.fillText(ch, drawX, drawY);
@@ -2674,7 +2299,7 @@ getTextAnimatedProps(lineIndex, charIndex = null,  totalLines = 1) {
     if (!anim.type.includes('Lines') && !anim.type.includes('Char')) return;
 
     if (this.currentTime < anim.startTime) {
-
+        console.log('before animation starts')
       if (anim.type.includes('fadeIn')) props.opacity = 0;
       if (anim.type === 'fadeInUpLines') props.y = 100;
       if (anim.type === 'fadeInUpChar') props.y = 20;
@@ -2827,7 +2452,7 @@ getLineOffset(lineIndex = 0, line, align, ctx, boxWidth, padding) {
   getIndexFromCaretPos(row, col) {
     let count = 0;
     for (let i = 0; i < row; i++) count += this.lines[i].length + 1;
-    return Math.min(count + col, this?.text.length);
+    return Math.min(count + col, this.text.length);
   }
 
   getAbsIndexFromLineChar(line, char) {
@@ -2844,6 +2469,7 @@ getLineOffset(lineIndex = 0, line, align, ctx, boxWidth, padding) {
   }
 
   insertTextAtCaret(insertedText) {
+
     // If there is a selection, delete it first
     if (this.selectionStart && this.selectionEnd) {
       this.deleteSelectedText();
@@ -2860,9 +2486,10 @@ getLineOffset(lineIndex = 0, line, align, ctx, boxWidth, padding) {
     // Clear any selection
     this.selectionStart = this.selectionEnd = null;
 
+
     // Update lines and redraw
 
-
+    console.log('insert at caret')
     this.updateLines();
 }
 
@@ -2885,7 +2512,7 @@ handleBackspace() {
   this.caretAbsIndex -= 1;
 
   // Update lines and redraw
-
+  console.log('handle backspace')
   this.updateLines();
 }
 
@@ -2903,7 +2530,7 @@ handleDelete() {
   const after = obj.text.slice(obj.caretAbsIndex + 1);
   this.text = before + after;
 
-
+  console.log('handle delete')
   this.updateLines();
 }
 
@@ -2931,7 +2558,7 @@ handleDelete() {
     // Update caret and clear selection
       this.caretAbsIndex = absStart;
     this.selectionStart = this.selectionEnd = null;
-
+      console.log('delecte selected')
       this.updateLines();
   }
 
@@ -2941,13 +2568,11 @@ handleDelete() {
 
   updateMaxWidth(newMaxWidth) {
       this.maxWidth = newMaxWidth;
-
+      console.log('updtae max width')
       this.updateLines();
   }
 
   hitObject(obj, mx, my) {
-
-    if (obj.type === eraser) return false
 
     const dx = mx - obj.cx;
     const dy = my - obj.cy;
@@ -3045,7 +2670,6 @@ const addVideo = async (video) => {
       cy:lowerRef.current.height/2,
       videoSrc : video.file_url,
       type:'video',
-      mediaCaption:video.file_description??''
     })
     await newObj.drawVideoInit(ctx)
 
@@ -3066,7 +2690,6 @@ const onDragOver = (e) => {
 }
 
 const onDragStart = (data) => {
-  console.log('data', data)
   setDragMedia(data);
 };
 
@@ -3087,267 +2710,51 @@ const findImage = () => {
   return objectsRef.current.find((object)=> object.type === 'image')
 }
 
-
-const createStoryScene = async (scene, image) => {
-
-  const lower = lowerRef.current;
-  if (!lower) return;
-  const ctx = lower.getContext("2d");
-
-
-  if (scene.type === 'hook'){
-    const activeScene = sceneManagerRef.current.getActiveScene()
-    const activeScenePostInfo = postDataArrayRef.current.find((data)=> data.sceneId === activeScene.id)
-
-    sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
-    onSceneUpdateProperty('duration', scene.duration)
-
-    setBackgroundColour('rgba(0,0,0,1)')
-
-
-    const newTextObj =  new Element({
-      id: generateUniqueId(),
-      cx:lowerRef.current.width/2,
-      cy:lowerRef.current.height/2,
-      fontFamily:'Raleway',
-      fontSize:120,
-      fontWeight:900,
-      text:scene.text,
-      fill:'rgba(255,255,255,1)',
-      textAlign:'left',
-      width : PAGE_WIDTH - 200,
-      lineHeight : 140,
-      type:'text',
-    })
-
-    const newTextAnimations = [{
-      id: generateUniqueId(),
-      type:'fadeInUpLines',
-      startTime:0,
-      duration:4,
-      easing: 'easeOutQuad',
-      label: '📝 Lines: Fade In Up'
-    }];
-
-    const lines = newTextObj.getLines()
-    const lineLengths = lines.map(l => l.length);
-    const minDuration = calculateMinAnimationDuration({
-      lineCount: lines.length,
-      lineLengths,
-      animType: 'fadeInUpLines', // could also be 'fadeInUpLines'
-      charStagger: 0.03,
-      lineStagger: 0.1,
-      unitDuration: 0.5
-    })
-
-   newTextAnimations[0].duration = minDuration
-   newTextObj.animations = newTextAnimations
-   addElement(newTextObj)
-
-  }else if (scene.type === 'point' || scene.type === 'conclusion' || scene.type === 'context'){
-
-    const activeScene = sceneManagerRef.current.getActiveScene()
-    createScene(scene.start, scene.duration, true)
-    const newActiveScene = sceneManagerRef.current.getActiveScene()
-    sceneManagerRef.current.addElement(newActiveScene.id, image)
-
-    sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
-    onSceneUpdateProperty('duration', scene.duration)
-    setBackgroundColour('rgba(0,0,0,1)')
-
-
-    const newTextObj =  new Element({
-      id: generateUniqueId(),
-      cx:lowerRef.current.width/2,
-      cy:lowerRef.current.height/2,
-      fontFamily:'Raleway',
-      fontSize:100,
-      fontWeight:900,
-      text:scene.text,
-      fill:'rgba(255,255,255,1)',
-      textAlign:'left',
-      width : PAGE_WIDTH - 200,
-      lineHeight : 120,
-      type:'text',
-    })
-
-    const newTextAnimations = [{
-      id: generateUniqueId(),
-      type:'fadeInUpLines',
-      startTime:0,
-      duration:4,
-      easing: 'easeOutQuad',
-      label: '📝 Lines: Fade In Up'
-    }];
-
-    const lines = newTextObj.getLines()
-    const lineLengths = lines.map(l => l.length);
-    const minDuration = calculateMinAnimationDuration({
-      lineCount: lines.length,
-      lineLengths,
-      animType: 'fadeInUpLines', // could also be 'fadeInUpLines'
-      charStagger: 0.03,
-      lineStagger: 0.1,
-      unitDuration: 0.5
-    })
-
-    newTextAnimations[0].duration = minDuration
-    newTextObj.animations = newTextAnimations
-
-
-    addElement(newTextObj)
-
-  }else if (scene.type === 'call to action'){
-
-    const activeScene = sceneManagerRef.current.getActiveScene()
-    createScene(scene.start, scene.duration, true)
-    const newActiveScene = sceneManagerRef.current.getActiveScene()
-    sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
-    onSceneUpdateProperty('duration', scene.duration)
-    setBackgroundColour('rgba(0,0,0,1)')
-
-    sceneManagerRef.current.addElement(newActiveScene.id, image)
-
-    let halfHeight = 0
-
-
-    if (postInfo.data.CTA_image !== null){
-
-      const img = new Image();
-
-      img.crossOrigin = "anonymous";
-      img.src = postInfo.data.CTA_image;
-      await img.decode(); // waits until fully loaded
-
-      halfHeight = img.naturalHeight / 2
-
-      const newCTAImageObj =  new Element({
-        id: generateUniqueId(),
-        cx:lowerRef.current.width/2,
-        cy:(lowerRef.current.height/2) - halfHeight,
-        imageSrc : postInfo.data.CTA_image,
-        width: 500,
-        type:'image',
-        mediaCaption:null,
-        opacity:1
-      })
-
-      await newCTAImageObj.drawImageInit(ctx)
-
-      const newImageAnimations = [{
-        id: generateUniqueId(),
-        type:'fadeIn',
-        startTime:0,
-        duration:1,
-        easing: 'easeOutQuad',
-        label: 'Fade In'
-      }];
-      newCTAImageObj.animations = newImageAnimations
-      addElement(newCTAImageObj)
-    }
-
-    const newTextObj =  new Element({
-      id: generateUniqueId(),
-      cx:lowerRef.current.width/2,
-      cy:(lowerRef.current.height/2) + halfHeight,
-      fontFamily:'Raleway',
-      fontSize:50,
-      fontWeight:900,
-      text:scene.text,
-      fill:'rgba(255,255,255,1)',
-      textAlign:'center',
-      width : PAGE_WIDTH - 200,
-      lineHeight : 60,
-      type:'text',
-    })
-
-    const newTextAnimations = [{
-      id: generateUniqueId(),
-      type:'fadeIn',
-      startTime:0,
-      duration:1,
-      easing: 'easeOutQuad',
-      label: 'Fade In'
-    }];
-
-    newTextObj.animations = newTextAnimations
-    addElement(newTextObj)
-
-  }
-
-
-  setDuration(sceneManagerRef.current.getDuration())
-  changeTime(0)
-  drawLower()
-  drawArtboard()
-  drawUpper()
-}
-
-const applyTemplate = async(type, template) => {
-  setCanvasLoader(true)
-
-  const lower = lowerRef.current;
-  if (!lower) return;
-  const ctx = lower.getContext("2d");
+const applyTemplate = (type, template) => {
 
   const activeScene = sceneManagerRef.current.getActiveScene()
-  sceneManagerRef.current.scenes.length = 1
-  activeScene.elements=[]
   const activeScenePostInfo = postDataArrayRef.current.find((data)=> data.sceneId === activeScene.id)
 
+  console.log('activeScenePostInfo', activeScenePostInfo)
 
-  if (!activeScenePostInfo){
-    return
-    setCanvasLoader(true)
-  }
+  console.log('objectsRef.current', objectsRef.current)
+
+  if (!activeScenePostInfo) return
+
+  const image = getObjectById(activeScenePostInfo.imageId)
+  const text = getObjectById(activeScenePostInfo.titleId)
+  const webtext = getObjectById(activeScenePostInfo.websiteId)
+
+  if (!image || !text || !webtext) return
+
+  console.log('image', image)
+
+  const imageOpacity = image.opacity === 1? .6 : image.opacity
 
 
-  const newImageObj =  new Element({
-    id: generateUniqueId(),
-    cx:lowerRef.current.width/2,
-    cy:lowerRef.current.height/2,
-    imageSrc : activeScenePostInfo.image_url,
-    type:'image',
-    mediaCaption:activeScenePostInfo.file_description??''
-  })
-
-  const newTextTitleObj =  new Element({
-    id: generateUniqueId(),
-    cx:lowerRef.current.width/2,
-    cy:lowerRef.current.height/2,
-    fontFamily:'Raleway',
-    fontSize:120,
-    fontWeight:900,
-    text:activeScenePostInfo.title,
-    fill:'rgba(255,255,255,1)',
-    width : PAGE_WIDTH - 100,
-    lineHeight : 140,
-    type:'text',
-  })
-
-  const CTA = `Read the full article at\n${activeScenePostInfo.base_url}`
-
-  const newWebTextObj =  new Element({
-    id: generateUniqueId(),
-    cx:lowerRef.current.width/2,
-    cy:lowerRef.current.height - 285,
-    fontFamily:'Raleway',
-    fontSize:50,
-    fontWeight:900,
-    text:CTA,
-    fill:'rgba(255,255,255,1)',
-    textAlign:'center',
-    width : PAGE_WIDTH,
-    lineHeight : 60,
-    type:'text',
-  })
 
 
   if (type === 'videos'){
 
-    if ( template === 'Reel - Heading Only'){
+    if ( template === 'Reel'){
       setBackgroundColour('rgba(0,0,0,1)')
       sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
+
+      webtext.cy = lowerRef.current.height - 285,
+
+
+      text.fontFamily = 'Raleway'
+      text.fontSize = 120
+      text.fontWeight = 900
+      text.fill = 'rgba(255,255,255,1)'
+      text.textAlign = 'left'
+      text.width = PAGE_WIDTH - 100
+      text.cx = lowerRef.current.width/2
+      text.cy = lowerRef.current.height/2
+      text.updateLinesWrap()
+      console.log('reel')
+      text.updateLines()
+
 
       const newTextAnimations = [{
         id: generateUniqueId(),
@@ -3358,7 +2765,7 @@ const applyTemplate = async(type, template) => {
         label: '📝 Lines: Slide Left'
       }];
 
-      const lines = newTextTitleObj.getLines()
+      const lines = text.getLines()
       const lineLengths = lines.map(l => l.length);
       const minDuration = calculateMinAnimationDuration({
         lineCount: lines.length,
@@ -3370,7 +2777,20 @@ const applyTemplate = async(type, template) => {
       })
 
      newTextAnimations[0].duration = minDuration
-     newImageObj.opacity = .6
+
+     text.animations = newTextAnimations
+
+     handleUpdateElementState(activeScene.id, text.id, { animations: text.animations})
+
+     if (minDuration > 5){
+       //change duration
+       setDuration(Math.round(minDuration+2))
+     }
+
+     //image
+     resizeImage('Fit Width', image)
+
+     image.opacity = imageOpacity
 
      const newImageAnimations = [{
        id: generateUniqueId(),
@@ -3381,172 +2801,45 @@ const applyTemplate = async(type, template) => {
        label: 'Grow'
      }];
 
-     newImageObj.animations = newImageAnimations
-
-     newTextTitleObj.animations = newTextAnimations
-
-     if (minDuration > 5){
-       setDuration(Math.round(minDuration+2))
-       activeScene.duration = Math.round(minDuration+2)
-     }else{
-       setDuration(5)
-       activeScene.duration = 5
-     }
-
-     newWebTextObj.cy = lowerRef.current.height - 285
-
-     await newImageObj.drawImageInit(ctx)
-
-     addElement(newImageObj)
-
-     resizeImage('Fit Width', newImageObj)
-
-     addElement(newTextTitleObj)
-
-     addElement(newWebTextObj)
-
-    }else if (template === 'Reel - Full Story'){
-
-      /*
-        const scenes =
-        [
-            {
-                "type": "hook",
-                "text": "Join the Hilltops Big Seated Dance for an unforgettable day!"
-            },
-            {
-                "type": "context",
-                "text": "Celebrate NSW Seniors Month with Dance4Wellbeing's exciting new program."
-            },
-            {
-                "type": "point",
-                "text": "Enjoy a seated dance designed for seniors with limited mobility."
-            },
-            {
-                "type": "point",
-                "text": "Wear your brightest clothes for the 'Live Life In Colour' theme."
-            },
-            {
-                "type": "point",
-                "text": "Sign up for the ongoing program starting in April."
-            },
-            {
-                "type": "conclusion",
-                "text": "Spaces are limited, so call Jess to book now!"
-            }
-        ]
-        */
-
-        let endpoint = '/api/chat-gpt/post-video-generator'
-
-
-        if (isDev){
-          endpoint = '/api/gemma/post-video-generator'
-        }
-
-      const res = await fetch(endpoint, {
-          method: 'POST',
-          body: JSON.stringify({ text:activeScenePostInfo.caption, title:activeScenePostInfo.title}),
-        });
-        const data = await res.json();
-
-        console.log('data', data)
-
-        let parse
-
-        parse = JSON.parse(data.article);
-
-        console.log('parse', parse)
-
-        try {
-          parse = JSON.parse(data.article);
-        } catch (e) {
-
-        }
-
-
-        console.log('parse', parse)
-
-
-        let scenes = parse.script
-
-
-        scenes.push({
-          "type": "call to action",
-          "text": `Read the full article at\n${postInfo.data.base_url}`
-        })
-
-
-
-        scenes.map(scene => ({
-          ...scene,
-          duration: getSceneDuration(scene)
-        }));
-
-
-        const scenesWithDuration = scenes.map((scene, index) => {
-          return{
-            ...scene,
-            duration: getSceneDuration(scene),
-          }
-        })
-
-        let start = 0;
-
-        const scenesWithStart = scenesWithDuration.map((scene) => {
-          const result = {
-            ...scene,
-            start: start
-          };
-
-          start += scene.duration;
-
-          return result;
-        });
-
-        newImageObj.opacity = .6
-        await newImageObj.drawImageInit(ctx)
-
-        addElement(newImageObj)
-
-        resizeImage('Fit Width', newImageObj)
-
-         scenesWithStart.forEach((scene) => {
-           createStoryScene(scene, newImageObj)
-
-         })
-
+     image.animations = newImageAnimations
+     handleUpdateElementState(activeScene.id, image.id, { animations: image.animations})
     }
 
   }
 
   if (type === 'image'){
 
+    image.animations = []
+    text.animations = []
+
     if (template === 'Story'){
 
-        newImageObj.opacity = .6
+        image.opacity = imageOpacity
+        resizeImage('Fit Width', image)
 
-        newWebTextObj.cy = lowerRef.current.height - 285
+        text.fontFamily = 'Raleway'
+        text.fontSize = 120,
+        text.fontWeight = 900,
+        text.fill = 'rgba(255,255,255,1)',
+        text.textAlign = 'center',
+        text.width = PAGE_WIDTH - 100,
+        text.cx = lowerRef.current.width/2
+        text.cy = lowerRef.current.height/2
+        text.updateLinesWrap()
 
-        newTextTitleObj.textAlign = 'center'
+        console.log('updateLines story')
+        text.updateLines()
 
-        await newImageObj.drawImageInit(ctx)
-
-        addElement(newImageObj)
-
-        resizeImage('Fit Width', newImageObj)
-
-        addElement(newTextTitleObj)
-
-        addElement(newWebTextObj)
+        webtext.cy = lowerRef.current.height - 150,
 
         setBackgroundColour('rgba(0,0,0,1)')
         sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
 
+
     }
 
   }
-  setCanvasLoader(false)
+
   setActiveElement(null)
   selectedIndexRef.current = null
   setCurrentTime(activeScene.start)
@@ -3571,7 +2864,6 @@ const loadPost = async (postData) => {
     cy:lowerRef.current.height/2,
     imageSrc : postData.image_url,
     type:'image',
-    mediaCaption:postData.file_description??''
   })
 
   const lower = lowerRef.current;
@@ -3639,9 +2931,6 @@ const loadPost = async (postData) => {
 
 
 const onDrop = async(e) => {
-
-  console.log('dragMedia', dragMedia)
-
   if (dragMedia){
     if (dragMedia.file_type === 'video/mp4' || dragMedia.file_type === 'video/webm'){
       addVideo(dragMedia)
@@ -3649,46 +2938,24 @@ const onDrop = async(e) => {
       addImage(dragMedia)
     }else if (dragMedia.type === 'post'){
       loadPost(dragMedia.data)
+
       setPostInfo(dragMedia)
+
     }
-    toolCallback('size-position', true)
   }
 }
 
-const addImages = async (images) => {
+const addImages = (images) => {
 
-  if (imageMediaLabel === 'Replace Image'){
+  images.forEach((image) => {
+      addImage(image)
+  });
 
+  showSuccess(`Image${images.length>0?'s':''} Added`)
 
-    const obj = getActiveElement()
-    if (!obj) return
-
-    const img = await obj.replaceImage(images[0].file_url)
-    const activeScene = sceneManagerRef.current.getActiveScene()
-    handleUpdateElementState(
-      activeScene.id,
-      obj.id,
-      {
-        img: obj.img,
-        imageSrc: obj.imageSrc,
-        originalWidth: obj.originalWidth,
-        originalHeight: obj.originalWidth
-      }
-    )
-
-    drawLower()
-    drawUpper()
-    drawArtboard()
-  }else{
-    images.forEach((image) => {
-        addImage(image)
-    });
-    showSuccess(`Image${images.length>0?'s':''} Added`)
-  }
 }
 
 const addImage = async (image) => {
-
   setCanvasLoader(true)
 
   const lower = lowerRef.current;
@@ -3701,11 +2968,6 @@ const addImage = async (image) => {
     cy:lowerRef.current.height/2,
     imageSrc : image.file_url,
     type:'image',
-    mediaCaption:image.file_description??'',
-    mediaDataBaseId:image.id??null,
-    mediaFileName:image.file_name??null,
-    mediaFileType:image.file_type??null,
-
   })
 
   try{
@@ -3735,23 +2997,23 @@ const redrawAll = () => {
 }
 
 const renderSceneWorker = async (time) => {
-
   const newObjects = [];
+
+
 
   const scene = sceneManagerRef.current.getSceneAtTime(time);
   if (!scene) return
 
   const localTime = time - scene.start;
 
+
 // replace html element with bitmaps
-  for (const object of scene.elements) {
+  for (const object of scene.objects) {
     const newObject = { ...object };
     if (object.type === 'video') {
       newObject.video = await createImageBitmap(object.video); // HTMLVideoElement → ImageBitmap
     }else if (object.type === 'air brush'){
       newObject.airbrushBuffer = object.airbrushBufferBitmap
-    }else if (object.type === 'eraser'){
-          newObject.eraserBuffer = object.eraserBufferBitmap
     }else if (object.type === 'image'){
       newObject.img = object.imageBitmap
     }
@@ -3771,47 +3033,38 @@ const renderSceneWorker = async (time) => {
 
 
 const updateVideosWorker = (time) => {
+
   let pending = videoRegistryRef.current.size;
 
-  if (pending === 0) {
-    renderSceneWorker(time);
-    return;
-  }
-
   videoRegistryRef.current.forEach((video, key) => {
+
     if (!video || !isFinite(video.duration)) {
       pending--;
-      if (pending === 0) renderSceneWorker(time);
       return;
     }
 
-    const seekTime = Math.min(Math.max(time, 0), video.duration - 0.001);
-    if (!video.paused) video.pause();
+    const seekTime = Math.min(
+      Math.max(time, 0),
+      video.duration - 0.001
+    );
 
-    let settled = false;
+    if (!video.paused) {
+      video.pause();
+    }
 
-    const onFrame = () => {
-      if (settled) return;
-      settled = true;
-      pending--;
-      if (pending === 0) renderSceneWorker(time);
-    };
+      video.requestVideoFrameCallback((_, metadata) => {
 
-    const onSeeked = () => {
-      if (settled) return;
-      settled = true;
-      video.removeEventListener('seeked', onSeeked);
-      pending--;
-      if (pending === 0) renderSceneWorker(time);
-    };
-    video.addEventListener('seeked', onSeeked);
-    video.currentTime = seekTime;
-    video.requestVideoFrameCallback(onFrame);
+        pending--;
 
-    // Fallback: if rvfcb never fires (same frame / browser quirk), unblock after 100ms
-    setTimeout(() => onFrame(), 100);
+        if (pending === 0) {
+        renderSceneWorker(time);
+        }
+
+      });
+
+      video.currentTime = seekTime;
   });
-};
+}
 
 
 
@@ -3830,8 +3083,7 @@ useEffect(() => {
 
   if (isTrackingRef.current){
     if (videoRegistryRef.current.size > 0){
-
-      console.log('updateVideosWorker', videoRegistryRef.current.size)
+      //updateVideosBuffer(currentTime)
       updateVideosWorker(currentTime)
 
     }else{
@@ -3946,7 +3198,6 @@ useEffect(() => {
 useEffect(()=>{
 
   if (isPlaying){
-    console.log('isPlaying', isPlaying)
     drawLower()
     drawArtboard()
   }
@@ -3997,24 +3248,11 @@ const getAnimatedProps = (element, localTime) => {
 
  element.animations.forEach(anim => {
 
+
    const progress = Math.max(0, Math.min(1, (time - anim.startTime) / anim.duration));
 
-
    const easingFn = Easings[anim.easing || 'linear'];
-
-
-    let eased
-
-   if (anim.easing === 'pulseScale'){
-
-     eased = easingFn(progress, duration, 0.5);
-
-   }else{
-      eased = easingFn(progress);
-   }
-
-
-
+   const  eased = easingFn(progress);
 
 
    props.eased = eased
@@ -4030,7 +3268,6 @@ const getAnimatedProps = (element, localTime) => {
       if (anim.type === 'slideInTop') props.cy = element.cy - 300;
       if (anim.type === 'slideInBottom') props.cy = element.cy + 300;
       if (anim.type === 'scaleIn') props.scale = 0;
-      if (anim.type === 'bounce') props.cy = element.cy - 400;
       return;
     }
    if (time > anim.startTime + anim.duration) {
@@ -4046,8 +3283,6 @@ const getAnimatedProps = (element, localTime) => {
      if (anim.type === 'scaleOut') props.scale = 0;
      if (anim.type === 'rotate') props.angle = (element.angle ?? 0) + degToRad(360);
      if (anim.type === 'grow') props.scale = 1.2 ; // <-- Add this line
-     if (anim.type === 'bounce') props.cy = element.cy;
-     ///if (anim.type === 'drop') props.scale = 1.2;
 
      return;
    }
@@ -4081,51 +3316,17 @@ const getAnimatedProps = (element, localTime) => {
        props.angle = (element.angle ?? 0) + degToRad(360 * eased);
        break;
      case 'pulse':
-       props.scale = eased;
+       props.angle = 1 + Math.sin(eased * Math.PI * 4) * 0.1;
        break;
      case 'bounce':
-       //const bounceProgress = eased;
-       props.cy = element.cy - 400 + (400 * eased);
+       const bounceProgress = eased;
+       props.cy = element.y - Math.abs(Math.sin(bounceProgress * Math.PI * 3)) * 50 * (1 - bounceProgress);
        break;
      case 'grow':
        // Scale from 1 to 1.5
+
        props.scale = 1 + 0.2 * eased;
        break;
-     case 'drop':
-       // start big → end at 1
-       props.scale = 1.6 - 0.6 * eased;
-       // fade in quickly at the start
-       props.opacity = Math.min(1, eased * 2);
-       break;
-     case 'rotateInLeft':
-       props.angle = (element.angle ?? 0) + degToRad(-120 * (1 - eased));
-       props.cx = element.cx - 300 + (300 * eased);
-       props.opacity = eased;
-
-       /*
-
-       const t = 1 - Math.pow(1 - eased, 2); // ease-out
-
-        props.angle = (element.angle ?? 0) + degToRad(90 * (1 - t));
-        props.cx = element.cx - 300 + (300 * t);
-        */
-
-       break;
-     case 'rotateInRight':
-       props.angle = (element.angle ?? 0) + degToRad(120 * (1 - eased));
-       props.cx = element.cx + 300 - (300 * eased);
-       props.opacity = eased;
-
-       /*
-
-       const t = 1 - Math.pow(1 - eased, 2); // ease-out
-
-        props.angle = (element.angle ?? 0) + degToRad(90 * (1 - t));
-        props.cx = element.cx - 300 + (300 * t);
-        */
-
-       break;
-
    }
  });
 
@@ -4161,8 +3362,6 @@ setActiveElementId(objectsRef.current.length - 1)
  drawUpper();
  drawLower();
  setShowProperties(true)
- setShowAnimate(false)
- setShowEffects(false)
 }
 
 
@@ -4170,6 +3369,7 @@ useEffect(()=>{
 
   if (activeElement){
 
+    console.log('activeElement useEffect', activeElement)
 
     if (activeElement.type === 'text'){
       if (activeElement.fontFamily){
@@ -4222,8 +3422,6 @@ const addElement = (newObj) => {
 
     const activeScene = sceneManagerRef.current.getActiveScene()
 
-    if (!activeScene) return
-
     sceneManagerRef.current.addElement(activeScene.id, newObj)
 
 
@@ -4243,9 +3441,6 @@ const handleUpdateElementState = (sceneId, elementId, updates) => {
   setSceneManager(prev =>
     prev.updateElement(sceneId, elementId, updates)
   );*/
-
-
-
 
   if (activeElement){
      setActiveElement(prev => prev.update(updates));
@@ -4267,7 +3462,7 @@ const handleUpdateSceneState = (sceneId, updates) => {
 
 
 
-  const resize = (size='scale to fit', paddingFactor = 0.8) => {
+  const resize = (size='scale to fit', paddingFactor = 0.85) => {
 
     const artboard = artboardRef.current;
     const upper = upperRef.current;
@@ -4276,7 +3471,6 @@ const handleUpdateSceneState = (sceneId, updates) => {
 
     const lower = lowerRef.current;
     const topToolbar = topToolbarRef.current
-    const toolbar = toolbarRef.current
     const container = containerRef.current
     const canvasContainer = canvasContainerRef.current
 
@@ -4285,6 +3479,9 @@ const handleUpdateSceneState = (sceneId, updates) => {
     const containerWidth = container.offsetWidth
     const containerHeight = container.offsetHeight
     //set size of upper canvas and artboard to fullsize
+
+
+
 
     upper.width = containerWidth;
     upper.height = containerHeight;
@@ -4320,9 +3517,8 @@ const handleUpdateSceneState = (sceneId, updates) => {
     displayWidth *= scaleMaths ;
     displayHeight *= scaleMaths ;
 
-
     const left = (containerWidth - displayWidth) / 2;
-    const top = (containerHeight - displayHeight) / 2 + (topToolbar.offsetHeight/2) + tooTipHeight
+    const top = (containerHeight - displayHeight) / 2 + (topToolbar.offsetHeight/2);
 
     canvasContainer.style.left = `${left}px`;
     canvasContainer.style.top = `${top}px`;
@@ -4338,8 +3534,6 @@ const handleUpdateSceneState = (sceneId, updates) => {
       x: left,
       y: top
     };
-
-    setCanvasEditorHeight(containerRef.current.offsetHeight - topToolbar.offsetHeight)
 
   };
 
@@ -4358,234 +3552,6 @@ const handleUpdateSceneState = (sceneId, updates) => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [handleResize]);
-
-
-/*
-  const pasteText = async (pastedText) => {
-    const obj = getActiveElement();
-    if (!obj || obj.type !== "text") return;
-
-    obj.insertTextAtCaret(pastedText);
-    const activeScene = sceneManagerRef.current.getActiveScene()
-    handleUpdateElementState(activeScene.id, obj.id, {'text':obj.text})
-    textHilightRef.current = false
-    drawLower()
-    drawUpper();
-    drawArtboard();
-    drawTextCursor();
-  }*/
-
-/*
-
-useEffect(() => {
-  const el = isTextEditingRef.current;
-  if (!el) return;
-
-  const pasteHandler = (e) => {
-    e.preventDefault();
-    const pastedText = e.clipboardData.getData('text/plain');
-    pasteText(pastedText);
-  };
-
-  el.addEventListener('paste', pasteHandler);
-
-  return () => {
-    el.removeEventListener('paste', pasteHandler);
-  };
-}, [isTextEditingRef.current]);
-*/
-
-
-/*
-
-const pasteTextCallBack = useCallback((e) => {
-
-  const target = e.target;
-  // 🚫 ignore real text inputs
-  const canvasInput = textEditRef.current;
-
-  // ✅ ONLY handle paste for your canvas input
-  if (target !== canvasInput) {
-    return;
-  }
-
-
-   e.preventDefault();
-   const pastedText = e.clipboardData.getData('text/plain');
-   pasteText(pastedText);
-}, [pasteText]);
-
-*/
-/*
-  useEffect(() => {
-    window.addEventListener('paste', pasteTextCallBack)
-    return () => window.removeEventListener("paste", pasteTextCallBack);
-  }, [pasteTextCallBack]);
-  */
-
-  function startCaretBlink() {
-    if (caretTimer.current) clearInterval(caretTimer.current);
-    caretVisibleRef.current = true;
-    caretTimer.current = setInterval(() => {
-
-      caretVisibleRef.current = !caretVisibleRef.current;
-      drawTextCursor();
-    }, 500);
-  }
-
-  function stopCaretBlink() {
-
-    clearInterval(caretTimer.current);
-    caretTimer.current = null;
-  }
-
-/*
-  useEffect(() => {
-    const el = textEditRef.current;
-    if (!el) return;
-
-    const keydownHandler = (e) => {
-      // your entire logic here
-        const obj = getActiveElement()
-        const { row, col } = obj.getCaretPosFromIndex(obj.caretAbsIndex);
-        const lines = obj.getLines();
-        let clearSelection = false
-
-        if (!obj || obj.type !== 'text') return
-
-        if (e.key === "ArrowUp") {
-          if (row > 0) {
-            const prev = lines[row - 1];
-            const newCol = Math.min(prev.length, col);
-
-
-            obj.caretAbsIndex = obj.getIndexFromCaretPos(row - 1, newCol);
-            obj.selectionStart = {line: row - 1, char:newCol}
-            obj.selectionEnd = {line: row - 1, char:newCol}
-            clearSelection = true
-          }
-          e.preventDefault();
-        } else if (e.key === "ArrowDown") {
-          if (row < lines.length - 1) {
-            const next = lines[row + 1];
-            const newCol = Math.min(next.length, col);
-            obj.caretAbsIndex = obj.getIndexFromCaretPos(row + 1, newCol);
-            obj.selectionStart = {line: row + 1, char:newCol}
-            obj.selectionEnd = {line: row + 1, char:newCol}
-            clearSelection = true
-          }
-          e.preventDefault();
-        } else if (e.key === "ArrowLeft") {
-          obj.caretAbsIndex = Math.max(0, obj.caretAbsIndex - 1);
-          obj.selectionStart = {line: row, char:obj.caretAbsIndex - 1}
-          obj.selectionEnd = {line: row, char:obj.caretAbsIndex - 1}
-          clearSelection = true
-        } else if (e.key === "ArrowRight") {
-          obj.caretAbsIndex = Math.min(obj.text.length, obj.caretAbsIndex + 1);
-          obj.selectionStart = {line: row, char:obj.caretAbsIndex + 1}
-          obj.selectionEnd = {line: row, char:obj.caretAbsIndex + 1}
-          clearSelection = true
-        } else if ( e.key === "Backspace") {
-          e.preventDefault();
-          obj.handleBackspace();
-        } else if (e.key === "Delete") {
-          e.preventDefault();
-          obj.handleDelete(obj);
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          obj.handleEnter();
-        } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey) {
-          // Normal character input
-          e.preventDefault();
-          obj.insertTextAtCaret(e.key);
-        }
-
-        if (e.key === "Enter" || e.key === "Delete" || e.key === "Backspace" || (e.key.length === 1 && !e.metaKey && !e.ctrlKey)){
-          const activeScene = sceneManagerRef.current.getActiveScene()
-          handleUpdateElementState(
-            activeScene.id,
-            obj.id,
-            {
-              text:obj.text
-            }
-          )
-            textHilightRef.current = false
-        }
-
-        if (clearSelection){
-          startCaretBlink()
-        }
-        // Keep textarea synced
-        textEditRef.current.value = obj.text;
-        textEditRef.current.setSelectionRange(obj.caretAbsIndex, obj.caretAbsIndex);
-        drawLower()
-        drawUpper();
-        drawArtboard();
-        drawTextCursor();
-
-    };
-
-    const pasteHandler = (e) => {
-
-      const obj = getActiveElement();
-      if (!obj || obj.type !== "text") return;
-
-      e.preventDefault();
-
-      const pastedText = e.clipboardData.getData("text/plain");
-
-      obj.insertTextAtCaret(pastedText);
-
-      const activeScene = sceneManagerRef.current.getActiveScene();
-
-      handleUpdateElementState(activeScene.id, obj.id, {
-        text: obj.text,
-      });
-
-      textHilightRef.current = false;
-
-      // sync hidden input
-      textEditRef.current.value = obj.text;
-      textEditRef.current.setSelectionRange(obj.caretAbsIndex, obj.caretAbsIndex);
-
-      drawLower();
-      drawUpper();
-      drawArtboard();
-      drawTextCursor();
-    };
-
-    const blurHandler = (e) => {
-      console.log('blur')
-      //stopCaretBlink();
-      clearCursor()
-    }
-
-    el.addEventListener("keydown", keydownHandler);
-    el.addEventListener("paste", pasteHandler);
-    el.addEventListener("blur", blurHandler);
-
-  return () => {
-    el.removeEventListener("keydown", keydownHandler);
-    el.removeEventListener("paste", pasteHandler);
-    el.removeEventListener("blur", blurHandler);
-  };
-}, [textEditRef]); // <-- important
-*/
-
-
-
-
-  const applyEffectArtboard = (ctx, effect) =>{
-    if (!ctx) return
-    if (!effect) return
-
-
-    ctx.shadowColor = effect.shadowColor;
-    ctx.shadowBlur = effect.shadowBlur * scaleRef.current;
-    ctx.shadowOffsetX = effect.shadowOffsetX * scaleRef.current;
-    ctx.shadowOffsetY = effect.shadowOffsetX * scaleRef.current;
-  }
-
 
 
   const drawArtboard = () => {
@@ -4619,7 +3585,7 @@ const pasteTextCallBack = useCallback((e) => {
 
       let animationProps
 
-      if (activeToolRef.current === 'edit text'&& object.animations.length > 0 && object.type === 'text'){
+      if (activeToolRef.current === 'edit text'){
           animationProps = {
             cx: object.cx,
             cy: object.cy,
@@ -4645,14 +3611,6 @@ const pasteTextCallBack = useCallback((e) => {
       ctx.globalAlpha = animationProps? animationProps.opacity : obj.opacity;
       ctx.beginPath();
 
-      if (object.effects.length > 0){
-
-        object.effects.forEach(effect => {
-          applyEffectArtboard(ctx, effect)
-        })
-
-      }
-
       if (object.type === "rectangle") {
         // Rectangle: draw centered rect
         ctx.rect((-object.width/ 2) * scaleRef.current, (-object.h / 2) * scaleRef.current, object.width * scaleRef.current, object.h * scaleRef.current);
@@ -4668,33 +3626,18 @@ const pasteTextCallBack = useCallback((e) => {
 
       } else if (object.type === "text"){
 
-        if (object.hasTexthilight()){
-          object.drawHilightText(
-            ctx,
-            animationProps,
-            activeToolRef.current === 'edit text' && object.animations.length > 0 && object.type === 'text',
-              scaleRef.current
-          )
+        if (textHilightRef.current){
+          object.drawHilightTextArtboard(ctx, scaleRef.current)
         }else{
 
-          object.drawTextChars(
-            ctx,
-            animationProps,
-            activeToolRef.current === 'edit text' && object.animations.length > 0 && object.type === 'text',
-            scaleRef.current
-          )
+          object.drawTextArtboard(ctx, scaleRef.current)
         }
 
       }else if (object.type === "image"){
 
         if (object.clippingPath){
 
-          const clipCx = (object.clippingPath.left + object.clippingPath.right)/2
-
-          const clipCy = (object.clippingPath.top + object.clippingPath.bottom)/2
-
-
-          ctx.translate(offset.x + (clipCx + animationProps.cx) * scaleRef.current, offset.y + (clipCy + animationProps.cy) * scaleRef.current);
+          ctx.translate(offset.x + (object.clippingPath.cx + animationProps.cx) * scaleRef.current, offset.y + (object.clippingPath.cy + animationProps.cy) * scaleRef.current);
           ctx.rotate(animationProps.angle);
           ctx.scale(animationProps.scale, animationProps.scale);
 
@@ -4731,6 +3674,7 @@ const pasteTextCallBack = useCallback((e) => {
           ctx.rotate(animationProps.angle);
           ctx.scale(animationProps.scale, animationProps.scale);
 
+
           ctx.drawImage(
             object.img,
             -object.width / 2 * scaleRef.current,
@@ -4739,19 +3683,11 @@ const pasteTextCallBack = useCallback((e) => {
             object.h * scaleRef.current
           );
 
+
         }
 
-        if (object.strokeColour && object.strokeWeight){
-          ctx.strokeStyle = object.strokeColour || "black";
-          ctx.lineWidth = object.strokeWeight * scaleRef.current || 0
-          // put stroke on outside
-          ctx.strokeRect(
-            (-object.width/ 2 - (object.strokeWeight/2)) * scaleRef.current,
-            (-object.h / 2 - (object.strokeWeight/2)) * scaleRef.current,
-            (object.width + object.strokeWeight) * scaleRef.current,
-            (object.h + object.strokeWeight) * scaleRef.current
-          );
-        }
+
+
 
       }else if (object.type === "video"){
 
@@ -4764,26 +3700,15 @@ const pasteTextCallBack = useCallback((e) => {
         );
       }
 
-
-
-
-
       if (object.type !== "pen" && object.type !== "image"){
         ctx.fillStyle = object.fill || "lightgray";
         ctx.fill();
       }
       // Then stroke (optional)
-      if (object.strokeColour && object.strokeWeight && object.type !== 'image'){
-
+      if (object.strokeColour && object.strokeWeight){
         ctx.strokeStyle = object.strokeColour || "black";
-        ctx.lineWidth = object.strokeWeight * scaleRef.current || 0
-        ctx.strokeRect(
-          (-object.width/ 2 - (object.strokeWeight/2)) * scaleRef.current,
-          (-object.h / 2 - (object.strokeWeight/2)) * scaleRef.current,
-          (object.width + object.strokeWeight) * scaleRef.current,
-          (object.h + object.strokeWeight) * scaleRef.current
-        );
-
+        ctx.lineWidth = object.strokeWeight || 0
+        ctx.stroke();
       }
 
     ctx.closePath();
@@ -4830,221 +3755,225 @@ const clearUpper = () => {
 }
 
   // Draw upper canvas overlay
-  const drawUpper = () => {
-    const upper = upperRef.current;
-    if (!upper) return;
+const drawUpper = () => {
+  const upper = upperRef.current;
+  if (!upper) return;
 
-    const selectedIndex = selectedIndexRef.current;
+  const selectedIndex = selectedIndexRef.current;
 
-    const ctx = upper.getContext("2d");
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+  const ctx = upper.getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
 
-    ctx.clearRect(0, 0, upper.width, upper.height);
+  ctx.clearRect(0, 0, upper.width, upper.height);
+  ctx.save();
+
+  if (selectedIndex != null) {
+
+    const object = objectsRef.current[selectedIndex];
+    if (!object) return
+
+    const offset = offsetRef.current;
+
+    if (object.type !== 'pen' && object.type !== 'air brush'){
+
+    let {cx, cy, width, h, angle} = object
+
+    let left, right, top, bottom;
+
+    if (object.clippingPath) {
+      left   = object.clippingPath.left;
+      right  = object.clippingPath.right;
+      top    = object.clippingPath.top;
+      bottom = object.clippingPath.bottom;
+    } else {
+      left   = -object.width / 2;
+      right  =  object.width / 2;
+      top    = -object.h / 2;
+      bottom =  object.h / 2;
+    }
+
+    const animatedProps = getAnimatedProps(object)
+    // Apply global pan + zoom
+
+    let screenCx, screenCy
+
+
+    if (object.clippingPath && (isPlaying || isTrackingRef.current)){
+
+      screenCx = (offset.x + (animatedProps.cx + object.clippingPath.cy) * scaleRef.current)
+      screenCy = (offset.y + (animatedProps.cy + object.clippingPath.cy) * scaleRef.current);
+
+    }else{
+
+      const cx = animatedProps?animatedProps?.cx:object.cx
+      const cy = animatedProps?animatedProps?.cy:object.cy
+
+      screenCx = offset.x + animatedProps?.cx * scaleRef.current;
+      screenCy = offset.y + animatedProps?.cy * scaleRef.current;
+    }
+
+    const screenLeft   = left * scaleRef.current;
+    const screenRight  = right * scaleRef.current;
+    const screenTop    = top * scaleRef.current;
+    const screenBottom = bottom * scaleRef.current;
+
+    const screenW = screenRight - screenLeft;
+    const screenH = screenBottom - screenTop;
+
+
     ctx.save();
-
-    if (selectedIndex != null) {
-
-      const object = objectsRef.current[selectedIndex];
-      if (!object) return
-
-      const offset = offsetRef.current;
-
-      if (object.type !== 'pen' && object.type !== 'air brush'){
-
-      let {cx, cy, width, h, angle} = object
-
-      let left, right, top, bottom;
-
-      if (object.clippingPath) {
-
-        const clip = object.clippingPath;
-
-        const clipW = clip.right - clip.left;
-        const clipH = clip.bottom - clip.top;
-
-        left   = -clipW / 2;
-        right  =  clipW / 2;
-        top    = -clipH / 2;
-        bottom =  clipH / 2;
-
-      } else {
-        left   = -object.width / 2;
-        right  =  object.width / 2;
-        top    = -object.h / 2;
-        bottom =  object.h / 2;
-      }
-
-      const animationProps = getAnimatedProps(object)
-
-      if (!animationProps) return
-      // Apply global pan + zoom
-      let screenCx, screenCy
+    ctx.translate(screenCx, screenCy);
+    ctx.rotate(animatedProps.angle);
+    ctx.scale(animatedProps.scale, animatedProps.scale);
 
 
-      if (object.clippingPath){
-        ctx.translate(
-           offset.x + (object.clippingPath.cx + animationProps.cx) * scaleRef.current,
-           offset.y + (object.clippingPath.cy + animationProps.cy) * scaleRef.current
-         );
-      }else{
-        ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
+    // Draw lines
+    if (object.type === 'image' && activeToolRef.current === 'cropping'){
+        ctx.strokeStyle = "white";
 
-      }
+        const gapX = screenW/3
+        ctx.strokeRect(screenLeft+gapX, screenTop, screenW/3, screenH);
 
-      const screenLeft   = left * scaleRef.current;
-      const screenRight  = right * scaleRef.current;
-      const screenTop    = top * scaleRef.current;
-      const screenBottom = bottom * scaleRef.current;
+        const gapY = screenH/3
+        ctx.strokeRect(screenLeft, screenTop + gapY, screenW, screenH/3);
+    }
 
-      const screenW = screenRight - screenLeft;
-      const screenH = screenBottom - screenTop;
+    // Draw bounding box centered at (0,0)
+    ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
 
-      //ctx.translate(screenCx, screenCy);
-      ctx.rotate(animationProps.angle);
-      ctx.scale(animationProps.scale, animationProps.scale);
+    ctx.lineWidth = TRANSFORM_WIDTH;
 
-
-      // Draw lines
-      if (object.type === 'image' && activeToolRef.current === 'cropping'){
-          ctx.strokeStyle = "white";
-
-          const gapX = screenW/3
-          ctx.strokeRect(screenLeft+gapX, screenTop, screenW/3, screenH);
-
-          const gapY = screenH/3
-          ctx.strokeRect(screenLeft, screenTop + gapY, screenW, screenH/3);
-      }
-
-      // Draw bounding box centered at (0,0)
-      ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-      ctx.lineWidth = TRANSFORM_WIDTH;
+    if (object.clippingPath && (isPlaying || isTrackingRef.current)){
 
       ctx.strokeRect(
-        screenLeft,
-        screenTop,
+        screenLeft - (object.clippingPath.left + object.clippingPath.right) / 2,
+        screenTop - (object.clippingPath.top + object.clippingPath.bottom) / 2,
         screenW,
         screenH
       );
 
-      const corners = [
-        { x: screenLeft,  y: screenTop, type:'corner' }, // top-left
-        { x: screenRight, y: screenTop, type:'corner' }, // top-right
-        { x: screenLeft, y:  screenBottom, type:'corner' }, // bottom-left
-        { x: screenRight, y:  screenBottom, type:'corner' }, // bottom-right
-        { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left' }, // left
-        { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
-        { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
-        { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
-      ];
-
-      corners.forEach((c, index) => {
-        ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
-
-        if (c.type === 'corner'){
-
-          ctx.fillRect(
-            c.x  - HANDLE_SIZE,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 2
-          );
-          ctx.strokeRect(
-            c.x - HANDLE_SIZE,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 2
-          );
-
-        }else if ((c.type === 'side-right' && activeToolRef.current !== 'cropping') || (c.type === 'side-left' && activeToolRef.current !== 'cropping')){
-          ctx.fillRect(
-            c.x - HANDLE_SIZE,
-            c.y - HANDLE_SIZE * 4,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 8
-          );
-          ctx.strokeRect(
-            c.x - HANDLE_SIZE,
-            c.y - HANDLE_SIZE * 4,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 8
-          );
-        }else if ((c.type === 'side-top' && activeToolRef.current !== 'cropping') || (c.type === 'side-bottom' && activeToolRef.current !== 'cropping')){
-          ctx.fillRect(
-            c.x - HANDLE_SIZE * 4,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 8,
-            HANDLE_SIZE * 2
-          );
-          ctx.strokeRect(
-            c.x - HANDLE_SIZE * 4,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 8,
-            HANDLE_SIZE * 2
-          );
-        }
-      });
-      // Draw rotate handle: top-center + distance
-      ctx.beginPath();
-      ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE * 2, 0, 2 * Math.PI);
-      ctx.closePath();
-      ctx.stroke();
-
-
-      // Curved arrow
-      ctx.beginPath();
-      ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE / 1.2, Math.PI * 0.10, Math.PI * 1.7);
-      ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-      ctx.lineWidth = TRANSFORM_WIDTH;
-      ctx.stroke();
-
-      // Arrowhead
-      const r = HANDLE_SIZE / 1.2;
-
-      //Pick the angle where the arrowhead sits
-      const endAngle = Math.PI * 1.6;
-      const arrowLength = 6;
-      const arrowShort = 5.5;
-      const spread = 0.7; // controls arrow openness
-
-
-      const arrowx = screenLeft+(screenW/2)
-      const arrowy = screenBottom + ROTATE_DISTANCE;
-
-
-      const ax = (arrowx + Math.cos(endAngle) * r) + 3.5;
-      const ay = (arrowy + Math.sin(endAngle) * r) + 1.5
-
-      const arrowAngle = endAngle + Math.PI / 2; // tangent direction
-
-
-      ctx.beginPath();
-      // Left wing
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(
-        ax - Math.cos(arrowAngle - spread) * arrowShort,
-        ay - Math.sin(arrowAngle - spread) * arrowShort
-      );
-
-
-      // Right wing
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(
-        ax - Math.cos(arrowAngle + spread) * arrowLength,
-        ay - Math.sin(arrowAngle + spread) * arrowLength
-      );
-
-      ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-      ctx.lineWidth = TRANSFORM_WIDTH;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-
-      ctx.restore();
-      }
+    }else{
+      ctx.strokeRect(screenLeft, screenTop, screenW, screenH);
     }
+    const corners = [
+      { x: screenLeft,  y: screenTop, type:'corner' }, // top-left
+      { x: screenRight, y: screenTop, type:'corner' }, // top-right
+      { x: screenLeft, y:  screenBottom, type:'corner' }, // bottom-left
+      { x: screenRight, y:  screenBottom, type:'corner' }, // bottom-right
+      { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left' }, // left
+      { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
+      { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
+      { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
+    ];
+
+    corners.forEach((c, index) => {
+      ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
+
+      if (c.type === 'corner'){
+
+        ctx.fillRect(
+          c.x - HANDLE_SIZE,
+          c.y - HANDLE_SIZE,
+          HANDLE_SIZE * 2,
+          HANDLE_SIZE * 2
+        );
+        ctx.strokeRect(
+          c.x - HANDLE_SIZE,
+          c.y - HANDLE_SIZE,
+          HANDLE_SIZE * 2,
+          HANDLE_SIZE * 2
+        );
+
+      }else if ((c.type === 'side-right' && activeToolRef.current !== 'cropping') || (c.type === 'side-left' && activeToolRef.current !== 'cropping')){
+        ctx.fillRect(
+          c.x - HANDLE_SIZE,
+          c.y - HANDLE_SIZE * 4,
+          HANDLE_SIZE * 2,
+          HANDLE_SIZE * 8
+        );
+        ctx.strokeRect(
+          c.x - HANDLE_SIZE,
+          c.y - HANDLE_SIZE * 4,
+          HANDLE_SIZE * 2,
+          HANDLE_SIZE * 8
+        );
+      }else if ((c.type === 'side-top' && activeToolRef.current !== 'cropping') || (c.type === 'side-bottom' && activeToolRef.current !== 'cropping')){
+        ctx.fillRect(
+          c.x - HANDLE_SIZE * 4,
+          c.y - HANDLE_SIZE,
+          HANDLE_SIZE * 8,
+          HANDLE_SIZE * 2
+        );
+        ctx.strokeRect(
+          c.x - HANDLE_SIZE * 4,
+          c.y - HANDLE_SIZE,
+          HANDLE_SIZE * 8,
+          HANDLE_SIZE * 2
+        );
+      }
+    });
+    // Draw rotate handle: top-center + distance
+    ctx.beginPath();
+    ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE * 2, 0, 2 * Math.PI);
+    ctx.closePath();
+    ctx.stroke();
+
+
+    // Curved arrow
+    ctx.beginPath();
+    ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE / 1.2, Math.PI * 0.10, Math.PI * 1.7);
+    ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
+    ctx.lineWidth = TRANSFORM_WIDTH;
+    ctx.stroke();
+
+    // Arrowhead
+    const r = HANDLE_SIZE / 1.2;
+
+    //Pick the angle where the arrowhead sits
+    const endAngle = Math.PI * 1.6;
+    const arrowLength = 6;
+    const arrowShort = 5.5;
+    const spread = 0.7; // controls arrow openness
+
+
+    const arrowx = screenLeft+(screenW/2)
+    const arrowy = screenBottom + ROTATE_DISTANCE;
+
+
+    const ax = (arrowx + Math.cos(endAngle) * r) + 3.5;
+    const ay = (arrowy + Math.sin(endAngle) * r) + 1.5
+
+    const arrowAngle = endAngle + Math.PI / 2; // tangent direction
+
+
+    ctx.beginPath();
+    // Left wing
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(
+      ax - Math.cos(arrowAngle - spread) * arrowShort,
+      ay - Math.sin(arrowAngle - spread) * arrowShort
+    );
+
+
+    // Right wing
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(
+      ax - Math.cos(arrowAngle + spread) * arrowLength,
+      ay - Math.sin(arrowAngle + spread) * arrowLength
+    );
+
+    ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
+    ctx.lineWidth = TRANSFORM_WIDTH;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
 
     ctx.restore();
-  };
+    }
+  }
+
+  ctx.restore();
+};
 
 const clearCanvas = (ctx) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
@@ -5058,9 +3987,6 @@ const clearAll = () => {
   const lower = lowerRef.current;
   if (!lower) return;
   const ctx = lower.getContext("2d");
-
-  sceneManagerRef.current.scenes.length = 1
-
   const activeScene = sceneManagerRef.current.getActiveScene()
 
   setBackgroundColour('rgba(255, 255, 255, 1)')
@@ -5068,8 +3994,7 @@ const clearAll = () => {
 
   postDataArrayRef.current = postDataArrayRef.current.map((data)=> data.sceneId !== activeScene.id)
 
-  stopCaretBlink();
-  clearCursor()
+  console.log('postDataArrayRef.current', postDataArrayRef.current)
 
   setPostInfo(null)
   clearCanvas(ctx)
@@ -5080,38 +4005,14 @@ const clearAll = () => {
   setActiveSceneState(prev => prev.update({elements:[]}));
   setActiveElement(null)
   selectedIndexRef.current = null
-
-
-
-  drawLower()
-  drawArtboard()
-  drawUpper()
+ drawLower()
+drawArtboard()
+drawUpper()
 }
-
-const applyEffect = (ctx, effect) =>{
-  if (!ctx) return
-  if (!effect) return
-  ctx.shadowColor = effect.shadowColor;
-  ctx.shadowBlur = effect.shadowBlur;
-  ctx.shadowOffsetX = effect.shadowOffsetX;
-  ctx.shadowOffsetY = effect.shadowOffsetX;
-}
-
-const checkActiveScene = (scene) => {
-
-  if (!activeSceneState) return
-
-  if (scene.id !== activeSceneState.id){
-    setActiveSceneState(scene);
-    sceneManagerRef.current.activeSceneId = scene.id
-  }
-
-}
-
-
 
   // Draw lower canvas (full resolution)
   const drawLower = (exportVideo = false) => {
+
 
     const scene = sceneManagerRef.current.getSceneAtTime(currentTimeRef.current);
 
@@ -5121,19 +4022,19 @@ const checkActiveScene = (scene) => {
 
     if (!exportVideo){
 
-      checkActiveScene(scene)
-
       const lower = lowerRef.current;
       if (!lower) return;
       ctx = lower.getContext("2d");
 
     }else{
 
+      const offscreenCanvasExport = document.createElement("canvas");
+      offscreenCanvasExport.width = PAGE_WIDTH + BLEED * 2;
+      offscreenCanvasExport.height = PAGE_HEIGHT + BLEED * 2;
+      offscreenCanvasExportRef.current = offscreenCanvasExport
       ctx = offscreenCanvasExportRef.current.getContext("2d");
 
     }
-
-    if (!ctx) return;
 
     ctx.save();
     ctx.setTransform(1,0,0,1,0,0);
@@ -5153,14 +4054,15 @@ const checkActiveScene = (scene) => {
 
       if (!object) return
 
+
+
       object.currentTime = localTime
 
       let animationProps
 
-      const editingAnimatedText = activeToolRef.current === 'edit text' && object.animations.length > 0 && object.type === 'text' && !isPlaying && !isTrackingRef.current
+      if (activeToolRef.current === 'edit text' && object.animations.length > 0 && object.type === 'text'){
 
-
-      if (editingAnimatedText){
+          console.log('object', object)
           animationProps = {
             cx: object.cx,
             cy: object.cy,
@@ -5173,6 +4075,7 @@ const checkActiveScene = (scene) => {
           animationProps = getAnimatedProps(object, localTime);
       }
 
+
       ctx.save();
 
       if (object.type !== 'image'){
@@ -5181,16 +4084,8 @@ const checkActiveScene = (scene) => {
         ctx.scale(animationProps.scale, animationProps.scale);
       }
 
-
-
       ctx.globalAlpha = animationProps.opacity;
       ctx.beginPath(); // 🟢 Always begin a new path for each object
-
-      if (object.effects.length > 0){
-        object.effects.forEach(effect => {
-          applyEffect(ctx, effect)
-        })
-      }
 
 
       if (object.type === "rectangle") {
@@ -5206,11 +4101,11 @@ const checkActiveScene = (scene) => {
         ctx.lineTo(object.width/2, object.h / 2);
 
       }else if (object.type === "text"){
-
-        if (object.hasTexthilight()){
-          object.drawHilightText(ctx, animationProps, editingAnimatedText)
+        if (textHilightRef.current){
+          object.drawHilightText(ctx, animationProps, activeToolRef.current === 'edit text' && object.animations.length > 0 && object.type === 'text')
         }else{
-          object.drawTextChars(ctx, animationProps, editingAnimatedText)
+          object.drawTextChars(ctx, animationProps, activeToolRef.current === 'edit text' && object.animations.length > 0 && object.type === 'text')
+        //object.drawTextCharsOriginal(ctx)
         }
       }else if (object.type === "image"){
 
@@ -5251,20 +4146,6 @@ const checkActiveScene = (scene) => {
             object.redrawImage(ctx, animationProps)
         }
 
-        if (object.strokeColour && object.strokeWeight){
-          ctx.strokeStyle = object.strokeColour || "black";
-          ctx.lineWidth = object.strokeWeight || 0
-            // put stroke on outside
-          ctx.strokeRect(
-            -object.width/ 2 - (object.strokeWeight/2),
-            -object.h / 2 - (object.strokeWeight/2),
-            object.width + object.strokeWeight,
-            object.h + object.strokeWeight
-          );
-        }
-
-
-
       }else if (object.type === "video"){
 
 
@@ -5285,17 +4166,7 @@ const checkActiveScene = (scene) => {
               ctx.globalAlpha = 1;
               ctx.restore();
             }
-       }else if (object.type === 'eraser'){
-         if (object.eraserBuffer){
-           ctx.save();
-           ctx.setTransform(1, 0, 0, 1, 0, 0);
-           ctx.globalCompositeOperation = "destination-out";
-           //ctx.globalAlpha = object.eraserOpacity/100;
-           ctx.drawImage(object.eraserBuffer, 0, 0);
-           //ctx.globalAlpha = 1;
-           ctx.restore();
-         }
-       }
+      }
 
       // Fill first
 
@@ -5305,17 +4176,10 @@ const checkActiveScene = (scene) => {
       }
 
       // Then stroke (optional)
-      if (object.strokeColour && object.strokeWeight && object.type !== 'image'){
-
+      if (object.strokeColour && object.strokeWeight){
         ctx.strokeStyle = object.strokeColour || "black";
         ctx.lineWidth = object.strokeWeight || 0
-        // put stroke on outside
-        ctx.strokeRect(
-          -object.width/ 2 - (object.strokeWeight/2),
-          -object.h / 2 - (object.strokeWeight/2),
-          object.width + object.strokeWeight,
-          object.h + object.strokeWeight
-        );
+        ctx.stroke();
       }
 
       ctx.closePath();
@@ -5397,13 +4261,18 @@ useEffect(() => {
     const offsetY = +ROTATE_DISTANCE/scale + (object.h/2) * animatedProps.scale
 
 
-    const cos = Math.cos(animatedProps.angle??0);
-    const sin = Math.sin(animatedProps.angle??0);
+    const cos = Math.cos(animatedProps.angle);
+    const sin = Math.sin(animatedProps.angle);
 
     // rotate handle into world coordinates
-    const handleX = object.cx + offsetX * Math.cos(animatedProps.angle??0) - offsetY * Math.sin(animatedProps.angle);
-    const handleY = object.cy + offsetX * Math.sin(animatedProps.angle??0) + offsetY * Math.cos(animatedProps.angle);
+    const handleX = object.cx + offsetX * Math.cos(animatedProps.angle) - offsetY * Math.sin(animatedProps.angle);
+    const handleY = object.cy + offsetX * Math.sin(animatedProps.angle) + offsetY * Math.cos(animatedProps.angle);
 
+    const lower = lowerRef.current;
+    if (!lower) return;
+    const ctx = lower.getContext("2d");
+    ctx.fillStyle = "green"
+    ctx.fillRect(handleX, handleY, HANDLE_SIZE * 2, HANDLE_SIZE * 2);
 
     // check distance from mouse
     const dx = mouseX - handleX;
@@ -5416,8 +4285,6 @@ useEffect(() => {
 const getHandlePolygons = (object) => {
   const { x, y, cx, cy, angle } = object;
   const animatedProps = getAnimatedProps(object)
-
-  if (!animatedProps)return
 
   let width
   let h
@@ -5476,8 +4343,6 @@ const getHandlePolygons = (object) => {
 const getSideHandlePolygons = (object) => {
   const { cx, cy, angle } = object;
   const animatedProps = getAnimatedProps(object)
-
-  if (!animatedProps)return
 
   let width
   let h
@@ -5582,6 +4447,7 @@ const renderCornersDetection = (object) => {
        ctx.lineTo(poly[i].x, poly[i].y);
      }
      ctx.closePath();
+
      ctx.fillStyle = index === 0 ? "rgba(0,0,255,0.3)" : "rgba(255,255,255,0.3)";
      ctx.fill();
      ctx.strokeStyle = "red";
@@ -5621,6 +4487,7 @@ const renderCornersDetection = (object) => {
 const isElementInScene = (element) => {
 
   const activeScene = sceneManagerRef.current.getActiveScene()
+
   return activeScene?.elements.find((el)=> el.id === element.id)
 
 }
@@ -5649,13 +4516,12 @@ function hitPolygon(px, py, polygon) {
   };
 
   const hitObject = (obj, mx, my) => {
-    if (!obj) return
 
     const animatedProps = getAnimatedProps(obj)
 
     // Translate mouse into object's local space
-    const dx = mx - obj?.cx;
-    const dy = my - obj?.cy;
+    const dx = mx - obj.cx;
+    const dy = my - obj.cy;
 
     // Undo rotation
     const cos = Math.cos(-animatedProps.angle);
@@ -5723,28 +4589,24 @@ function hitPolygon(px, py, polygon) {
     if (isTextEditingRef.current){
       //textHilightRef.current = true
       const object = getActiveElement()
-      if(!object)return
-      if(object.type !== 'text')return
       if (hitObject(object, pos.x, pos.y)) {
 
-        if (isElementInScene(object)){
+        if (!isElementInScene(object)) return
 
-          lastPointRef.current = pos
-          const position = object.getCharacterPosition(pos)
-          object.selectionStart = object.getCharacterPosition(pos)
-          object.selectionEnd = object.getCharacterPosition(pos)
-          // convert (row, col) → absolute caret index
-          object.caretAbsIndex = object.getIndexFromCaretPos(position.line, position.char);
-          // re-sync and re-focus hidden input
-            syncInputCaret(object);
-            textEditRef.current.focus();
-            requestAnimationFrame(() => textEditRef.current.focus());
 
-            startCaretBlink();
-            return;
-        }
+        lastPointRef.current = pos
+        const position = object.getCharacterPosition(pos)
+        object.selectionStart = object.getCharacterPosition(pos)
+        object.selectionEnd = object.getCharacterPosition(pos)
+        // convert (row, col) → absolute caret index
+        object.caretAbsIndex = object.getIndexFromCaretPos(position.line, position.char);
+        // re-sync and re-focus hidden input
+          syncInputCaret(object);
+          textEditRef.current.focus();
+          requestAnimationFrame(() => textEditRef.current.focus());
+          startCaretBlink();
       }
-
+      return;
     }
 
     if (handMode.current) {
@@ -5755,52 +4617,49 @@ function hitPolygon(px, py, polygon) {
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         const handle = checkResizeHandleHit(objectsRef.current[i], pos.x, pos.y);
         if (handle !== null) {
-          if (isElementInScene(objectsRef.current[i])){
-            resizingRef.current = { index: i, corner: handle }
-            selectedIndexRef.current = i
-            setActiveElementId(i)
-            return;
-          }
+          if (!isElementInScene(objectsRef.current[i])) return
+          resizingRef.current = { index: i, corner: handle }
+          selectedIndexRef.current = i
+          setActiveElementId(i)
+          return;
         }
       }
       // side handles
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         const handle = checkResizeSideHandleHit(objectsRef.current[i], pos.x, pos.y);
         if (handle !== null) {
-          if (isElementInScene(objectsRef.current[i])){
-            resizingSideRef.current = { index: i, side: handle }
-            selectedIndexRef.current = i
-              setActiveElementId(i)
-            return;
-          }
+          if (!isElementInScene(objectsRef.current[i])) return
+          resizingSideRef.current = { index: i, side: handle }
+          selectedIndexRef.current = i
+            setActiveElementId(i)
+          return;
         }
       }
       // rotate
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
           if (checkRotateHandleHit(objectsRef.current[i], pos.x, pos.y)) {
-            if (isElementInScene(objectsRef.current[i])){
-              const startAngle = Math.atan2(pos.y - objectsRef.current[i].y, pos.x - objectsRef.current[i].x );
-              rotatingRef.current = {offset:objectsRef.current[i].angle - Math.atan2(pos.y - objectsRef.current[i].cy, pos.x - objectsRef.current[i].cx)}
-              selectedIndexRef.current = i
-                setActiveElementId(i)
-              return;
-            }
+            if (!isElementInScene(objectsRef.current[i])) return
+            const startAngle = Math.atan2(pos.y - objectsRef.current[i].y, pos.x - objectsRef.current[i].x );
+            rotatingRef.current = {offset:objectsRef.current[i].angle - Math.atan2(pos.y - objectsRef.current[i].cy, pos.x - objectsRef.current[i].cx)}
+            selectedIndexRef.current = i
+              setActiveElementId(i)
+            return;
           }
       }
       // object selection (topmost first)
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
-
+        console.log('hit object', hitObject(objectsRef.current[i], pos.x, pos.y))
 
         if (hitObject(objectsRef.current[i], pos.x, pos.y)) {
+            console.log('hit', objectsRef.current[i])
 
-            if (isElementInScene(objectsRef.current[i])){
-                setActiveElement(objectsRef.current[i])
-                selectedIndexRef.current = i
-                setActiveElementId(i)
-                draggingRef.current = { id: objectsRef.current[i].id, startX: pos.x, startY: pos.y }
-                drawUpper()
-                return;
-            }
+            if (!isElementInScene(objectsRef.current[i])) return
+            setActiveElement(objectsRef.current[i])
+            selectedIndexRef.current = i
+            setActiveElementId(i)
+            draggingRef.current = { id: objectsRef.current[i].id, startX: pos.x, startY: pos.y }
+            drawUpper()
+            return;
         }
       }
 
@@ -5846,7 +4705,6 @@ function hitPolygon(px, py, polygon) {
           brushSize:brushSize
         })
         objectsRef.current.push(newObj);
-        addElement(newObj)
         selectedIndexRef.current = objectsRef.current.length - 1
         setActiveElementId(objectsRef.current.length - 1)
         newObj.points = [{ x: pos.x, y: pos.y, pressure: e.pressure || 1 }]
@@ -5866,7 +4724,6 @@ function hitPolygon(px, py, polygon) {
           brushSize:brushSize
         })
         objectsRef.current.push(newObj);
-        addElement(newObj)
         selectedIndexRef.current = objectsRef.current.length - 1
         setActiveElementId(objectsRef.current.length - 1)
 
@@ -5875,7 +4732,7 @@ function hitPolygon(px, py, polygon) {
         bufferCtxRef.current.clearRect(0,0,bufferRef.current.width,bufferRef.current.height);
 
         // draw first stamp into buffer (full alpha inside texture)
-        paintAt(pos.x, pos.y);
+        stampToBuffer(pos.x, pos.y);
         renderOverlay();
 
       //  applyPaint(pos.x, pos.y, ctx);
@@ -5884,27 +4741,13 @@ function hitPolygon(px, py, polygon) {
       const pos = getMousePos(e);
       isErasingRef.current = true
 
-      const newObj =  new Element({
-        id:generateUniqueId(),
-        x:pos.x,
-        y:pos.y,
-        type:'eraser',
-        brushOpacity:brushOpacity,
-        brushHardness:brushHardness,
-        brushSize:brushSize
-      })
-      objectsRef.current.push(newObj);
-      addElement(newObj)
       lastPointRef.current = {x:pos.x, y:pos.y}
-      newObj.points = [{ x: pos.x, y: pos.y, pressure: e.pressure || 1 }]
 
 
       bufferCtxRef.current.clearRect(0,0,bufferRef.current.width,bufferRef.current.height);
+      //bufferCtxRef.current.globalCompositeOperation = 'source-over';
 
       eraseAt(pos.x, pos.y);
-      //renderOverlay();
-
-      isErasingObjectRef.current = newObj
 
     //applyEraseBuffer();
 
@@ -5995,115 +4838,203 @@ function hitPolygon(px, py, polygon) {
 
     }else if (activeToolRef.current === 'size-position'){
 
-      // resizing element from corner proportional
+      // resizing element from corner
       if (resizing) {
 
-        hideToolBar()
-        const { index, corner } = resizing;
+        const {index, corner} = resizing
+
         const obj = getActiveElement();
-        if (!obj) return
+        if (!obj) return;
         const animated = getAnimatedProps(obj);
 
         const keepRatio = e.shiftKey;
+        const aspect = obj.width / obj.h;
 
-        const aspect = obj.width/ obj.h;
+        const oldObjectWidth = obj.width
+        const oldObjectHeight =  obj.h
 
-        const oldWidth = obj.width;
-        const oldHeight = obj.h;
 
-        // Mouse position relative to center, rotated into object space
+
+        // Mouse relative to object center, rotated into object space
         const dx = pos.x - obj.cx;
         const dy = pos.y - obj.cy;
-
-        const imageHalfW = obj.width / 2;
-        const imageHalfH = obj.h / 2;
-
-        let padX = 0;
-        let padY = 0;
-
         const cos = Math.cos(-animated.angle);
         const sin = Math.sin(-animated.angle);
-
         const localX = (dx * cos - dy * sin) / animated.scale;
         const localY = (dx * sin + dy * cos) / animated.scale;
 
-        // Compute half-width/half-height based on dragged corner
-        let halfW
-        let halfH
+        // Calculate how far the crop edge is from the image edge
+        let halfW, halfH;
 
-        if (obj.clippingPath){
+        if (obj.clippingPath) {
+            const clip = obj.clippingPath;
+            const cropHalfW = (clip.right - clip.left) / 2;
+            const cropHalfH = (clip.bottom - clip.top) / 2;
+            // "padding" between image edge and crop edge
+            const padX = obj.width / 2 - cropHalfW;
+            const padY = obj.h / 2 - cropHalfH;
+            // half-size from mouse to image edge
+            halfW = Math.abs(localX)
+            halfH = Math.abs(localY)
+        } else {
+            halfW = Math.abs(localX);
+            halfH = Math.abs(localY);
+        }
 
-          const oldCropW = obj.clippingPath.right - obj.clippingPath.left;
-          const oldCropH = obj.clippingPath.bottom - obj.clippingPath.top;
+        // Maintain aspect ratio if shift is pressed
 
-          const cropHalfW = (obj.clippingPath.right - obj.clippingPath.left) / 2;
-          const cropHalfH = (obj.clippingPath.bottom - obj.clippingPath.top) / 2;
+        if (keepRatio) {
+            const newAspect = halfW / halfH;
+            if (newAspect > aspect) halfW = halfH * aspect;
+            else halfH = halfW / aspect;
+        }
 
-          // determine horizontal padding
-          switch (corner) {
-            case 0: // top-left
-            case 2: // bottom-left
-              padX = obj.clippingPath.left + imageHalfW;
-              break;
-            case 1: // top-right
-            case 3: // bottom-right
-              padX = imageHalfW - obj.clippingPath.right;
-              break;
+        // Update clipping path if present
+        if (obj.clippingPath) {
+
+          const clip = obj.clippingPath ?? { left: -obj.width/2, right: obj.width/2, top: -obj.h/2, bottom: obj.h/2 };
+
+// Save old clip
+          const oldClip = { ...clip };
+          const oldW = oldClip.right - oldClip.left;
+          const oldH = oldClip.bottom - oldClip.top;
+
+          let anchorX = 0, anchorY = 0;
+
+          switch(corner){
+            case 0: anchorX = oldClip.right; anchorY = oldClip.bottom; break;
+            case 1: anchorX = oldClip.left;  anchorY = oldClip.bottom; break;
+            case 2: anchorX = oldClip.right; anchorY = oldClip.top;    break;
+            case 3: anchorX = oldClip.left;  anchorY = oldClip.top;    break;
           }
 
-          // determine vertical padding
+          // 1️⃣ store old crop size BEFORE modifying it
+          const oldCropW = clip.right - clip.left;
+          const oldCropH = clip.bottom - clip.top;
+
+          const oldCropCx = (clip.left + clip.right)/2;
+          const oldCropCy = (clip.top + clip.bottom)/2;
+
+          // hidden padding between image edge and crop
+          const padX = obj.width - oldCropW;
+          const padY = obj.h - oldCropH;
+
+          // move only the dragged edge
           switch (corner) {
+
             case 0: // top-left
+              clip.left = localX
+              clip.top = localY
+            break
+
             case 1: // top-right
-              padY = obj.clippingPath.top + imageHalfH;
-              break;
-            case 3: // bottom-right
+              clip.right = localX
+              clip.top = localY
+            break
+
             case 2: // bottom-left
-              padY = imageHalfH - obj.clippingPath.bottom;
-              break;
+              clip.left = localX
+              clip.bottom = localY
+            break
+
+            case 3: // bottom-right
+              clip.right = localX
+              clip.bottom = localY
+            break
+
+          }
+
+          // prevent flipping
+          if (clip.right <= clip.left) clip.right = clip.left + 1
+          if (clip.bottom <= clip.top) clip.bottom = clip.top + 1
+
+          //const newW = clip.right - clip.left;
+        //  const newH = clip.bottom - clip.top;
+
+          // Shift clip so anchor corner stays fixed
+          const dxClip = anchorX - (corner % 2 === 0 ? clip.right : clip.left);
+          const dyClip = anchorY - (corner < 2 ? clip.bottom : clip.top);
+          clip.left   += dxClip;
+          clip.right  += dxClip;
+          clip.top    += dyClip;
+          clip.bottom += dyClip;
+
+          clip.width = clip.right - clip.left;
+          clip.height = clip.bottom - clip.top;
+
+          // 3️⃣ compute NEW crop size
+          const cropW = clip.right - clip.left;
+          const cropH = clip.bottom - clip.top;
+          const newCropCx = (clip.left + clip.right)/2;
+          const newCropCy = (clip.top + clip.bottom)/2;
+
+          const clipCx = (clip.left + clip.right)/2;
+          const clipCy = (clip.top + clip.bottom)/2;
+
+          const dx = clipCx - oldCropCx;
+          const dy = clipCy - oldCropCy;
+
+          const halfImgW = obj.width/2
+          const halfImgH = obj.h/2
+
+
+
+          const newW = halfW * 2
+          const newH = halfH * 2
+
+          // anchor world position BEFORE resize
+          const anchorWorldX = obj.cx + anchorX
+          const anchorWorldY = obj.cy + anchorY
+
+          // determine new anchor offset
+          let offsetX = 0
+          let offsetY = 0
+
+          let cornerOffsetX = 0, cornerOffsetY = 0
+
+          switch(corner){
+            case 0: cornerOffsetX = -halfImgW; cornerOffsetY = -halfImgH; break // top-left
+            case 1: cornerOffsetX =  halfImgW; cornerOffsetY = -halfImgH; break // top-right
+            case 2: cornerOffsetX = -halfImgW; cornerOffsetY =  halfImgH; break // bottom-left
+            case 3: cornerOffsetX =  halfImgW; cornerOffsetY =  halfImgH; break // bottom-right
           }
 
 
-          halfW = Math.abs(localX) + padX
-          halfH = Math.abs(localY) + padY
+
+          let newHalfW = Math.abs(localX - anchorX) + Math.abs(cornerOffsetX)
+          let newHalfH = Math.abs(localY - anchorY) + Math.abs(cornerOffsetY)
+
+          const halfWidth = oldObjectWidth/2
+
+          const diffW = halfWidth - halfW
+
+
+          obj.width  = cropW + padX
+          obj.h      = cropH + padY
+
+          //obj.width = newHalfW * 2;
+        //  obj.h = newHalfH * 2;
+
+      //    let newOffsetX = (cornerOffsetX > 0 ? -newHalfW + Math.abs(cornerOffsetX) : newHalfW - Math.abs(cornerOffsetX))
+//let newOffsetY = (cornerOffsetY > 0 ? -newHalfH + Math.abs(cornerOffsetY) : newHalfH - Math.abs(cornerOffsetY))
+
+//obj.cx = anchorWorldX + newOffsetX
+//obj.cy = anchorWorldY + newOffsetY
+
+          obj.clippingPath = clip;
+
 
         }else{
-
-          halfW = Math.abs(localX)
-          halfH = Math.abs(localY)
-
-        }
-
-        if (!keepRatio) {
-          const newAspect = halfW / halfH;
-          if (newAspect > aspect) halfW = halfH * aspect;
-          else halfH = halfW / aspect;
-        }
-
-        obj.width= halfW * 2
-        obj.h = halfH * 2
+          console.log('imag halfW', halfW)
 
 
-        if (obj.clippingPath){
-            // left right top bottom are distances from cy and cx
-          const scaleX = obj.width / oldWidth;
-          const scaleY = obj.h / oldHeight;
-
-          obj.clippingPath.left *= scaleX;
-          obj.clippingPath.right *= scaleX;
-          obj.clippingPath.top *= scaleY;
-          obj.clippingPath.bottom *= scaleY;
-          obj.clippingPath.cx *= scaleX;
-          obj.clippingPath.cy *= scaleY;
-
-        //  const clipCx = (object.clippingPath.left + object.clippingPath.right)/2
-        //  const clipCy = (object.clippingPath.top + object.clippingPath.bottom)/2
-
-
+          obj.width = halfW * 2;
+          obj.h = halfH * 2;
         }
 
         // DO NOT TOUCH obj.cx / obj.cy
         objectsRef.current[index] = obj;
+
 
         if (obj.type === 'text'){
           obj.updateLinesWrap()
@@ -6202,20 +5133,12 @@ function hitPolygon(px, py, polygon) {
 
           const diffX = obj.width/2 - localX
 
-          //const scaleX = localX / oldClipW;
-          //const scaleY = localY / oldClipH;
-
-          const scaleX = newClipW / oldClipW;
-          const scaleY = newClipH / oldClipH;
+          const scaleX = localX / oldClipW;
+          const scaleY = localY / oldClipH;
 
 
-
-          obj.width *= scaleX;
-          obj.h     *= scaleY;
-
-
-           //obj.width = obj.width - oldClipW + newClipW
-           //obj.h     = obj.h - oldClipH + newClipH ;
+        //  obj.width = obj.width - oldClipW + newClipW
+        //  obj.h     = obj.h - oldClipH + newClipH ;
 
           const {clipCx, clipCy, clipWidth, clipHeight} = getClippingValues(obj)
           obj.clippingPath.cx = clipCx
@@ -6438,20 +5361,13 @@ function hitPolygon(px, py, polygon) {
 
     }else if (activeToolRef.current === 'eraser'){
       if (!isErasingRef.current) return;
-      if (!isErasingObjectRef.current) return;
-
-        drawEraserPreview(lastPointRef.current.x, lastPointRef.current.y, pos.x, pos.y)
+        drawEraserBuffer(lastPointRef.current.x, lastPointRef.current.y, pos.x, pos.y)
         lastPointRef.current = {x:pos.x, y:pos.y}
-
-        isErasingObjectRef.current.points.push({
-          x: pos.x,
-          y: pos.y,
-          pressure: e.pressure || 1,
-        });
 
 
     }else if (activeToolRef.current === 'cropping'){
 
+      // resizing element proptionally
       if (resizing) {
         const obj = getActiveElement();
         if (!obj) return
@@ -6534,6 +5450,8 @@ function hitPolygon(px, py, polygon) {
         return;
       }
 
+      // resize Side crop
+
 
     }
   };
@@ -6578,11 +5496,11 @@ const getClippingValues = (obj) => {
 
   useEffect(()=> {
       brushTextureRef.current = createBrushTexture();
-  },[brushSize, brushHardness, brushOpacity, fillColour])
+  },[brushSize, brushHardness, fillColour])
 
   useEffect(()=> {
       eraserTextureRef.current = createEraserTexture();
-  },[eraserSize, eraserOpacity, eraserHardness])
+  },[eraserSize, eraserHardness])
 
   function createEraserTexture() {
     // brushColor fixed to black here; change if you need color
@@ -6600,7 +5518,7 @@ const getClippingValues = (obj) => {
 
     const hard = Math.max(0, Math.min(1, eraserHardness / 100));
 
-    const alpha = (eraserOpacity * brushFlow) / 10000; // Combined opacity and flow
+    //const alpha = (brushOpacity * brushFlow) / 10000; // Combined opacity and flow
 
 
     if (hard >= 0.999) {
@@ -6625,9 +5543,7 @@ const getClippingValues = (obj) => {
         const stop = i / steps;
         // t goes 0..1 across radius; easedAlpha goes from 1 down to 0
         const eased = 1 - easeInOut(stop);
-        //const easedAlpha = eased * (1 - easeInOut(stop));
-        const easedAlpha = alpha * (1 - easeInOut(stop));
-
+        const easedAlpha = eased * (1 - easeInOut(stop));
 
         gradient.addColorStop(stop, `rgba(${0},${0},${0},${easedAlpha})`);
       }
@@ -6703,19 +5619,30 @@ const getClippingValues = (obj) => {
   }
 
 
+  function eraserToBuffer(x, y) {
+    const d = eraserTextureRef.current.width;
+    bufferCtxRef.current.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
 
-  function paintAt(x, y) {
+  }
+
+
+
+  function stampToBuffer(x, y) {
+    // Draw brush texture onto the buffer. NOTE: draw with full alpha (we rely on buffer being composited once)
     const d = brushTextureRef.current.width;
     bufferCtxRef.current.drawImage(brushTextureRef.current, x - d/2, y - d/2);
   }
 
 
   function renderOverlay() {
+    // Clear overlay and draw buffer onto it once with globalAlpha = brushOpacity
     overlayCtxRef.current.clearRect(0,0,overlayRef.current.width,overlayRef.current.height);
     overlayCtxRef.current.globalAlpha = brushOpacity/100;
     overlayCtxRef.current.drawImage(bufferRef.current, 0, 0);
     overlayCtxRef.current.globalAlpha = 1;
   }
+
+
 
 
   function applyEraseBuffer() {
@@ -6731,6 +5658,8 @@ const getClippingValues = (obj) => {
         bufCtx.drawImage(bufferRef.current, 0, 0);
         bufCtx.restore();
     }
+
+
 
     const lower = lowerRef.current;
     const lowerCtx = lower.getContext("2d");
@@ -6824,7 +5753,8 @@ const getClippingValues = (obj) => {
       obj = getActiveElement()
       if (!obj) return
 
-      drawAirbrushBuffer(obj, bufferRef.current)
+      drawBuffer(obj, bufferRef.current)
+
 
       // ✅ Create a new offscreen canvas
       const clonedCanvas = document.createElement('canvas');
@@ -6841,28 +5771,6 @@ const getClippingValues = (obj) => {
       obj.airbrushBufferBitmap = await createImageBitmap(obj.airbrushBuffer)
 
       overlayCtxRef.current.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
-      bufferCtxRef.current.clearRect(0, 0, bufferRef.current.width, bufferRef.current.height);
-
-    }
-
-    if (isErasingRef.current){
-
-      obj = isErasingObjectRef.current
-
-      const clonedCanvas = document.createElement('canvas');
-      clonedCanvas.width = bufferRef.current.width;
-      clonedCanvas.height = bufferRef.current.height;
-      const clonedCtx = clonedCanvas.getContext('2d');
-
-      // Copy the current buffer pixels into it
-      clonedCtx.drawImage(bufferRef.current, 0, 0);
-
-      // Store the copy, not the original reference
-      obj.eraserBuffer = clonedCanvas;
-      obj.eraserOpacity = eraserOpacity;
-      obj.eraserBufferBitmap = await createImageBitmap(obj.eraserBuffer)
-
-    //  overlayCtxRef.current.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
       bufferCtxRef.current.clearRect(0, 0, bufferRef.current.width, bufferRef.current.height);
 
     }
@@ -6889,7 +5797,6 @@ const getClippingValues = (obj) => {
     lastPointRef.current = null
     isPaintingRef.current = false;
     isErasingRef.current = false;
-    isErasingObjectRef.current = null
 
     if (selectedIndexRef.current !== null){
       const index = selectedIndexRef.current;
@@ -6947,11 +5854,9 @@ function drawLineBuffer(x1, y1, x2, y2) {
     const t = steps === 0 ? 0 : i / steps;
     const x = x1 + dx * t;
     const y = y1 + dy * t;
-    paintAt(x, y);
+    stampToBuffer(x, y);
   }
 }
-
-
 
 
 const eraseAt = (x, y) => {
@@ -6967,28 +5872,38 @@ const eraseAt = (x, y) => {
       bufCtx.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
       bufCtx.restore();
   }
-  const d = eraserTextureRef.current.width;
+
+
 
 
   const lower = lowerRef.current;
   const lowerCtx = lower.getContext("2d");
 
+  const d = eraserTextureRef.current.width;
   lowerCtx.save();
 
   lowerCtx.globalCompositeOperation = "destination-out";
   lowerCtx.globalAlpha = eraserOpacity/100;
 
   lowerCtx.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
-  lowerCtx.restore();
-
-
-  bufferCtxRef.current.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
+   lowerCtx.restore();
 
 }
 
+function eraserStampToMain(x, y) {
+  const mainCtx = lowerCtx; // or mainCtxRef.current
+  const d = eraserTextureRef.current.width;
+
+  mainCtx.save();
+  mainCtx.globalCompositeOperation = 'destination-out';
+  // Use globalAlpha to control the erase strength per stamp (0..1)
+  mainCtx.globalAlpha = eraseStrength; // e.g. your eraser opacity (0..1)
+  mainCtx.drawImage(eraserTextureRef.current, x - d/2, y - d/2);
+  mainCtx.restore();
+}
 
 
-const drawAirbrushBuffer = (obj, buffer) => {
+const drawBuffer = (obj, buffer) => {
   const lower = lowerRef.current;
   const lowerCtx = lower.getContext("2d");
 
@@ -6997,21 +5912,7 @@ const drawAirbrushBuffer = (obj, buffer) => {
   lowerCtx.globalAlpha = 1;
 }
 
-const drawEraserBuffer = (obj, buffer) => {
-  const lower = lowerRef.current;
-  const lowerCtx = lower.getContext("2d");
-
-  lowerCtx.save();
-
-  lowerCtx.globalCompositeOperation = "destination-out";
-  lowerCtx.globalAlpha = 1;
-  lowerCtx.drawImage(buffer, 0, 0);
-  lowerCtx.restore();
-}
-
-
-
-function drawEraserPreview(x1, y1, x2, y2) {
+function drawEraserBuffer(x1, y1, x2, y2) {
 
   const dx = x2 - x1, dy = y2 - y1;
   const dist = Math.hypot(dx, dy);
@@ -7024,6 +5925,7 @@ function drawEraserPreview(x1, y1, x2, y2) {
     const t = steps === 0 ? 0 : i / steps;
     const x = x1 + dx * t;
     const y = y1 + dy * t;
+    //eraserToBuffer(x, y);
     eraseAt(x, y)
   }
 
@@ -7032,6 +5934,7 @@ function drawEraserPreview(x1, y1, x2, y2) {
 
 
 function drawPen(ctx, points, colour = "rgba(0,0,0,1)", brushSize = 50) {
+
 
   if (!points || points.length < 2) return;
 
@@ -7240,7 +6143,7 @@ function drawSoftStrokePreview(stroke) {
     sceneManagerRef.current.activeSceneId = null
     sceneManagerRef.current.removeScene(scene.id)
 
-
+    console.log('removeScene', sceneManagerRef.current)
 
 
     setActiveSceneState(null)
@@ -7276,7 +6179,7 @@ function drawSoftStrokePreview(stroke) {
 
   const removeElement = (obj) => {
 
-    //if (!activeElement) return
+    if (!activeElement) return
 
     if (obj.type === 'video'){
       videoRegistryRef.current.delete(obj.id);
@@ -7298,42 +6201,17 @@ function drawSoftStrokePreview(stroke) {
 
   }
 
+
   const toolCallback = (tool, active) =>{
-
-
-
-    if (tool !== 'edit text' && isTextEditingRef.current){
-
-      isTextEditingRef.current = false
-      const obj = getActiveElement()
-
-      if (obj){
-
-        deActivateEditText()
-
-        if (obj.hasTexthilight()){
-
-          obj.selectionStart = null
-          obj.selectionEnd = null
-        }
-
-      }
-
-    }
-
-    if (tool === 'images'){
-      setImageMediaLabel('Add Image')
-    }
 
     setShowAnimate(false)
 
-    if (tool === 'size-position' || tool === 'edit text'){
+    if (tool === 'size-position'){
         setShowProperties(true)
-        setShowAnimate(false)
-        setShowEffects(false)
     }else{
         setShowProperties(false)
     }
+
 
     if (active){
         setActiveTool(tool)
@@ -7361,18 +6239,13 @@ function drawSoftStrokePreview(stroke) {
         }
 
         const lines = obj.getLines()
-        activateEditText()
+        activateTextEditor()
         startCaretBlink()
         drawLower()
-        drawArtboard()
       }else{
           isTextEditingRef.current = false
           stopCaretBlink()
-          deActivateEditText()
-          //obj.selectionStart = null
-          //obj.selectionEnd = null
           drawLower()
-          drawArtboard()
       }
 
     }else{
@@ -7391,22 +6264,45 @@ function drawSoftStrokePreview(stroke) {
 
   }
 
-/*
-  const keydownHandler = (e) => {
-    // your entire logic here
+
+
+  function activateTextEditor(){
+
+    textEditRef.current.addEventListener("blur", () => {
+
+      stopCaretBlink();
+      clearCursor()
+    });
+
+    textEditRef.current.addEventListener("input", (e) => {
+      const obj = getActiveElement();
+      if (!obj || obj.type !== "text") return;
+
+      const newText = textEditRef.current.value;
+      const diff = newText.length - obj.text.length;
+
+
+
+      const inserted = newText.slice(obj.caretAbsIndex, obj.caretAbsIndex + diff);
+
+    });
+
+    textEditRef.current.addEventListener("keydown", (e) => {
+
       const obj = getActiveElement()
       const { row, col } = obj.getCaretPosFromIndex(obj.caretAbsIndex);
       const lines = obj.getLines();
       let clearSelection = false
 
-      if (!obj || obj.type !== 'text') return
+
+
+      if (!obj && obj.type !== 'text') return
+
 
       if (e.key === "ArrowUp") {
         if (row > 0) {
           const prev = lines[row - 1];
           const newCol = Math.min(prev.length, col);
-
-
           obj.caretAbsIndex = obj.getIndexFromCaretPos(row - 1, newCol);
           obj.selectionStart = {line: row - 1, char:newCol}
           obj.selectionEnd = {line: row - 1, char:newCol}
@@ -7446,252 +6342,61 @@ function drawSoftStrokePreview(stroke) {
         // Normal character input
         e.preventDefault();
         obj.insertTextAtCaret(e.key);
-      }
-
-      if (e.key === "Enter" || e.key === "Delete" || e.key === "Backspace" || (e.key.length === 1 && !e.metaKey && !e.ctrlKey)){
         const activeScene = sceneManagerRef.current.getActiveScene()
-        handleUpdateElementState(
-          activeScene.id,
-          obj.id,
-          {
-            text:obj.text
-          }
-        )
-          textHilightRef.current = false
+        handleUpdateElementState(activeScene.id, obj.id, {'text':obj.text})
+        textHilightRef.current = false
       }
 
       if (clearSelection){
         startCaretBlink()
       }
+
+
       // Keep textarea synced
       textEditRef.current.value = obj.text;
+
       textEditRef.current.setSelectionRange(obj.caretAbsIndex, obj.caretAbsIndex);
+
       drawLower()
       drawUpper();
       drawArtboard();
       drawTextCursor();
-
-  };
-
-  const pasteHandler = (e) => {
-
-    const obj = getActiveElement();
-    if (!obj || obj.type !== "text") return;
-
-    e.preventDefault();
-
-    const pastedText = e.clipboardData.getData("text/plain");
-
-    obj.insertTextAtCaret(pastedText);
-
-    const activeScene = sceneManagerRef.current.getActiveScene();
-
-    handleUpdateElementState(activeScene.id, obj.id, {
-      text: obj.text,
     });
 
-    textHilightRef.current = false;
-
-    // sync hidden input
-    textEditRef.current.value = obj.text;
-    textEditRef.current.setSelectionRange(obj.caretAbsIndex, obj.caretAbsIndex);
-
-    drawLower();
-    drawUpper();
-    drawArtboard();
-    drawTextCursor();
-  };
-
-  const blurHandler = (e) => {
-    //deActivateEditText()
-    //stopCaretBlink();
-    clearCursor()
-  }
-  */
-
-
-
-  function removeTextEditorEventListeners() {
-    const el = textEditRef.current;
-    if (!el) return;
-
-
-
-    if (keydownHandlerRef.current) {
-      el.removeEventListener("keydown", keydownHandlerRef.current);
-    }
-
-    if (pasteHandlerRef.current) {
-      el.removeEventListener("paste", pasteHandlerRef.current);
-    }
-
-    if (blurHandlerRef.current) {
-      el.removeEventListener("blur", blurHandlerRef.current);
-    }
   }
 
-  function addTextEditorEventListeners() {
-  const el = textEditRef.current;
-  if (!el) return;
-
-  if (!keydownHandlerRef.current) {
-    keydownHandlerRef.current = (e) => {
-      const obj = getActiveElement();
-      if (!obj || obj.type !== "text") return;
-
-      const { row, col } = obj.getCaretPosFromIndex(obj.caretAbsIndex);
-      const lines = obj.getLines();
-      let clearSelection = false
-
-      if (e.key === "ArrowUp") {
-        if (row > 0) {
-          const prev = lines[row - 1];
-          const newCol = Math.min(prev.length, col);
-
-
-          obj.caretAbsIndex = obj.getIndexFromCaretPos(row - 1, newCol);
-          obj.selectionStart = {line: row - 1, char:newCol}
-          obj.selectionEnd = {line: row - 1, char:newCol}
-          clearSelection = true
-        }
-        e.preventDefault();
-      } else if (e.key === "ArrowDown") {
-        if (row < lines.length - 1) {
-          const next = lines[row + 1];
-          const newCol = Math.min(next.length, col);
-          obj.caretAbsIndex = obj.getIndexFromCaretPos(row + 1, newCol);
-          obj.selectionStart = {line: row + 1, char:newCol}
-          obj.selectionEnd = {line: row + 1, char:newCol}
-          clearSelection = true
-        }
-        e.preventDefault();
-      } else if (e.key === "ArrowLeft") {
-        obj.caretAbsIndex = Math.max(0, obj.caretAbsIndex - 1);
-        obj.selectionStart = {line: row, char:obj.caretAbsIndex - 1}
-        obj.selectionEnd = {line: row, char:obj.caretAbsIndex - 1}
-        clearSelection = true
-      } else if (e.key === "ArrowRight") {
-        obj.caretAbsIndex = Math.min(obj.text.length, obj.caretAbsIndex + 1);
-        obj.selectionStart = {line: row, char:obj.caretAbsIndex + 1}
-        obj.selectionEnd = {line: row, char:obj.caretAbsIndex + 1}
-        clearSelection = true
-      } else if ( e.key === "Backspace") {
-        e.preventDefault();
-        obj.handleBackspace();
-      } else if (e.key === "Delete") {
-        e.preventDefault();
-        obj.handleDelete(obj);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        obj.handleEnter();
-      } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey) {
-        // Normal character input
-        e.preventDefault();
-        obj.insertTextAtCaret(e.key);
-      }
-
-      if (e.key === "Enter" || e.key === "Delete" || e.key === "Backspace" || (e.key.length === 1 && !e.metaKey && !e.ctrlKey)){
-        const activeScene = sceneManagerRef.current.getActiveScene()
-        handleUpdateElementState(
-          activeScene.id,
-          obj.id,
-          {
-            text:obj.text
-          }
-        )
-          textHilightRef.current = false
-      }
-
-      if (clearSelection){
-        startCaretBlink()
-      }
-      // Keep textarea synced
-      textEditRef.current.value = obj.text;
-      textEditRef.current.setSelectionRange(obj.caretAbsIndex, obj.caretAbsIndex);
-      drawLower()
-      drawUpper();
-      drawArtboard();
-      drawTextCursor();
-    };
-  }
-
-  if (!pasteHandlerRef.current) {
-    pasteHandlerRef.current = (e) => {
-      const obj = getActiveElement();
-      if (!obj || obj.type !== "text") return;
-
-      e.preventDefault();
-
-      const pastedText = e.clipboardData.getData("text/plain");
-
-      obj.insertTextAtCaret(pastedText);
-
-      const activeScene = sceneManagerRef.current.getActiveScene();
-
-      handleUpdateElementState(activeScene.id, obj.id, {
-        text: obj.text,
-      });
-
-      textHilightRef.current = false;
-
-      // sync hidden input
-      textEditRef.current.value = obj.text;
-      textEditRef.current.setSelectionRange(obj.caretAbsIndex, obj.caretAbsIndex);
-
-      drawLower();
-      drawUpper();
-      drawArtboard();
-      drawTextCursor();
-    };
-  }
-
-  if (!blurHandlerRef.current) {
-    blurHandlerRef.current = (e) => {
-      clearCursor()
-      stopCaretBlink()
-
-    };
-  }
-
-  el.addEventListener("keydown", keydownHandlerRef.current);
-  el.addEventListener("paste", pasteHandlerRef.current);
-  el.addEventListener("blur", blurHandlerRef.current);
-}
-
-
-
-/*
-  function addTextEditorEventListeners(){
-
-    const el = textEditRef.current;
-    if (!el) return;
-
-    console.log('attach event listener')
-    el.addEventListener("keydown", keydownHandler);
-    el.addEventListener("paste", pasteHandler);
-    el.addEventListener("blur", blurHandler);
-
-  }
-  */
 
 
   function syncInputCaret(obj) {
+
     const startAbs = obj.getAbsIndexFromLineChar(obj.selectionStart.line, obj.selectionStart.char);
     const endAbs   = obj.getAbsIndexFromLineChar(obj.selectionEnd.line, obj.selectionEnd.char);
+
     textEditRef.current.setSelectionRange(endAbs, startAbs);
+
+
   }
 
-
-/*
   function updateHiddenCaret(obj) {
 
     const beforeLines = obj.getLines().slice(0, obj.caretRow);
     const absoluteIndex = beforeLines.join("\n").length + (obj.caretRow > 0 ? 1 : 0) + obj.caretCol;
     textEditRef.current.setSelectionRange(absoluteIndex, absoluteIndex);
   }
-  */
 
+  function startCaretBlink() {
+    if (caretTimer.current) clearInterval(caretTimer.current);
+    caretVisibleRef.current = true;
+    caretTimer.current = setInterval(() => {
+      caretVisibleRef.current = !caretVisibleRef.current;
+      drawTextCursor();
+    }, 500);
+  }
 
+  function stopCaretBlink() {
+    clearInterval(caretTimer.current);
+    caretTimer.current = null;
+  }
 
 useEffect(()=>{
   if (paintType === 'air brush'){
@@ -7771,6 +6476,12 @@ useEffect(()=>{
   const backgroundColourCallBack = (colour) => {
       setBackgroundColour(`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`)
       sceneManagerRef.current.updateBackgroundColour(`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`)
+
+
+      console.log('backgroundColourCallBack', colour)
+
+
+      console.log('currentScene', sceneManagerRef.current)
   }
 
 
@@ -7795,9 +6506,13 @@ useEffect(()=>{
     const y = event.clientY - bounding.top;
     const pixel = ctx.getImageData(x, y, 1, 1);
     const data = pixel.data;
+
     const rgbColor = `rgb(${data[0]} ${data[1]} ${data[2]} / ${data[3] / 255})`;
+
     return rgbColor;
   };
+
+
 
 
 
@@ -7810,7 +6525,6 @@ useEffect(()=>{
 
   function drawTextCursor() {
     const object = getActiveElement();
-    if (!object) return
      const isTextEditing = isTextEditingRef.current;
      const caretVisible = caretVisibleRef.current;
      const cursor = toolsRef.current;
@@ -7821,16 +6535,22 @@ useEffect(()=>{
      ctx.clearRect(0, 0, cursor.width, cursor.height);
 
      if (isTextEditing && caretVisible) {
+
        ctx.save();
        lowerCtx.font = object.font();
+
        const { row, col } = object.getCaretPosFromIndex(object.caretAbsIndex);
+
 
        const lines = object.getLines();
        const line = lines[row] || "";
        const before = line.slice(0, col);
        const character = line[col-1]
+
        const textWidth = object.measureTextWidth(before, row, lowerCtx);
+
        const lineHeight = object.getLineHeight();
+
        const alignOffset = object.getLineOffset(
          row,
          line,
@@ -7839,11 +6559,18 @@ useEffect(()=>{
          object.width,
          object.textPadding
        );
+
+
        const caretLocalX = -object.width/ 2 + object.textPadding + alignOffset + textWidth;
        const caretLocalY = -object.h / 2 + object.textPadding / 2 + row * lineHeight;
+
        ctx.translate(offsetRef.current.x + object.cx * scale, offsetRef.current.y + object.cy * scale);
+
        ctx.rotate(object.angle);
+
+
        const caretHeight = object.measureTextHeight(row, character);
+
        ctx.beginPath();
        ctx.moveTo(caretLocalX * scale, caretLocalY * scale);
        ctx.lineTo(caretLocalX * scale, (caretLocalY + caretHeight) * scale);
@@ -7854,6 +6581,72 @@ useEffect(()=>{
      }
 
   }
+
+  function drawTextCursorBk() {
+    const object = getActiveElement();
+    const isTextEditing = isTextEditingRef.current;
+    const caretVisible = caretVisibleRef.current;
+    const cursor = toolsRef.current;
+    const lower = lowerRef.current;
+    if (!cursor || !lower) return;
+
+    const ctx = cursor.getContext("2d");
+    ctx.clearRect(0, 0, cursor.width, cursor.height);
+
+    if (isTextEditing && caretVisible) {
+      const { row, col } = object.getCaretPosFromIndex(object.caretAbsIndex);
+      const lines = object.getLines();
+      const before = (lines[row] || "").slice(0, col);
+
+      const textWidth = ctx.measureText(before).width;
+      const lineHeight = object.getLineHeight();
+      const caretLocalX = -object.width/ 2 + object.textPadding + textWidth;
+      const caretLocalY = -object.h / 2 + object.textPadding + row * lineHeight;
+
+      // Apply rotation and translation like when drawing text
+      ctx.save();
+      ctx.translate(offsetRef.current.x + object.cx * scale, offsetRef.current.y + object.cy * scale);
+      ctx.rotate(object.angle);
+
+      const caretHeight = object.fontSize;
+      ctx.beginPath();
+      ctx.moveTo(caretLocalX * scale, caretLocalY * scale);
+      ctx.lineTo(caretLocalX * scale, (caretLocalY + caretHeight) * scale);
+      ctx.strokeStyle = fillColour;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+
+
+  function drawTextCursorOld(){
+    const object = getActiveElement()
+    const isTextEditing = isTextEditingRef.current;
+    const caretVisible = caretVisibleRef.current
+    const cursor = toolsRef.current;
+    const lower = lowerRef.current;
+    if (!cursor && !lower) return;
+    const lowerCtx = lower.getContext("2d");
+    const ctx = cursor.getContext("2d");
+    ctx.clearRect(0, 0, cursor.width, cursor.height);
+    if (isTextEditing && caretVisible){
+      const { row, col } = object.getCaretPosFromIndex(object.caretAbsIndex);
+      const lines = object.getLines();
+      const before = (lines[row] || "").slice(0, col);
+      const innerHeight = object.y + (object.fontSize * object.lineHeight) * (row + 1)
+      const caretX = offsetRef.current.x + (object.x + lowerCtx.measureText(before).width + object.textPadding ) * scale;
+      const caretY = offsetRef.current.y + innerHeight * scale;
+
+      ctx.beginPath();
+      ctx.moveTo(caretX, caretY - 24);
+      ctx.lineTo(caretX, caretY + 6);
+      ctx.strokeStyle = fillColour;
+      ctx.stroke();
+    }
+  }
+
 
 
   function drawCursor(e) {
@@ -7889,7 +6682,7 @@ useEffect(()=>{
     if (!active || active.type !== "text") return;
 
     active.text = value;
-
+    console.log('updatelines text change')
     active.updateLines()
     const activeScene = sceneManagerRef.current.getActiveScene()
     handleUpdateElementState(activeScene.id, active.id, { text: value })
@@ -7902,10 +6695,8 @@ useEffect(()=>{
   }
 
   const fontSelectionCallback = (value) => {
-    const selectedFont = FONTS.find((font)=> font.family === value)
-    console.log('selectedFont', selectedFont)
-
-    setSelectedFont(selectedFont.family)
+    const selectedFont = fonts.find((font)=> font.label === value)
+    setSelectedFont(selectedFont.label)
     setFontWeights(selectedFont.weights)
     setFontStyles(selectedFont.styles)
     const active = getActiveElement();
@@ -7917,7 +6708,7 @@ useEffect(()=>{
         active.fontFamily = value;
       }
 
-
+      console.log('font selection update lines')
       active.updateLines();
       const activeScene = sceneManagerRef.current.getActiveScene()
       handleUpdateElementState(activeScene.id, active.id, { fontFamily: value })
@@ -7959,15 +6750,8 @@ useEffect(()=>{
       active.fontStyle = value;
     }
 
-    /*
-    const updates = {
-      fontStyle: active.fontStyle,
-      charStyles: active.charStyles
-    }
-
-    const activeScene = sceneManagerRef.current.getActiveScene()
-    handleUpdateElementState(activeScene.id, active.id, updates)
-    */
+    // Recalculate wrapped lines and redraw everything
+  //  active.updateLines?.();
     drawLower();
     drawUpper();
     drawArtboard()
@@ -8056,12 +6840,15 @@ useEffect(()=>{
         scaleX = scaleY; // Maintain the same scale for uniformity
     }
 
+
     // Scale the image
     img.width = img.width * scaleX;
     img.h = img.h * scaleY;
 
 
   }else if (fitType === 'Fit Page'){
+
+
 
     scaleX = canvasWidth / img.width;
     scaleY = scaleX;
@@ -8105,12 +6892,11 @@ const onElementUpdateProperty = (property, value) => {
   const textUpdate = new Set(["fontFamily", "fontWeight", "fontStyle", "fontSize", "textAlign", "lineHeight", "text"]);
 
   if (textUpdate.has(property)){
-
     // update text value
       if (obj.type !== "text") return;
 
       if (obj.isTextHilighted()){
-        obj.applyStyleToSelection({ [property] : value });
+        obj.applyStyleToSelection({ property : value });
       }else{
         if (property === "lineHeight" || property === 'fontSize'){
           obj[property] = Number(value)
@@ -8119,7 +6905,6 @@ const onElementUpdateProperty = (property, value) => {
         }
 
       }
-
 
     obj.updateLines();
 
@@ -8136,55 +6921,8 @@ const onElementUpdateProperty = (property, value) => {
  const activeScene = sceneManagerRef.current.getActiveScene()
   handleUpdateElementState(activeScene.id, obj.id, updates)
   drawLower()
-  drawArtboard()
   drawUpper()
 }
-
-const saveAsTemplate = async () => {
-
-  const json = JSON.stringify({
-    project: {
-      name: projectTitle,
-      version: "1.0",
-      author: "Daniel",
-      created: "2025-09-16T08:00:00Z",
-      modified: "2025-09-16T09:00:00Z"
-    },
-    canvas: {
-      width: PAGE_WIDTH,
-      height: PAGE_HEIGHT,
-      bleed: BLEED,
-      backgroundColour: backgroundColour,
-      currentPreset: currentPreset
-    },
-    audio:{
-      audio_url:audioUrl
-    },
-    sceneManager: sceneManagerRef.current,
-    duration:duration,
-    elements: objectsRef.current
-
-  }, null, 2);
-
-
-
-  try{
-    await createTemplate(
-      {
-        title:projectTitle,
-        json:json,
-        user_id:user.id
-      }
-    )
-
-    showSuccess('template saved')
-
-  }catch(err){
-    showError(`Error saving template: ${err}`)
-  }
-
-}
-
 
 
 const saveProject = async () => {
@@ -8208,8 +6946,8 @@ const saveProject = async () => {
     audio:{
       audio_url:audioUrl
     },
-    sceneManager: sceneManagerRef.current,
-    duration:duration,
+    sceneManager: sceneManager,
+    scenes: scenes,
     elements: objectsRef.current
 
   }, null, 2);
@@ -8226,109 +6964,92 @@ const saveProject = async () => {
 
 }
 
-const loadProjectFile = async(e) => {
-  const file = e.target.files[0]
-  const text = await file.text();
-
-  if (!text) return
-
-  loadProject(text)
-
-}
+const loadProject = async (e) => {
+const file = e.target.files[0]
 
 
-
-const loadProject = async (text) => {
-
+const text = await file.text();
 const data = JSON.parse(text);
 
-  if (data){
+if (data){
+  setProjectTitle(data.project.name)
+  SET_PAGE_WIDTH(data.canvas.width)
+  SET_PAGE_HEIGHT(data.canvas.height)
+  SET_BLEED(data.canvas.bleed)
+  setCurrentPreset(data.canvas.currentPreset)
 
-    setProjectTitle(data.project.name)
-    SET_PAGE_WIDTH(data.canvas.width)
-    SET_PAGE_HEIGHT(data.canvas.height)
-    SET_BLEED(data.canvas.bleed)
-    setCurrentPreset(data.canvas.currentPreset)
-
-
-    setDuration(data.duration?data.duration:5)
-
-    if (data?.audio?.audio_url){
-      setAudioUrl(data?.audio?.audio_url)
-    }
+  if (data?.audio?.audio_url){
+    setAudioUrl(data?.audio?.audio_url)
+  }
 
 
   const elementArray = []
 
-  for (const element of data.elements) {
-    if (element.type === 'image'){
-      const lower = lowerRef.current;
-      if (!lower) return;
-      const ctx = lower.getContext("2d");
-      const newImageElement = new Element(element)
-      await newImageElement.drawImageInit(ctx)
-      newImageElement.width = element.width
-      newImageElement.h = element.h
-      elementArray.push(newImageElement)
-    }else if (element.type === 'video'){
-      const lower = lowerRef.current;
-      if (!lower) return;
-      const ctx = lower.getContext("2d");
-      const newVideoElement = new Element(element)
-      await newVideoElement.drawVideoInit(ctx)
-      elementArray.push(newVideoElement)
-    }else{
-      const newElement = new Element(element)
-      elementArray.push(newElement)
-    }
+
+
+for (const element of data.elements) {
+  if (element.type === 'image'){
+    const lower = lowerRef.current;
+    if (!lower) return;
+    const ctx = lower.getContext("2d");
+    const newImageElement = new Element(element)
+    await newImageElement.drawImageInit(ctx)
+    elementArray.push(newImageElement)
+  }else if (element.type === 'video'){
+    const lower = lowerRef.current;
+    if (!lower) return;
+    const ctx = lower.getContext("2d");
+    const newVideoElement = new Element(element)
+    await newVideoElement.drawVideoInit(ctx)
+    elementArray.push(newVideoElement)
+  }else{
+    const newElement = new Element(element)
+    elementArray.push(newElement)
   }
 
 
-
-    const sceneArray = []
-
-    data.sceneManager.scenes.forEach((scene) => {
-
-        const objectArray = []
-
-        scene.elements.forEach((object) => {
-
-             const newObject = elementArray.find((el)=> el.id === object.id)
-             objectArray.push(newObject)
-        })
+}
 
 
-        const newScene = new Scene({
-          id:scene.id,
-          activeObjectId:scene.activeObjectId,
-          elements: objectArray,
-          start:scene.start,
-          duration:scene.duration,
-          backgroundColour:scene.backgroundColour
-        })
+  const sceneArray = []
 
-        sceneArray.push(newScene)
+  data.scenes.forEach((scene) => {
 
-    })
+      const objectArray = []
+
+      scene.elements.forEach((object) => {
+
+            const newObject = elementArray.find((el)=> el.id === object.id)
+
+           objectArray.push(newObject)
+      })
+
+      const newScene = new Scene({
+        id:scene.id,
+        activeObjectId:scene.activeObjectId,
+        objects: objectArray,
+        start:scene.start,
+        duration:scene.duration,
+      })
+
+
+      sceneArray.push(newScene)
+
+  })
+
+  const newSceneManager = new SceneManager({
+    id:data.sceneManager.id,
+    scenes:sceneArray,
+    activeSceneId:data.sceneManager.activeSceneId
+  })
 
 
 
-    const newSceneManager = new SceneManager({
-      id:data.sceneManager.id,
-      scenes:sceneArray,
-      activeSceneId:data.sceneManager.activeSceneId
-    })
 
+  sceneManagerRef.current = newSceneManager
 
-
-    sceneManagerRef.current = newSceneManager
-    objectsRef.current = elementArray
-
-    drawLower()
-    drawArtboard()
-
-    }
-
+  drawLower()
+  }
 }
 
 const exportVideo = async(type, download) => {
@@ -8352,6 +7073,8 @@ const createVideo = async (format) => {
 
   try {
 
+    // Get the canvas element
+
     const canvas = lowerRef.current
 
 
@@ -8366,7 +7089,7 @@ const createVideo = async (format) => {
     if (audioUrl) {
       // Create a fresh audio element for export
       const exportAudio = new Audio();
-      exportAudio.gin = "anonymous";
+      exportAudio.crossOrigin = "anonymous";
       exportAudio.src = audioUrl;
 
       const audioContext = new AudioContext();
@@ -8450,14 +7173,20 @@ const duplicate = (element) => {
 }
 
 
+useEffect(()=>{
+
+  if (textEditing){
+    activateEditText()
+  }else{
+    deActivateEditText()
+  }
+
+},[textEditing])
 
 const deActivateEditText = () => {
   const obj = getActiveElement()
   if (!obj && obj?.type !== 'text') return
   isTextEditingRef.current = false
-
-  removeTextEditorEventListeners()
-  stopCaretBlink()
 }
 
 const activateEditText = () => {
@@ -8471,7 +7200,7 @@ const activateEditText = () => {
   }
 
   const lines = obj.getLines()
-  addTextEditorEventListeners()
+  activateTextEditor()
   startCaretBlink()
 }
 
@@ -8491,7 +7220,18 @@ const handleDoubleClick = (e) => {
     // object selection (topmost first)
     for (let i = objectsRef.current.length - 1; i >= 0; i--) {
       if (hitObject(objectsRef.current[i], pos.x, pos.y) && objectsRef.current[i].type === 'text') {
-        activateEditText()
+        const obj = getActiveElement()
+        if (!obj && obj.type !== 'text') return
+        isTextEditingRef.current = true
+        textEditRef.current.value = obj.text?obj.text:''
+        textEditRef.current.focus();
+        if (!obj.caretAbsIndex){
+            obj.caretAbsIndex = obj.text.length;
+        }
+
+        const lines = obj.getLines()
+        activateTextEditor()
+        startCaretBlink()
 
         return;
       }
@@ -8506,7 +7246,7 @@ const postScheduled = (postInfo) => {
       if (post.id === postInfo.data.id){
         post.scheduled = true
       }
-
+      console.log('post', post)
       return post
     })
   )
@@ -8535,327 +7275,7 @@ useEffect(()=>{
 },[toggleCrop])
 
 
-const replaceImageFunction = () => {
-    setImageMediaLabel('Replace Image')
-    setActiveTool('images')
-    activeToolRef.current = 'images'
-    //toolCallback('images', true)
-}
 
-/*
-const replaceImage = (image_url) => {
-  return new Promise( async(resolve, reject) => {
-    const obj = getActiveElement()
-    if (!obj) return
-    await obj.replaceImage(image_url)
-
-  })
-}*/
-
-async function uploadImage(file) {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch('api/comfy-upload', {
-        method: "POST",
-        body: formData
-    });
-
-    if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data; // Returns { name: "filename.png", subfolder: "", type: "input" }
-}
-
-
-
-const comfyData =  useRef()
-
-
-async function sendApiWorkflow(e) {
-
-   if (e.target.files && e.target.files.length > 0) {
-
-
-      const file = e.target.files[0]
-
-      const uploadResult = await uploadImage(file);
-
-
-
-
-      //const jsonPath = '../outpainting_api_v2.json'
-
-      //const jsonPath = '../outpainting_api.json'
-
-
-      //const jsonResponse = await fetch(jsonPath);
-      //const workflowJson = await jsonResponse.json();
-
-
-      //workflowJson['17']['inputs']['image'] = uploadResult.data.name
-      workflowJson['1']['inputs']['image'] = uploadResult.data.name
-
-
-
-
-
-
-//return
-      // Load the API-format JSON workflow
-      //const response = await fetch(comfyJSON);
-      //const workflowJson = await response.json();
-
-      // POST it to the ComfyUI API
-      const apiResponse = await fetch('/api/comfy', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(workflowJson)
-      });
-
-      const data = await apiResponse.json();
-
-      comfyData.current = data
-
-    }
-
-}
-
-
-async function checkApiWorkflow() {
-  const promptId = comfyData.current.id;
-  const statusResponse = await fetch(`http://127.0.0.1:8188/history/${promptId}`);
-  const status = await statusResponse.json();
-}
-
-const getFileName = (path) => path.split('/').pop(); // sample-image.jpg
-
-
-
-
-// cleanup on unmount
-useEffect(() => {
-  return () => {
-    if (evtSourceRef.current) {
-      evtSourceRef.current.close();
-      evtSourceRef.current = null;
-    }
-  };
-}, []);
-
-const startSSE = () => {
-  if (evtSourceRef.current) return; // already running
-
-  const evtSource = new EventSource('/api/events');
-  evtSourceRef.current = evtSource;
-
-  evtSource.onmessage = async (event) => {
-
-
-    const updatedFile = getFileName(event.data);
-    const currentFile = getFileName(editImageRef.current);
-
-    if (updatedFile === currentFile) {
-
-
-      const obj = getActiveElement()
-      if (!obj) return
-
-
-       await obj.updateImage(event.data)
-       const activeScene = sceneManagerRef.current.getActiveScene()
-       handleUpdateElementState(
-         activeScene.id,
-         obj.id,
-         {
-           img: obj.img,
-           imageSrc: obj.imageSrc,
-           originalWidth: obj.originalWidth,
-           originalHeight: obj.originalHeight
-         }
-       )
-
-
-      drawLower()
-      drawUpper()
-      drawArtboard()
-
-      const file = await fileFromServer(event.data);
-      uploadFile(file)
-
-    }
-  };
-
-  evtSource.onerror = () => {
-    console.warn('SSE error, reconnecting next edit if needed.');
-    evtSource.close();
-    evtSourceRef.current = null; // allow future reconnect
-  };
-};
-
-
-
-
-const editInPhotoshop = async () => {
-
-  const activeElement =  getActiveElement()
-  if (activeElement.type !== 'image') return
-
-    const res = await fetch('/api/edit-in-photoshop', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image:activeElement.imageSrc }),
-    });
-
-    const data = await res.json();
-
-if (data.publicUrl) {
-    editImageRef.current = data.publicUrl
-    startSSE();
-  }
-}
-
-async function fileFromServer(path) {
-  const response = await fetch(path);
-  const blob = await response.blob();
-  const fileName = path.split("/").pop();
-  return new File([blob], fileName, { type: blob.type });
-}
-
-
-const uploadFile = async (file) => {
-  try {
-
-    if (!file) {
-      throw new Error('You must select an image to upload.')
-    }
-
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
-
-    const fileType = file.type;
-    const fileName = file.name
-
-    const fileDescription = ''
-
-    const formData = new FormData()
-
-    formData.append('file', file)
-
-    try{
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const result = await res.json()
-
-      if (res.ok) {
-        const fileData={
-          file_url:result.url,
-          file_type:fileType,
-          file_name:fileName,
-          file_description:fileDescription
-        }
-        handleFileFunction(fileData)
-      } else {
-        console.log(result.error)
-        showError(result.error)
-      }
-    }catch(error){
-      console.log(error)
-      showError('file upload error', error)
-    }
-
-  } catch (error) {
-    console.log(error)
-    showError(error)
-  } finally {
-    //setUploadFileState(null)
-  }
-}
-
-const handleFileFunction = async (data) => {
-  try{
-    const fileinfo = await storeFileInfo({
-      user_id:user.id,
-      file_url: data.file_url,
-      file_type:data.file_type,
-      file_name:data.file_name,
-      file_description:data.file_description??null
-    })
-
-    const newFile={
-      created_at: fileinfo.created_at,
-      file_type: data.file_type,
-      file_url: data.file_url,
-      file_name:data.file_name,
-      file_description:data.file_description,
-      id: fileinfo.id,
-      user_id: user.id
-    }
-
-    showSuccess('file uploaded')
-
-  }catch (error){
-    showError('Error updating task due date: ', error)
-  }
-}
-
-const editImage = () => {
-
-  const activeElement = getActiveElement()
-  if (!activeElement) return
-
-  const newFile={
-    id: activeElement.id,
-    file_url:activeElement.imageSrc,
-    file_type:activeElement.file_type,
-    file_description:activeElement.mediaCaption,
-    file_name: activeElement.mediaFileName,
-    database_id:activeElement.mediaDataBaseId,
-    source: "internal",
-    user_id: user.id,
-  }
-
-  setDisplayEditItem(true)
-  setItem(newFile)
-}
-
-const handleEditReplace = async(newItem) => {
-
-  const obj = getActiveElement()
-  if (!obj) return
-
-  await obj.updateImage(newItem.file_url)
-  const activeScene = sceneManagerRef.current.getActiveScene()
-  handleUpdateElementState(
-    activeScene.id,
-    obj.id,
-    {
-      img: obj.img,
-      imageSrc: obj.imageSrc,
-      originalWidth: obj.originalWidth,
-      originalHeight: obj.originalHeight
-    }
-  )
-
-
- drawLower()
- drawUpper()
- drawArtboard()
-
-
-}
-
-useEffect(() => {
-  if (!displayEditItem && item) {
-      handleEditReplace(item)
-      setItem(null)
-  }
-}, [displayEditItem, item]);
 
   return (
     <>
@@ -8865,7 +7285,7 @@ useEffect(() => {
     <div
       ref={containerRef}
       style={{ position: "relative", width: "100%"}}
-      className='editor-background video-editor'
+      className='editor-background video'
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
     >
@@ -8939,7 +7359,6 @@ useEffect(() => {
           label='Size & Position'
           position={'left'}
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
         />
         <ToolSVG
           icon={Square}
@@ -8948,7 +7367,6 @@ useEffect(() => {
           label='Shapes'
           position={'left'}
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
           >
             <div onClick={() => setShapeType('rectangle')} className={`tool-option ${shapeType === 'rectangle'? 'active':''}`}><img src='rectangle.svg' style={{marginRight:'5px', width:'15px'}}/>Rectangle</div>
             <div onClick={() => setShapeType('ellipse')} className={`tool-option ${shapeType === 'ellipse'? 'active':''}`}><img src='circle.svg' style={{marginRight:'5px', width:'15px'}}/>Ellipse</div>
@@ -8961,33 +7379,31 @@ useEffect(() => {
           label='Paint'
           position={'left'}
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
           >
             <div onClick={() => setPaintType('pen')} className={`tool-option ${paintType === 'pen'? 'active':''}`}><img src='pen.svg' style={{marginRight:'5px', width:'15px'}}/>Pen</div>
             <div onClick={() => setPaintType('air brush')} className={`tool-option ${paintType === 'air brush'? 'active':''}`}><img src='brush.svg' style={{marginRight:'5px', width:'15px'}}/>Air Brush</div>
               <div>
-                {(paintType === 'air brush' || paintType === 'pen') &&
-                  <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
-                      <label style={{marginRight:'5px'}}>Size</label>
-                      <Slider style={{marginRight:'5px'}} type="range" id="size" min={5} max={500} value={brushSize} onChange={(e) => setBrushSize(e.target.value)}/>
-                      <span className="size_display" style={{width:'30px'}}>{brushSize}</span>
-                  </div>
-                }
+                <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
+                    <label style={{marginRight:'5px'}}>Size</label>
+                    <input style={{marginRight:'5px'}} type="range" id="size" min="5" max="500" value={brushSize} onChange={(e) => setBrushSize(e.target.value)}/>
+                    <span className="size_display" style={{width:'30px'}}>{brushSize}</span>
+                </div>
+
                 {paintType === 'air brush' &&
                   <>
                     <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                         <label style={{marginRight:'5px'}}>Hardness</label>
-                        <Slider style={{marginRight:'5px'}} type="range" id="size" min={0} max={100} value={brushHardness} onChange={(e) => setBrushHardness(e.target.value)}/>
+                        <input style={{marginRight:'5px'}} type="range" id="size" min="0" max="100" value={brushHardness} onChange={(e) => setBrushHardness(e.target.value)}/>
                         <span className="size_display"  style={{width:'30px'}}>{brushHardness}</span>
                     </div>
                     <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                         <label style={{marginRight:'5px'}}>Opacity</label>
-                        <Slider style={{marginRight:'5px'}} type="range" id="size" min={1} max={100} value={brushOpacity} onChange={(e) => setBrushOpacity(e.target.value)}/>
+                        <input style={{marginRight:'5px'}} type="range" id="size" min="1" max="100" value={brushOpacity} onChange={(e) => setBrushOpacity(e.target.value)}/>
                         <span className="size_display" style={{width:'30px'}}>{brushOpacity}</span>
                     </div>
                     <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                         <label style={{marginRight:'5px'}}>Flow</label>
-                        <Slider style={{marginRight:'5px'}} type="range" id="size" min={1} max={100} value={brushFlow} onChange={(e) => setBrushFlow(e.target.value)}/>
+                        <input style={{marginRight:'5px'}} type="range" id="size" min="1" max="100" value={brushFlow} onChange={(e) => setBrushFlow(e.target.value)}/>
                         <span id="sizeDisplay">{brushFlow}</span>
                     </div>
                   </>
@@ -9001,22 +7417,21 @@ useEffect(() => {
           label='Eraser'
           position={'left'}
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
           >
               <div>
                 <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                     <label style={{marginRight:'5px'}}>Size</label>
-                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={5} max={500} value={eraserSize} onChange={(e) => setEraserSize(e.target.value)}/>
+                    <input style={{marginRight:'5px'}} type="range" id="size" min="5" max="500" value={eraserSize} onChange={(e) => setEraserSize(e.target.value)}/>
                     <span className="size_display" style={{width:'30px'}}>{eraserSize}</span>
                 </div>
                 <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                     <label style={{marginRight:'5px'}}>Opacity</label>
-                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={1} max={100} value={eraserOpacity} onChange={(e) => setEraserOpacity(e.target.value)}/>
+                    <input style={{marginRight:'5px'}} type="range" id="size" min="1" max="100" value={eraserOpacity} onChange={(e) => setEraserOpacity(e.target.value)}/>
                     <span className="size_display" style={{width:'30px'}}>{eraserOpacity}</span>
                 </div>
                 <div style={{display:'flex', alignItems:'center', marginBottom:'15px'}}>
                     <label style={{marginRight:'5px'}}>Hardness</label>
-                    <Slider style={{marginRight:'5px'}} type="range" id="size" min={0} max={100} value={eraserHardness} onChange={(e) => setEraserHardness(e.target.value)}/>
+                    <input style={{marginRight:'5px'}} type="range" id="size" min="0" max="100" value={eraserHardness} onChange={(e) => setEraserHardness(e.target.value)}/>
                     <span className="size_display"  style={{width:'30px'}}>{eraserHardness}</span>
                 </div>
 
@@ -9030,9 +7445,7 @@ useEffect(() => {
           label='Text'
           position={'left'}
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
           >
-
             <div>
               <TextComponent callBack={textChangeCallback} text={text}/>
               <FontSelection callBack={fontSelectionCallback} selectedFont={selectedFont}/>
@@ -9057,25 +7470,18 @@ useEffect(() => {
           icon={FileImage}
           callBack={toolCallback}
           tool='images'
-          label={'Images'}
+          label='Add Image'
           position={'left'}
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
           >
-            <div
-              style={{
-                height:`calc(${canvasEditorHeight}px - 75px)`,
-              }}
-            >
+            <div>
               <Media
                 user={user}
                 addMedia={addImages}
-                fileTypes={['image/png', 'image/jpeg']}
+                fileTypes={['image/png', 'image/jpg']}
                 accept="image/*,.pdf,.doc"
-                label={imageMediaLabel}
+                label={'image'}
                 onDragStart={onDragStart}
-                setShowFileEdit={setShowFileEdit}
-                setFileEdit={setFileEdit}
               />
             </div>
         </ToolSVG>
@@ -9086,21 +7492,15 @@ useEffect(() => {
           label="Music"
           position="left"
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
         >
-          <div
-            style={{
-              height:`calc(${canvasEditorHeight}px - 75px)`,
-            }}>
+          <div>
             <Media
               user={user}
               addMedia={addAudio}
               fileTypes={['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']}
               accept="audio/*,.mp3"
-              label={'Add music'}
+              label={'music'}
               onDragStart={onDragStart}
-              setShowFileEdit={setShowFileEdit}
-              setFileEdit={setFileEdit}
             />
           </div>
         </ToolSVG>
@@ -9108,24 +7508,18 @@ useEffect(() => {
           icon={Film}
           callBack={toolCallback}
           tool="video"
-          label="Videos"
+          label="Video"
           position="left"
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
         >
-          <div
-            style={{
-              height:`calc(${canvasEditorHeight}px - 75px)`,
-            }}>
+          <div>
             <Media
               user={user}
               addMedia={addVideos}
               fileTypes={['video/mp4', 'video/webm']}
               accept="video/*,.mp4"
-              label={'Add video'}
+              label={'video'}
               onDragStart={onDragStart}
-              setShowFileEdit={setShowFileEdit}
-              setFileEdit={setFileEdit}
             />
           </div>
         </ToolSVG>
@@ -9136,13 +7530,10 @@ useEffect(() => {
           label="Templates"
           position="left"
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
         >
           <div>
             <TemplatePanel
               applyTemplate={applyTemplate}
-              loadTemplate={loadProject}
-              user={user}
             />
           </div>
         </ToolSVG>
@@ -9153,16 +7544,9 @@ useEffect(() => {
           label="Posts"
           position="left"
           activeTool={activeTool}
-          canvasEditorHeight={canvasEditorHeight}
         >
-          <div
-            style={{
-              height:`calc(${canvasEditorHeight}px - 75px)`,
-              overflowY:'scroll'
-            }}
-          >
+          <div>
             <FeedsPanel
-              feeds={feeds}
               selectedFeed={selectedFeed}
               setSelectedFeed={setSelectedFeed}
               dateFilter={dateFilter}
@@ -9174,275 +7558,236 @@ useEffect(() => {
           </div>
         </ToolSVG>
         <FillColourPicker
-          callBack={toolCallback}
+          //callBack={toolCallback}
           tool='fill-colour-picker'
           label='Fill Colour'
           activeTool={activeTool}
           position={'left'}
           fillColourCallBack={fillColourCallBack}
           activeColour={activeElement?.fill?activeElement?.fill:null}
-          canvasEditorHeight={canvasEditorHeight}
         />
         <StrokeColourPicker
-          callBack={toolCallback}
+          //callBack={toolCallback}
           tool='stroke-colour-picker'
           label='Stroke Colour'
           activeTool={activeTool}
           position={'left'}
           strokeColourCallBack={strokeColourCallBack}
           activeColour={activeElement?.strokeColour?activeElement?.strokeColour:null}
-          canvasEditorHeight={canvasEditorHeight}
         />
         <BackgroundColourPicker
-          callBack={toolCallback}
           tool='background-colour-picker'
           label='Background Colour'
           activeTool={activeTool}
           position={'left'}
           backgroundColourCallBack={backgroundColourCallBack}
           activeColour={backgroundColour}
-          canvasEditorHeight={canvasEditorHeight}
         />
       </div>
-    {!propertiesPanelVisibilty &&
-      <div className={`side_menu_right_closed dropshadow`}>
-        <Eye onClick={() => setPropertiesPanelVisibilty(true)}/>
-      </div>
-    }
-    {propertiesPanelVisibilty &&
-      <div
-          style={{
-            height:`calc(${canvasEditorHeight}px - 10px)`
-          }}
-          className={`side_menu_right dropshadow`}>
-          <EyeOff style={{
-            position: 'absolute',
-            right: '7px',
-            top: '20px'
-          }}onClick={() => setPropertiesPanelVisibilty(false)}/>
-          <button className="btn primary" style={{marginTop:0}} onClick={clearAll}>Clear Canvas</button>
-          {activeSceneState &&
-            <div className='properties-container'>
-              <div className="property-label" style={{marginTop:0}}><Film className="property-icon" />
-                  <p>Active Scene</p>
-                  <Plus style={{marginLeft:'auto'}} onClick={()=>createScene(activeSceneState.duration,5,true)} />
-              </div>
-              <p className='font-label'>Duration</p>
-              <input
-                type='number'
-                style={{border:0}}
-                onChange={(e) => onSceneUpdateProperty('duration', e.target.value)}
-                value={activeSceneState?.duration??''}
-                className={'form-input'}
-              />
-              {activeSceneState.elements.length > 0 &&
-                <p className='font-label'>Elements</p>
-              }
-              {[...activeSceneState.elements].reverse().map((element, index)=>{
-                const isWhite = element?.fill === 'rgba(255,255,255,1)'
-                const isImage = element?.type === 'image'
+      <div className={`side_menu_right dropshadow`}>
+        <button className="btn primary" style={{marginTop:0}} onClick={clearAll}>Clear Canvas</button>
+        {activeSceneState &&
+          <div className='properties-container'>
 
-                var colour
-                var borderColour
-
-                if (element?.fill){
-                  colour = element?.fill
-                  borderColour = lightenRgba(element?.fill, .5)
-                }else{
-                  colour = 'var(--md-sys-color-secondary-container)'
-                  borderColour = 'var(--md-sys-color-secondary-container)'
-                }
-
-                if (!element || element.type==='eraser') return null
-
-                return(
-                    <div key={index} className='no-highlight timeline-bar'
-                      style={{
-                        height:'35px',
-                        marginTop: '5px',
-                        width: '100%',
-                        //backgroundImage: 'url("/transparent-background.jpg")',
-                        background: activeElement?.id === element.id
-                                ? isImage? 'url("/transparent-background.jpg")' : 'var(--md-sys-color-primary)'
-                                : isWhite ? 'var(--md-sys-color-surface)' : colour,
-                        borderRadius:'var(--input-border-radius)',
-                        borderColor: activeElement?.id === element.id
-                                ? 'var(--md-sys-color-secondary-container)'
-                                : isWhite ? 'var(--md-sys-color-surface-container)' : borderColour,
-
-                        alignItems: 'center',
-                        borderWidth:'3px',
-                        borderStyle: 'solid',
-                        boxSizing: 'border-box',
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                      onClick={(e) => {
-                        onSelectElement(element.id);
-                      }}>
-                        {element.type === 'video'&&
-                          <VideoTimelineBar videoElement={element} />
-                        }
-                        {element.type === 'image'&&
-                          <div style={{width: '100%' }} className='repeater-timeline-bar'>
-                            {Array(Math.round(activeSceneState.duration)).fill(0).map((_, index) => (
-                              <img
-                                key={index}
-                                src={element.imageSrc} // Replace with your image source
-                                alt="Repeated image"
-                              />
-                            ))}
-                          </div>
-                        }
-                        {element.type === 'text'&&
-                          <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
-                            {element.type === 'text' ? `"${element.text?.slice(0, 20) || 'Text'}..."` :
-                             element.type}
-                          </span>
-                        }
-                        {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle') &&
-                          <span style={{color:'#ffffff',paddingLeft:'10px', fontSize:'.8em'}} >
-                            {element.type}
-                          </span>
-                        }
-
-                  </div>
-                )
-              })
-
-              }
-
-              <div className='col-2 column-gap-2'>
-                <button onClick={() => duplicateScene(activeSceneState)} style={{flex: 4, marginBottom:0}} className='btn secondary icon-button'>
-                  <Copy className='button-icon'/>
-                  Duplicate
-                </button>
-                {sceneManagerRef.current?.scenes.length>1&&
-                <button style={{marginBottom:0}} onClick={() => removeScene(activeSceneState)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
-                }
-              </div>
+            <div className="property-label" style={{marginTop:0}}><Film className="property-icon" />
+                <p>Active Scene</p>
+                <Plus style={{marginLeft:'auto'}} onClick={()=>createScene(activeSceneState.duration,5,true)} />
             </div>
-          }
+            <p className='font-label'>Duration</p>
+            <input
+              type='number'
+              style={{border:0}}
+              onChange={(e) => onSceneUpdateProperty('duration', e.target.value)}
+              value={activeSceneState?.duration??''}
+              className={'form-input'}
+            />
+            {activeSceneState.elements.length > 0 &&
+              <p className='font-label'>Elements</p>
+            }
+            {[...activeSceneState.elements].reverse().map((element, index)=>{
+              const isWhite = element?.fill === 'rgba(255,255,255,1)'
+              var colour
+              var borderColour
 
-          {postInfo&&
-            <div className='properties-container' style={{marginTop:'10px'}}>
-              <div className="property-label" style={{marginTop:0}}><Rss className="property-icon" /><p>Post Info</p></div>
-              {postInfo?.data.scheduled &&
-                <div className="scheduled_badge">
-                  <strong>Scheduled</strong>
-                  <CircleCheck />
+              if (element?.fill){
+                colour = element?.fill
+                borderColour = lightenRgba(element?.fill, .5)
+              }else{
+                colour = 'var(--md-sys-color-secondary-container)'
+                borderColour = 'var(--md-sys-color-secondary-container)'
+              }
+
+              if (!element) return null
+
+              return(
+                  <div key={element.id} className='no-highlight'
+                    style={{
+                      height:'35px',
+                      marginTop: '5px',
+                      width: '100%',
+                      background: activeElement?.id === element.id
+                              ? 'var(--md-sys-color-primary)'
+                              : isWhite ? 'var(--md-sys-color-surface)' : colour,
+                      borderRadius:'var(--input-border-radius)',
+                      borderColor: activeElement?.id === element.id
+                              ? 'var(--md-sys-color-secondary-container)'
+                              : isWhite ? 'var(--md-sys-color-surface-container)' : borderColour,
+
+                      alignItems: 'center',
+                      borderWidth:'3px',
+                      borderStyle: 'solid',
+                      boxSizing: 'border-box',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    onClick={(e) => {
+                      onSelectElement(element.id);
+                    }}>
+                      {element.type === 'video'&&
+                        <VideoTimelineBar videoElement={element} />
+                      }
+                      {element.type === 'image'&&
+                        <div style={{width: '100%' }} className='repeater-timeline-bar'>
+                          {Array(Math.round(duration)).fill(0).map((_, index) => (
+                            <img
+                              key={index}
+                              src={element.imageSrc} // Replace with your image source
+                              alt="Repeated image"
+                            />
+                          ))}
+                        </div>
+                      }
+                      {element.type === 'text'&&
+                        <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
+                          {element.type === 'text' ? `"${element.text?.slice(0, 20) || 'Text'}..."` :
+                           element.type}
+                        </span>
+                      }
+                      {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle') &&
+                        <span style={{color:'#ffffff',paddingLeft:'10px', fontSize:'.8em'}} >
+                          {element.type}
+                        </span>
+                      }
+
                 </div>
-              }
+              )
+            })
 
-              <p className='font-label'>Post Link</p>
-              <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
-                <input
-                  id="post-link"
-                  type='text'
-                  style={{border:0, margin: '1px'}}
-                  defaultValue={`https://${postInfo.data.base_url}/${postInfo.data.slug}`}
-                  className={'form-input'}
-                />
-                <Copy onClick={()=>copyText(`https://${postInfo.data.base_url}/${postInfo.data.slug}`)}/>
+            }
+
+            <div className='col-2 column-gap-2'>
+              <button onClick={() => duplicateScene(activeSceneState)} style={{flex: 4, marginBottom:0}} className='btn secondary icon-button'>
+                <Copy className='button-icon'/>
+                Duplicate
+              </button>
+              {sceneManagerRef.current?.scenes.length>1&&
+              <button style={{marginBottom:0}} onClick={() => removeScene(activeSceneState)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
+              }
+            </div>
+          </div>
+        }
+
+        {postInfo&&
+          <div className='properties-container' style={{marginTop:'10px'}}>
+            <div className="property-label"><Rss className="property-icon" /><p>Post Info</p></div>
+            {postInfo?.data.scheduled &&
+              <div className="scheduled_badge">
+                <strong>Scheduled</strong>
+                <CircleCheck />
               </div>
-              <p className='font-label'>Schedule Date</p>
-                <input
-                  id="post-link"
-                  type='datetime'
-                  defaultValue={new Date(postInfo.data.scheduleDate)}
-                  className={'form-input'}
-                />
-              <p className='font-label'>Post Caption</p>
-              <textarea
-                id="post-caption"
-                rows="4"
-                defaultValue={postInfo.data.caption}
+            }
+
+
+            <p className='font-label'>Post Link</p>
+            <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
+              <input
+                id="post-link"
+                type='text'
+                style={{border:0, margin: '1px'}}
+                defaultValue={`https://${postInfo.data.base_url}/${postInfo.data.slug}`}
                 className={'form-input'}
               />
+              <Copy onClick={()=>copyText(`https://${postInfo.data.base_url}/${postInfo.data.slug}`)}/>
             </div>
-          }
+            <p className='font-label'>Schedule Date</p>
+              <input
+                id="post-link"
+                type='datetime'
+                defaultValue={new Date(postInfo.data.scheduleDate)}
+                className={'form-input'}
+              />
+            <p className='font-label'>Post Caption</p>
+            <textarea
+              id="post-caption"
+              rows="4"
+              defaultValue={postInfo.data.caption}
+              className={'form-input'}
+            />
+          </div>
+        }
 
-          {activeElement &&
-            <>
-              <div style={{marginTop: '20px'}} className="property-label"><SquareMousePointer className="property-icon" /><p>Active Element</p></div>
+        {activeElement &&
+          <>
+            <div style={{marginTop: '20px'}} className="property-label"><SquareMousePointer className="property-icon" /><p>Active Element</p></div>
 
-              <div className='col-2 column-gap-2'>
-                <button onClick={() => duplicate(activeElement)} style={{flex: 4}} className='btn secondary icon-button'>
-                  <Copy className='button-icon'/>
-                  Duplicate
-                </button>
-                <button style={{}} onClick={() => removeElement(activeElement)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
-              </div>
+            <div className='col-2 column-gap-2'>
+              <button onClick={() => duplicate(activeElement)} style={{flex: 4}} className='btn secondary icon-button'>
+                <Copy className='button-icon'/>
+                Duplicate
+              </button>
+              <button style={{}} onClick={() => removeElement(activeElement)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
+            </div>
 
-              <div className='col-2 column-gap-2'>
-                  <button style={{flex:1}} className={`btn  btn-sm ${showEffects? 'primary':''}`} onClick={()=> {
-                      setShowEffects(prev => !prev)
-                      if (!showEffects){
-                        setShowAnimate(false)
-                        setShowProperties(false)
-                      }
+            <div className='col-2 column-gap-2'>
+                <button style={{flex:1}} className={`btn  ${showAnimate? 'primary':''}`} onClick={()=> {
+                  setShowAnimate(prev => !prev)
+                    if (!showAnimate){
+                      setShowProperties(false)
                     }
                   }
-                  >Effects</button>
-                  <button style={{flex:1}} className={`btn  btn-sm ${showAnimate? 'primary':''}`} onClick={()=> {
-                    setShowAnimate(prev => !prev)
-                      if (!showAnimate){
-                        setShowProperties(false)
-                        setShowEffects(false)
-                      }
-                    }
+                }
+                >Animate</button>
+                <button style={{flex:1}} className={`btn  ${showProperties? 'primary':''}`} onClick={()=> {
+                  setShowProperties(prev => !prev)
+                  if (!showProperties){
+                    setShowAnimate(false)
                   }
-                  >Animate</button>
-                  <button style={{flex:1}} className={`btn  btn-sm ${showProperties? 'primary':''}`} onClick={()=> {
-                    setShowProperties(prev => !prev)
-                    if (!showProperties){
-                      setShowAnimate(false)
-                      setShowEffects(false)
-                    }
-                  }
-
+                }
               }
-                  >Properties</button>
-              </div>
-            </>
-          }
-          {showEffects &&
-            <EffectsPanel
-              element={activeElement}
-              scene={activeSceneState}
-              onUpdateElement={onElementUpdateProperty}
-            />
-          }
+                >Properties</button>
+            </div>
+          </>
+        }
 
-          {showAnimate &&
-            <AnimatePanel
-            element={activeElement}
-            scene={activeSceneState}
-            onUpdateElement={onElementUpdateProperty}
-            duration={duration}
-            />
-          }
-          {showProperties &&
-            <PropertiesPanel
-            element={activeElement}
-            onElementUpdateProperty={onElementUpdateProperty}
-            selectedIndex={selectedIndexRef.current}
-            removeItem={removeElement}
-            resizeImage={resizeImage}
-            bringToFront={bringToFront}
-            sendToBack={sendToBack}
-            moveBackwards={moveBackwards}
-            moveForward={moveForward}
-            toolCallback={toolCallback}
-            activeTool={activeTool}
-            canvasEditorHeight={canvasEditorHeight}
-            />
-          }
+        {showAnimate &&
+          <AnimatePanel
+          element={activeElement}
+          scene={activeSceneState}
+          onUpdateElement={onElementUpdateProperty}
+          duration={duration}
+          />
+        }
+        {showProperties &&
+          <PropertiesPanel
+          element={activeElement}
+          onElementUpdateProperty={onElementUpdateProperty}
+          selectedIndex={selectedIndexRef.current}
+          removeItem={removeElement}
+          resizeImage={resizeImage}
+          bringToFront={bringToFront}
+          sendToBack={sendToBack}
+          moveBackwards={moveBackwards}
+          moveForward={moveForward}
+          setTextEditing={setTextEditing}
+          textEditing={textEditing}
+          toolCallback={toolCallback}
+          activeTool={activeTool}
+          />
+        }
       </div>
-    }
       <div ref={topToolbarRef} className='canvas-top-toolbar dropshadow'>
+
         <div style={{display:'flex', alignItems:'center'}}>
-          {/*}<input type="file" id="myFile" name="myFile" onChange={sendApiWorkflow}/>*/}
           <div style={{width:200}}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -9485,7 +7830,7 @@ useEffect(() => {
                 }}
               />
               <input
-                  style={{paddingLeft: '30px'}}
+                style={{paddingLeft: '30px'}}
                   type="number"
                   className="form-input input"
                   id="duration"
@@ -9515,7 +7860,7 @@ useEffect(() => {
                 type="file"
                 accept=".danva"
                 className='btn secondary'
-                onChange={loadProjectFile}
+                onChange={loadProject}
                 id="file-upload"
               />
               <label
@@ -9532,8 +7877,8 @@ useEffect(() => {
             projectTitle={projectTitle}
             showShare={setShowShare}
             postInfo={postInfo}
+            exportCcapture={exportCcapture}
             exportVideoFrames={exportVideoFrames}
-            saveAsTemplate={saveAsTemplate}
 
           />
         </div>
@@ -9541,7 +7886,7 @@ useEffect(() => {
         </div>
       </div>
       {activeElement &&
-        <div ref={toolbarRef}
+        <div
           className='tool-tip dropshadow'
           style={{
           position:'absolute',
@@ -9556,6 +7901,7 @@ useEffect(() => {
         }}>
           {(activeElement.type === 'text') &&
             <>
+
               <div>
                 <Tool
                   icon={{tool:'edit_text.svg', toolActive:'edit_text_active.svg'}}
@@ -9566,7 +7912,6 @@ useEffect(() => {
                   activeTool={activeTool}
                 />
               </div>
-
               {/*}
               <div style={{margin: '0px 0px 0px 0px', width:150}}>
                 <FontSelection callBack={fontSelectionCallback} selectedFont={selectedFont}/>
@@ -9589,50 +7934,31 @@ useEffect(() => {
               </div>
               <div style={{margin: '0px 0px 0px 15px', width:90}}>
                 <TextLineHeightComponent callBack={textLineHeightCallback} selectedTextLineHeight={selectedTextLineHeight}/>
-              </div>*/}
-
+              </div>
+              */}
             </>
           }
           {(activeElement.type === 'image') &&
             <>
               {/*}<img src='/replace_image.svg' onClick={handleReplaceImage} style={{width:'28px', marginRight:'10px'}} alt='Replace Image'/>*/}
               <img src='/fit_width.svg' onClick={() => resizeImage('Fit Width')} style={{width:'28px', marginRight:'10px'}} alt='Fit Width'/>
-              <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'5px'}} alt='Fit Page'/>
-              <div style={{width:'35px', height:'35px', marginRight:'5px'}} className='tool-tip-crop'>
-                <ToolSVG
-                  icon={Frame}
-                  callBack={toolCallback}
-                  tool='cropping'
-                  label='Cropping'
-                  position={'tool-bar'}
-                  activeTool={activeTool}
-                  canvasEditorHeight={canvasEditorHeight}
-                />
-              </div>
-              <div style={{width:'24px', height:'24px', marginRight:'10px'}}>
-                <Replace width='25px' height='24px' onClick={replaceImageFunction}/>
-              </div>
-              <img onClick={editInPhotoshop} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
-              <Sparkles onClick={editImage}/>
-          </>
+              <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'10px'}} alt='Fit Page'/>
+              <ToolSVG
+                icon={Crop}
+                callBack={toolCallback}
+                tool='cropping'
+                label='Cropping'
+                position={'tool-bar'}
+                activeTool={activeTool}
+              />
+
+            </>
           }
-          <div style={{margin: '0px 0px 0px 15px'}}>
-            <button className={`btn  ${showEffects? 'primary':''}`} onClick={()=> {
-              setShowEffects(prev => !prev)
-              if (!showEffects){
-                setShowAnimate(false)
-                setShowProperties(false)
-              }
-            }
-          }
-            >Effects</button>
-          </div>
           <div style={{margin: '0px 0px 0px 15px'}}>
             <button className={`btn  ${showAnimate? 'primary':''}`} onClick={()=> {
               setShowAnimate(prev => !prev)
                 if (!showAnimate){
                   setShowProperties(false)
-                  setShowEffects(false)
                 }
               }
             }
@@ -9643,7 +7969,6 @@ useEffect(() => {
               setShowProperties(prev => !prev)
               if (!showProperties){
                 setShowAnimate(false)
-                setShowEffects(false)
               }
             }
           }
@@ -9699,12 +8024,6 @@ useEffect(() => {
         postScheduled={postScheduled}
       />
     }
-    {showFileEdit&&
-      <MediaEdit
-        setShowFileEdit={setShowFileEdit}
-        file={fileEdit}
-      />
-    }
 </>
   );
 })
@@ -9744,15 +8063,14 @@ canvas,
 projectTitle,
 showShare,
 postInfo,
-exportVideoFrames,
-saveAsTemplate
-
+exportCcapture,
+exportVideoFrames
 }) => {
   const [open, setOpen] = useState(false)
 
   return(
     <div style={{position:'relative'}}>
-      <button style={{width:121}} onClick={() => setOpen(prev => !prev)} className='btn primary icon-button'><SquareArrowUpRight  className='button-icon'/>Share</button>
+      <button style={{width:121}} onClick={() => setOpen(prev => !prev)} className='btn primary icon-button'><Upload  className='button-icon'/>Share</button>
       {open &&
         <div style={{position:'absolute', marginTop: '10px'}} className='canvas-zoom-dropdown dropshadow'>
           <p onClick={() => {
@@ -9764,18 +8082,15 @@ saveAsTemplate
             setOpen(false)
           }}>Save as JPG</p>
           <p onClick={() => {
-            saveAsTemplate()
-            setOpen(false)
-          }}>Save as Template</p>
-          <p onClick={() => {
-            exportVideoFrames(true, true)
+            exportVideoFrames(true)
             setOpen(false)
           }}>Export Video</p>
+
             <button
               onClick={() => {
                 showShare(true)
                 setOpen(false)
-              }} style={{flex: 2, marginBottom:0}} className='btn secondary icon-button'>
+              }} style={{flex: 2}} className='btn secondary icon-button'>
               <CalendarDays className='button-icon'/>
               Schedule
             </button>
@@ -9793,8 +8108,7 @@ const ToolSVG = ({
   label,
   position,
   activeTool,
-  canvasEditorHeight,
-  children
+  children,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -9814,10 +8128,7 @@ const ToolSVG = ({
         <ToolIcon className="tool-icon" />
       </div>
       {(isOpen && position !== "tool_tip" && children )&& (
-        <div style={{
-          maxHeight:`calc(${canvasEditorHeight}px - 10px)`
-        }}
-          className={`dropshadow ${position === "left" ? "side_menu_left" : "side_menu_right"}`}>
+        <div className={`dropshadow ${position === "left" ? "side_menu_left" : "side_menu_right"}`}>
           <div style={{ display: "flex" }}>
             <strong>
               <p style={{ paddingLeft: "10px" }}>{label}</p>
@@ -9865,7 +8176,7 @@ const Tool = ({
         <img className="tool-icon" src={isOpen?icon.toolActive:icon.tool} />
       </div>
       {(isOpen && position !== 'tool_tip' && children) &&
-        <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
+        <div className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
           <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={() => callBack(tool, !isOpen)} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
 
           {children}
@@ -9877,14 +8188,13 @@ const Tool = ({
 
 
 const FillColourPicker = ({
-  callBack,
+  //callBack,
   tool,
   label,
   activeTool,
   position,
   fillColourCallBack,
-  activeColour,
-  canvasEditorHeight
+  activeColour
 }) => {
 
 
@@ -9894,9 +8204,13 @@ const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 2
 const isWhite = colour === 'rgba(255, 255, 255, 1)'
 
 
-useEffect(() => {
-  setIsOpen(activeTool === tool);
-}, [activeTool, tool]);
+useEffect(()=>{
+  if (activeTool === tool){
+    setIsOpen(true)
+  }else{
+    setIsOpen(false)
+  }
+},[activeTool, tool])
 
 
 
@@ -9904,7 +8218,7 @@ const handleClose = () => {
     setIsOpen(false)
   };
 
-const handleChange = (color) => {
+const  handleChange = (color) => {
     setColour(color.rgb)
     fillColourCallBack(color.rgb)
   };
@@ -9913,11 +8227,9 @@ const handleChange = (color) => {
 
     return (
       <div style={{width: '100%', padding: '5px 10px'}}>
-        <div className={`${isWhite? 'colour-border':"" }`}
-          style={{margin:'0 auto', width:25, height:25, borderRadius:'50%', background: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`}}
-          onClick={() => callBack(tool, !isOpen)}>
+        <div className={`${isWhite? 'colour-border':"" }`} style={{margin:'0 auto', width:25, height:25, borderRadius:'50%', background: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`}} onClick={() => setIsOpen(prev => !prev)}>
         </div>
-        { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
+        { isOpen ? <div className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
           <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={handleClose} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
           <SketchPicker
             color={ colour }
@@ -9932,14 +8244,13 @@ const handleChange = (color) => {
 }
 
 const StrokeColourPicker = ({
-  callBack,
+  //callBack,
   tool,
   label,
   activeTool,
   position,
   strokeColourCallBack,
-  activeColour,
-  canvasEditorHeight
+  activeColour
 }) => {
 
 const [isOpen, setIsOpen] = useState(false);
@@ -9948,9 +8259,13 @@ const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 2
 const isWhite = colour === 'rgba(255, 255, 255, 1)'
 
 
-useEffect(() => {
-  setIsOpen(activeTool === tool);
-}, [activeTool, tool]);
+useEffect(()=>{
+  if (activeTool === tool){
+    setIsOpen(true)
+  }else{
+    setIsOpen(false)
+  }
+},[activeTool, tool])
 
 
 const  handleClose = () => {
@@ -9964,13 +8279,9 @@ const  handleChange = (color) => {
 
     return (
       <div style={{width: '100%', padding: '5px 10px'}}>
-        <div
-          className={`${isWhite? 'colour-border-stroke':"" }`}
-          style={{margin:'0 auto', width:30, height:30, borderRadius:'50%', borderStyle: 'solid', borderWidth: 5, borderColor: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`,}}
-          onClick={() => callBack(tool, !isOpen)}
-        >
+        <div className={`${isWhite? 'colour-border-stroke':"" }`} style={{margin:'0 auto', width:30, height:30, borderRadius:'50%', borderStyle: 'solid', borderWidth: 5, borderColor: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`,}} onClick={() => setIsOpen(prev => !prev)}>
         </div>
-        { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
+        { isOpen ? <div className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
           <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={handleClose} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
           <SketchPicker
             color={ colour }
@@ -9985,14 +8296,13 @@ const  handleChange = (color) => {
 }
 
 const BackgroundColourPicker = ({
-  callBack,
+  //callBack,
   tool,
   label,
   activeTool,
   position,
   backgroundColourCallBack,
-  activeColour,
-  canvasEditorHeight
+  activeColour
 }) => {
 
 const [isOpen, setIsOpen] = useState(false);
@@ -10001,10 +8311,6 @@ const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 2
 
 
 const isWhite = colour === 'rgba(255, 255, 255, 1)'
-
-useEffect(() => {
-  setIsOpen(activeTool === tool);
-}, [activeTool, tool]);
 
 const  handleClose = () => {
     setIsOpen(false)
@@ -10015,14 +8321,15 @@ const  handleChange = (color) => {
     backgroundColourCallBack(color.rgb)
 };
 
+
+
+
+
     return (
       <div style={{width: '100%', padding: '5px 10px'}}>
-        <div className={`${isWhite? 'colour-border':"" }`}
-          style={{margin:'0 auto', width:25, height:25, borderRadius:'50%', background: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`}}
-          onClick={() => callBack(tool, !isOpen)}
-        >
+        <div className={`${isWhite? 'colour-border':"" }`} style={{margin:'0 auto', width:25, height:25, borderRadius:'50%', background: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`}} onClick={() => setIsOpen(prev => !prev)}>
         </div>
-        { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
+        { isOpen ? <div className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
           <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={handleClose} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
           <SketchPicker
             color={ colour }
@@ -10082,25 +8389,16 @@ const FontSelection = ({callBack, selectedFont}) => {
   return(
     <div>
       <p className='font-label'>Font</p>
-      {/*}
       <select id="font" className="form-input select font-label-input" onChange={(e) => setFontFunction(e.target.value)} value={font}>
-        {FONTS.map((font, index)=>{
-          return <option key={index} value={font.family}>{font.family}</option>
+        {fonts.map((font, index)=>{
+          return <option key={index} value={font.label}>{font.label}</option>
         })
         }
-      </select>*/}
-      <FontDropdown placeholder={font}>
-        {FONTS.map((font, index)=>{
-          return <p key={index} onClick={() => setFontFunction(font.family)} style={{fontFamily:font.family, cursor: "pointer"}} className="no-highlight">{font.family}</p>
-        })
-        }
-      </FontDropdown>
+      </select>
     </div>
   )
 
 }
-
-
 
 const FontWeightSelection = ({callBack, selectedFontWeight, fontWeights}) => {
 
@@ -10232,76 +8530,40 @@ const Media = ({
   fileTypes,
   accept,
   label,
-  onDragStart,
-  setShowFileEdit,
-  setFileEdit
+  onDragStart
 }) => {
   const [files, setFiles] = useState([]);
-  const [filter, setFilter] = useState('')
-
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false)
   const [fileDescription, setFileDescription] = useState('')
 
 
-  const getData = async () => {
+  const getData = async (userId) => {
 
     try {
-      const myFiles = await getFiles(user.id, fileTypes);
+      const myFiles = await getFiles(userId, fileTypes);
       setFiles(myFiles);
     } catch (error) {
       showError('error getting files', error);
     }
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    getSearchData()
-
-  };
-
-  const getSearchData = async () => {
-    try{
-      const myFiles = await getFilesSearch(user.id, filter, fileTypes);
-      if (Array.isArray(myFiles)) {
-        setFiles(myFiles);
-      }
-    } catch (error) {
-      console.log('error getting files', error);
-    }
-
-  }
-
-  const handleSearchChange = (data) => {
-    setFilter(data)
-
-    if (data.length === 0){
-      getData()
-    }
-  }
-
   useEffect(() => {
 
-    if (filter.length === 0){
-      getData()
-    }else{
-      getSearchData();
+    if (user){
+      getData(user.id)
     }
 
-  }, [user]);
+}, [user]);
 
 const selectFileFunction = (data) => {
-
-  if (label === 'Replace Image'){
-      setSelectedFiles([data])
+  if (selectedFiles.some((obj)=> data.id === obj.id)){
+    setSelectedFiles(prev => prev.filter(remove => remove.id !== data.id));
   }else{
-    if (selectedFiles.some((obj)=> data.id === obj.id)){
-      setSelectedFiles(prev => prev.filter(remove => remove.id !== data.id));
-    }else{
-      setSelectedFiles(selectedFiles => [...selectedFiles, data])
-    }
+    setSelectedFiles(selectedFiles => [...selectedFiles, data])
   }
 }
+
 
 const uploadFile = async (event) => {
   try {
@@ -10347,7 +8609,6 @@ const uploadFile = async (event) => {
     alert('Error uploading image!')
   } finally {
     setUploading(false)
-    //setUploadFileState(null)
   }
 }
 
@@ -10358,7 +8619,7 @@ const handleFileFunction = async (data) => {
       file_url: data.file_url,
       file_type:data.file_type,
       file_name:data.file_name,
-      file_description:data.file_description??null
+      file_description:data.file_description??''
     })
 
     const newFile={
@@ -10366,7 +8627,6 @@ const handleFileFunction = async (data) => {
       file_type: data.file_type,
       file_url: data.file_url,
       file_name:data.file_name,
-      file_description:data.file_description,
       id: fileinfo.id,
       user_id: user.id
     }
@@ -10378,12 +8638,6 @@ const handleFileFunction = async (data) => {
   }
 }
 
-const deleteCallback = (fileId) => {
-  setFiles(prev =>
-    prev.filter((file) => file.id !== fileId)
-  )
-}
-
 
   return(
     <>
@@ -10392,7 +8646,7 @@ const deleteCallback = (fileId) => {
           className='btn primary'
           disabled={selectedFiles.length>0?false:true}
           onClick={() => addMedia(selectedFiles)}>
-          {`${label}${selectedFiles.length>1 && label !== 'music'?'s':''}`}
+          {`Add ${label}${selectedFiles.length>1 && label !== 'music'?'s':''}`}
         </button>
         <input
           style={{display:'none'}}
@@ -10407,82 +8661,33 @@ const deleteCallback = (fileId) => {
           className="btn secondary icon-button"
           htmlFor="file-upload"
           style={{
-            padding: '10px 15px',
+            padding: '10px 10px',
             marginTop:'0px',
             marginBottom: '0px',
             marginLeft: '10px'
           }}
         >
           <Upload className='button-icon'/>
-          {`Upload`}
+          {`Upload ${label}`}
         </label>
       </div>
-      <div style={{position:'relative', width:'100%'}}>
-        <form onSubmit={handleSubmit}>
-            <div style={{position:'relative', display:'flex', alignItems:'center', gap:'10px'}}>
-              <input
-                id={'media-filter'}
-                style={{
-                  flex:4
-                }}
-                className="form-input"
-                type="text"
-                onChange={(e) => handleSearchChange(e.target.value)}
-                value={filter}
-                placeholder='Filter'
-                required
-              />
-              <button
-                type='submit'
-                style={{
-                  height:'38px',
-                  flex:1,
-                  lineHeight:1
-                }}
-                disabled={filter.length < 3}
-                className='btn primary'>
-                  GO
-                </button>
-          </div>
-        </form>
-    </div>
     <div style={{
       display: 'flex',
       flexWrap: 'wrap',
       overflowY: 'scroll',
       overflowX: 'hidden',
-      alignContent: 'flex-start',
-      height: 'calc(100% - 120px)'
+      alignContent: 'flex-start'
     }}>
 
       {files.length === 0?(
-          <div className='alert alert-danger'>{`No files for you`}</div>
+          <p>{`No ${label} files`}</p>
       ):(
         <>
-          {files
-            //.filter(item => item?.file_description?.toLowerCase().includes(filter.toLowerCase()))
-            .map((file, index)=>{
-
+          {files.map((file, index)=>{
             return (
-              <div key={file.id} className={`media_container ${label}`}
-                style={{
-                  width:(file.file_type === 'image/png' || file.file_type === 'image/jpeg')?'48%':'99%',
-                  margin:'1%',
-                  position:'relative',
-                  display: 'block',
-                  height: 'auto',
-                  backgroundColor: 'none',
-                }}>
-                <div style={{
-                      position:'absolute',
-                      right:'5px',
-                      top:'5px',
-                      zIndex: `${100-index}`
-                      }}>
-                    <MediaMenu setShowFileEdit={setShowFileEdit} setFileEdit={setFileEdit} file={file} deleteCallback={deleteCallback}/>
-                </div>
-                <div style={{position:'relative'}} className={`${ (file.file_type === 'video/mp4' || file.file_type === 'video/webm' || file.file_type === 'audio/mpeg' || file.file_type === 'audio/wav' || file.file_type === 'audio/aac' || file.file_type === 'audio/webm' || file.file_type === 'audio/ogg')? 'media':'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
-
+              <div key={file.id} style={{width:(file.file_type === 'image/png' || file.file_type === 'image/jpeg')?'48%':'99%', margin:'1%'}}
+              >
+                <div className={`${ (file.file_type === 'video/mp4' || file.file_type === 'video/webm' || file.file_type === 'audio/mpeg' || file.file_type === 'audio/wav' || file.file_type === 'audio/aac' || file.file_type === 'audio/webm' || file.file_type === 'audio/ogg')? 'media':'media-image'} ${isObjectInArray(file, selectedFiles)?'active':''}`} onClick={() => selectFileFunction(file) }>
                   {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
                       <img
                         draggable
@@ -10618,21 +8823,16 @@ const updateAnimation = (index, updates) => {
 const updateAnimationSelect = (index, updates) => {
     const animations = [...(element.animations || [])];
 
-    const animationFind = [...ANIMATION_TYPES, ...TEXT_ONLY_ANIMATION_TYPES].find((anim)=> anim.type === updates.type)
+    const animationFind = [...ANIMATION_TYPES, ...TEXT_ONLY_ANIMATION_TYPES].find((anim)=> anim.value === updates.type)
+
+    let newAnimation = { ...animations[index], ...updates };
+
+    newAnimation.label = animationFind?.label??null
 
 
-    let newAnimation = { ...animations[index], ...animationFind };
+    const allowedTypes = new Set(["Lines", "Char"]);
 
-
-    if (updates.type === 'pulse'){
-        newAnimation.duration = duration
-    }
-
-
-
-    const allowedTypes = new Set(["fadeInUpLines", "fadeInLines", "slideInLeftLines", "slideInRightLines", "fadeInUpChar", "fadeInChar", "slideInLeftChar", "slideInRightChar"]);
-
-    if (allowedTypes.has(updates.type)){
+    if (!allowedTypes.has(updates.type)){
       // is text animation
 
       const lines = element.getLines()
@@ -10651,8 +8851,6 @@ const updateAnimationSelect = (index, updates) => {
 
     }
 
-
-
     animations[index] = newAnimation;
 
     onUpdateElement('animations',  animations );
@@ -10666,6 +8864,8 @@ const removeAnimation = (index) => {
 
 
 if (element === null) return <div></div>
+
+
 
   return(
     <div>
@@ -10703,17 +8903,17 @@ if (element === null) return <div></div>
               onChange={(e) => updateAnimationSelect(index, { type: e.target.value })}
             >
 
-                {ANIMATION_TYPES.map(anim => (
-                  <option key={anim.type} value={anim.type}>
-                    {anim.label}
+                {ANIMATION_TYPES.map(type => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
                   </option>
                 ))}
 
                 {element.type==='text'&&
                   <>
-                    {TEXT_ONLY_ANIMATION_TYPES.map(anim => (
-                      <option key={anim.type} value={anim.type}>
-                        {anim.label}
+                    {TEXT_ONLY_ANIMATION_TYPES.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
                       </option>
                     ))}
                   </>
@@ -10735,6 +8935,7 @@ if (element === null) return <div></div>
                 className="form-input input"
               />
             </div>
+
             <div>
               <label className='font-label'>Duration (s)</label>
               <input
@@ -10773,6 +8974,7 @@ const Timeline = ({
   toolCallback
 }) => {
 
+  console.log('currentTime Timeline', currentTime)
 
   const timelineRef = useRef(null);
   const pixelsPerSecond = 100;
@@ -10911,6 +9113,8 @@ useEffect(() => {
 }, [isDraggingPlayhead, duration]);
 
 
+
+
   return(
     <div>
       {/* Controls */}
@@ -10960,15 +9164,11 @@ useEffect(() => {
       </div>
 
       {/* Timeline tracks */}
-      <div className="flex-1" style={{
-        overflowX: 'scroll',
-        height: '120px',
-        overflowY: 'hidden'
-      }}>
+      <div className="flex-1 overflow-x-auto">
         <div
           ref={timelineRef}
           style={{ width: `${duration * pixelsPerSecond + 100}px`, minWidth: '100%', position:'relative', height:'130px', overflowY: 'hidden'}}
-
+          //onClick={handleTimelineClick}
         >
           {/* Time ruler */}
           <div className="h-6 border-b border-slate-700/50 no-highlight"
@@ -10976,7 +9176,6 @@ useEffect(() => {
               position:'relative',
               borderColor: '#33415580'
             }}
-            onClick={handleTimelineClick}
           >
             {Array.from({ length: Math.ceil(duration) + 1 }).map((_, i) => (
               <div
@@ -10989,7 +9188,7 @@ useEffect(() => {
               </div>
             ))}
           </div>
-        <div style={{overflowY:'scroll', height: '80px'}}>
+        <div style={{overflowY:'scroll', height: '130px'}}>
           {/* Element tracks */}
           <div style={{position:'relative', display:'flex', gap:'2px'}}>
             {scenes?.map((scene, index)=>{
@@ -11038,7 +9237,6 @@ useEffect(() => {
                   </div>
                   {[...scene.elements].reverse().map((element, index)=>{
                     const isWhite = element?.fill === 'rgba(255,255,255,1)'
-                    const isImage = element?.type === 'image'
                     var colour
                     var borderColour
 
@@ -11050,7 +9248,7 @@ useEffect(() => {
                       borderColour = 'var(--md-sys-color-secondary-container)'
                     }
 
-                    if (!element || element.type === 'eraser') return null
+                    if (!element) return null
 
                     return(
                       <div key={index}>
@@ -11061,7 +9259,7 @@ useEffect(() => {
                             marginTop: '5px',
                             width: `${scene.duration * pixelsPerSecond}px`,
                             background: selectedElement?.id === element.id
-                                    ? isImage? 'url("/transparent-background.jpg")' : 'var(--md-sys-color-primary)'
+                                    ? 'var(--md-sys-color-primary)'
                                     : isWhite ? 'var(--md-sys-color-surface)' : colour,
                             borderRadius:'var(--input-border-radius)',
                             borderColor: selectedElement?.id === element.id
@@ -11086,7 +9284,7 @@ useEffect(() => {
                           }
                           {element.type === 'image'&&
                             <div style={{width: '100%' }} className='repeater-timeline-bar'>
-                              {Array(Math.round(activeScene.duration)).fill(0).map((_, index) => (
+                              {Array(Math.round(duration)).fill(0).map((_, index) => (
                                 <img
                                   key={index}
                                   src={element.imageSrc} // Replace with your image source
@@ -11254,82 +9452,10 @@ return(
 }
 
 const TemplatePanel = ({
-  applyTemplate,
-  loadTemplate,
-  user
+  applyTemplate
 }) => {
-
-  const [templates, setTemplates] = useState([]);
-  const [prompt, setPrompt] = useState('Create an A4 poster for a coffee brand sale.');
-
-  const getData = async (userId) => {
-
-    try {
-      const myFiles = await getTemplates(userId);
-      setTemplates(myFiles);
-    } catch (error) {
-      showError('error getting templates', error);
-    }
-  };
-
-
-  useEffect(()=>{
-    if (user){
-      getData(user.id)
-    }
-
-  }, [user])
-
-
-  const createDesign = async () => {
-
-    try{
-      const response = await fetch("/api/design/create-design", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt:prompt
-        })
-
-      });
-
-      const responseData = await response.json()
-
-      console.log('responseData')
-    }catch(err){
-      console.log(err)
-      showError(err)
-    }
-
-
-
-  }
-
-
-
-
   return(
     <div>
-      <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-        <input style={{
-          width:"100%",
-          margin:'15px 0px',
-        }}
-          id='guest-author'
-          type="text"
-          className="form-input"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Prompt..."
-        />
-        <button style={{
-          maxHeight: '35px',
-          verticalAlign: 'middle',
-          paddingTop: '7px'
-        }} onClick={createDesign} className='btn btn-small primary'>Go</button>
-      </div>
       <p className='font-label'>Videos</p>
     {TEMPLATES.videos.map((videoTemp, index) => {
       return(
@@ -11344,29 +9470,12 @@ const TemplatePanel = ({
 
       )
     })}
-    {templates.length>0&&
-        <p className='font-label'>Saved Templates</p>
-    }
-    {templates.map((template, index) => {
-      return(
-        <div key={index}>
-          <button
-            onClick={() => loadTemplate(template.json)}
-            className='btn btn-secondary'>
-            {template.title}
-          </button>
-        </div>
-      )
-    })
-
-    }
 
     </div>
   )
 }
 
 const FeedsPanel = ({
-  feeds,
   selectedFeed,
   setSelectedFeed,
   dateFilter,
@@ -11376,11 +9485,9 @@ const FeedsPanel = ({
   onDragStart
   }) => {
 
-    const [noPosts, setNoPosts] = useState(false)
-    const [loader, setLoader] = useState(false)
 
     const onFeedChange = (value) => {
-      const feed = feeds.find(item => item.label === value);
+      const feed = FEEDS.find(item => item.label === value);
       setSelectedFeed(feed);
       if (dateFilter){
         getFeed(feed, dateFilter);
@@ -11392,60 +9499,36 @@ const FeedsPanel = ({
         setDateFilter(date)
         if (selectedFeed){
           getFeed(selectedFeed, date);
+
         }
+
     }
 
 
+
+
+
     const getFeed = async (selectedFeed, dateFilter) => {
-        setLoader(true)
-        setNoPosts(false)
-        setPosts([])
+
 
       if (selectedFeed.CMSType === 'contentful'){
+        const client = contentful.createClient({
+          space: selectedFeed.spaceId,
+          accessToken: selectedFeed.accessToken,
+        })
 
-
-
-        let order
-         if (selectedFeed.publishedDate){
-           order = '-fields.'+selectedFeed.publishedDate
-         }else{
-           order = 'sys.updatedAt'
-         }
-
-         const contentfulResponse  = await fetch('/api/contentful/get-content', {
-               method: 'POST',
-               headers: {
-                   'Content-Type': 'application/json',
-               },
-               body: JSON.stringify({
-                 feedId: selectedFeed.id,
-                 order: order,
-                 contentType: selectedFeed.content_type
-               }),
-           });
-
-           const response = await contentfulResponse.json();
+        const response = await client.getEntries({
+          'content_type': 'post',
+          'order': '-fields.publishDate',
+           'limit': '100',
+          'include': '10',
+        })
 
         let date = moment(dateFilter).format('YYYY-MM-DD');
 
-        var filterPosts = response.data
+        const filterPosts = response.items.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
 
-        if (selectedFeed.useDateFilter){
-          filterPosts = response.data.filter((item)=> item.fields[selectedFeed.publishedDate] === date)
-        }
-
-        if (selectedFeed.customFilterField){
-          filterPosts = filterPosts.filter(function(node) {
-               return !node.fields[`${selectedFeed.customFilterField}`]
-           });
-        }
-
-        if (filterPosts.length === 0){
-          setLoader(false)
-          setNoPosts(true)
-          return
-        }
-
+        if (filterPosts.length < 1) return
 
         const posts = filterPosts.map((item)=>{
             return {
@@ -11453,45 +9536,32 @@ const FeedsPanel = ({
               scheduleDate: item.fields[selectedFeed.scheduleDate],
               link: selectedFeed.website+'/'+item.fields[selectedFeed.slug],
               image_url: 'https:' + item.fields[selectedFeed.image].fields.file?.url,
-              file_description: item.fields[selectedFeed.image].fields.file?.description,
               title: item.fields[selectedFeed.title],
               slug: item.fields[selectedFeed.slug],
               base_url: selectedFeed.website,
               status: 'unpublished',
               caption: removeMd(item.fields[selectedFeed.text]),
               publishedDate: item.fields[selectedFeed.publishedDate],
-              scheduled:false,
-              CTA_image:selectedFeed.CTA_image
+              scheduled:false
             }
         })
 
-
         setPosts(posts)
-
       }else if (selectedFeed.CMSType === 'wordpress'){
 
-        //let date = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
-
-        const wordpressResponse  = await fetch('/api/wordpress/get-content', {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                feedId: selectedFeed.id,
-                dateFilter: selectedFeed.useDateFilter?dateFilter:null
-              }),
-          });
-
-          const response = await wordpressResponse.json();
+        let date = moment(dateFilter).format('YYYY-MM-DD')+'T00:00:00';
 
 
-        if (response.length === 0){
-          setLoader(false)
-          setNoPosts(true)
-          return
-        }
+        const wpapiUrl = 'https://' + selectedFeed.website + '/wp-json'
 
+        const wp = new WPAPI({
+            endpoint: wpapiUrl,
+            username: selectedFeed.editor,
+            password: selectedFeed.password,
+        });
+
+
+        const response = await wp.posts().embed().perPage(100).order('desc').orderby('date').after(new Date(date)).get()
 
         function multiIndex(obj,is) {  // obj,['1','2','3'] -> ((obj['1'])['2'])['3']
             return is.length ? multiIndex(obj[is[0]],is.slice(1)) : obj
@@ -11500,55 +9570,47 @@ const FeedsPanel = ({
             return multiIndex(obj,is.split('.'))
         }
 
-        const isCustomApi = selectedFeed.query_field
 
-
-
-
-
-        const posts = response?.data.map((item)=>{
+        const posts = response.map((item)=>{
 
             return {
               id : item.id.toString(),
-              scheduleDate: selectedFeed.scheduleDate? pathIndex(item, selectedFeed.scheduleDate):null,
+              scheduleDate: pathIndex(item, selectedFeed.scheduleDate),
               link: item.slug? 'https://' + selectedFeed.website +'/' + item.slug : null,
-              image_url:!isCustomApi? (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null : item[`${selectedFeed.query_image_field}`]??null,
-              file_description: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].caption.rendered : null,
-              title: !isCustomApi? decodeEntities(item.title.rendered) : item[`${selectedFeed.query_title_field}`]??null,
+              image_url: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null,
+              title: decodeEntities(item.title.rendered),
               slug: item.slug,
               base_url: selectedFeed.website,
               status: 'unpublished',
-              caption: !isCustomApi? decodeCaptionEntities(item.content.rendered) : item[`${selectedFeed.query_caption_field}`]??null,
-              publishedDate: !isCustomApi?item.date:null,
-              scheduled:false,
-              CTA_image:selectedFeed.CTA_image
+              caption: decodeCaptionEntities(item.content.rendered),
+              publishedDate: item.date,
+              scheduled:false
             }
         })
+
+
+
         setPosts(posts)
+
 
       }
 
-      setLoader(false)
+
     }
+
+
 
 
 
   return(
     <div>
-      <div style={{display:'flex', alignItems:'end', gap:'5px', paddingRight:'10px'}}>
-        <div style={{flex:2}}>
-          <label className='font-label'>Publication</label>
-          <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
-            {feeds?.map((feed, index)=>{
-              return <option key={index} value={feed.label}>{feed.label}</option>
-            })
-            }
-          </select>
-        </div>
-        <button onClick={() => getFeed(selectedFeed, dateFilter)} className='btn btn-sm primary' style={{height: '36px', margin: '10px 0px'}}>
-          <RefreshCcw  style={{verticalAlign: 'middle', color:'white'}} size={20}/>
-        </button>
-      </div>
+      <label className='font-label'>Publication</label>
+      <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
+        {FEEDS.map((feed, index)=>{
+          return <option key={index} value={feed.label}>{feed.label}</option>
+        })
+        }
+      </select>
       <div>
         <label className='font-label'>Publication Date Filter</label>
           <DatePicker
@@ -11566,14 +9628,6 @@ const FeedsPanel = ({
         alignContent: 'flex-start',
         gap: '2%'
       }}>
-        <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-            <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
-        </div>
-        {noPosts &&
-          <div className='alert alert-danger'>
-            No Posts
-          </div>
-        }
         {posts.map((post, index)=>{
           const facebook = {facebook_page_id:selectedFeed.facebook_page_id}
           return(
@@ -11585,20 +9639,9 @@ const FeedsPanel = ({
                   margin: '2% 0',
                   borderRadius: 'var(--input-border-radius)'
                 }}
-                crossOrigin="anonymous"
                 draggable
-                onDragStart={(e) => {
-                  console.log(e.dataTransfer.effectAllowed);
-
-                  e.dataTransfer.setData('text/plain', post.id.toString());
-                  onDragStart({
-                    type: 'post',
-                    data: { ...post, ...facebook }
-                  });
-                }}
+                onDragStart={() => onDragStart({ type:'post', data: { ...post, ...facebook } } ) }
                 src={post.image_url}
-                onLoad={() => console.log('loaded', post.image_url)}
-                onError={() => console.log('error', post.image_url)}
               />
             </div>
           )
@@ -11606,206 +9649,6 @@ const FeedsPanel = ({
       </div>
     </div>
   )
-}
-
-const EffectsPanel = ({
-  element,
-  scene,
-  onUpdateElement,
-
-}) => {
-
-
-
-  if (element === null) return <div></div>
-
-  const addEffect = () => {
-
-    const effects = [...(element.effects || [])];
-
-    onUpdateElement('effects',
-      [...effects, {
-        id: generateUniqueId(),
-        type: 'dropShadowClassic',
-        label: 'Drop Shadow Classic',
-        shadowColor: "rgba(0, 0, 0, 1)",
-        shadowBlur: 8,
-        shadowOffsetX: 10,
-        shadowOffsetY: 10
-      }]
-    );
-
-  }
-
-  const updateEffect = (index, updates) => {
-      const effects = [...(element.effects || [])];
-      effects[index] = { ...effects[index], ...updates };
-
-      onUpdateElement('effects',  effects );
-  };
-
-  const updateEffectSelect = (index, updates) => {
-      const effects = [...(element.effects || [])];
-
-      const effectFind = EEFECT_TYPES.find((effect)=> effect.type === updates.type)
-
-      let newEffect = { ...effects[index], ...updates };
-
-      newEffect.label = effectFind.label??null
-
-
-      animations[index] = newEffect;
-
-      onUpdateElement('effects',  effects );
-  };
-
-  const removeEffect = (index) => {
-    const effects = [...(element.effects || [])];
-    effects.splice(index, 1);
-    onUpdateElement('effects',  effects );
-  };
-
-  const handleColorChange = (colour, index) => {
-      const newColour = `rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`
-
-      updateEffect(index, { shadowColor: newColour})
-  };
-
-
-  return(
-    <div>
-      <div className="property-label" style={{marginTop:10}}>
-          <Sparkles className="property-icon" />
-          <p>Effects</p>
-          <Plus style={{marginLeft:'auto'}} onClick={addEffect} />
-      </div>
-      {(!element.effects || element.effects.length === 0) && (
-        <div style={{textAlign:'center', display:'flex', flexDirection:'column', alignItems: 'center'}}>
-            <Sparkles
-              style={{
-                width: '50px',
-                height: '50px',
-                opacity: '10%'
-              }}
-            />
-            No effects yet
-        </div>
-      )}
-      {(element.effects || []).map((effect, index) => (
-        <div key={index} className="animation-container" style={{position:'relative', marginTop:10}}>
-          <X style={{position:'absolute', right:10, top:10}}
-
-            onClick={() => removeEffect(index)}
-          />
-          <div>
-            <label className='font-label'>Effect</label>
-            <select
-              id='choose-animation'
-              className="form-input select"
-              value={effect.type}
-              onChange={(e) => updateEffectSelect(index, { type: e.target.value })}
-            >
-
-                {EFFECTS_TYPES.map(effect => (
-                  <option key={effect.type} value={effect.type}>
-                    {effect.label}
-                  </option>
-                ))}
-
-
-              </select>
-          </div>
-          <label className='font-label'>Colour</label>
-          <ColourPicker
-            index={index}
-            activeColour={effect.shadowColor}
-            colourCallBack={handleColorChange}
-            position={'right'}
-            label={'Shadow Colour'}
-        />
-        <div>
-          <label className='font-label'>Blur</label>
-          <Slider
-            type="range"
-            step="1"
-            min={0}
-            max={100}
-            max={duration}
-            value={effect.shadowBlur}
-            onChange={(e) => updateEffect(index, { shadowBlur: parseFloat(e.target.value) || 0 })}
-            className="form-input input"
-          />
-        </div>
-          <div className='col-2 column-gap-2'>
-            <div>
-              <label className='font-label'>Offset X</label>
-              <input
-                type="number"
-                step="1"
-                value={effect.shadowOffsetX}
-                onChange={(e) => updateEffect(index, { shadowOffsetX: parseFloat(e.target.value) || 0 })}
-                className="form-input input"
-              />
-            </div>
-            <div>
-              <label className='font-label'>Offset Y</label>
-              <input
-                type="number"
-                step="1"
-                value={effect.shadowOffsetY}
-                onChange={(e) => updateEffect(index, { shadowOffsetY: parseFloat(e.target.value) || 0 })}
-                className="form-input input"
-              />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-const ColourPicker = ({
-  //callBack,
-  colourCallBack,
-  activeColour,
-  position,
-  label,
-  index
-}) => {
-
-const [isOpen, setIsOpen] = useState(false);
-const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
-
-const isWhite = colour === 'rgba(255, 255, 255, 1)'
-
-const  handleClose = () => {
-    setIsOpen(false)
-  };
-
-const handleChange = (color) => {
-    setColour(color.rgb)
-    colourCallBack(color.rgb, index)
-};
-
-    return (
-      <div style={{width: '100%', padding: '5px 0px'}}>
-        <div className={`${isWhite? 'colour-border':"" }`} style={{width:25, height:25, borderRadius:'50%', background: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`}} onClick={() => setIsOpen(prev => !prev)}>
-        </div>
-        { isOpen ? <div className={'colour-picker'}>
-          <div style={{display:'flex', alignItems:'center'}}>
-            <ArrowLeft onClick={handleClose} />
-            <strong><p style={{paddingLeft:'10px'}}>{label}</p></strong>
-          </div>
-          <SketchPicker
-            color={ colour }
-            onChange={ handleChange }
-            onChangeComplete={handleChange}
-            presetColors={["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF"]}
-          />
-        </div> : null }
-      </div>
-    )
-
 }
 
 
@@ -11819,244 +9662,227 @@ const PropertiesPanel = ({
   sendToBack,
   moveBackwards,
   moveForward,
+  setTextEditing,
+  textEditing,
   toolCallback,
-  activeTool,
-  canvasEditorHeight
+  activeTool
 }) => {
-
 
   if (element === null) return <div></div>
 
-  const selectedFont = FONTS.find((font)=> font.family === element?.fontFamily)
+  const selectedFont = fonts.find((font)=> font.label === element?.fontFamily)
 
   return(
-      <div>
-
-        <div className="property-label" style={{marginTop:10}}>
-            <Settings className="property-icon"  />
-            <p>Properties</p>
-        </div>
-        <div style={{padding:'0px 10px'}}>
-          {element.type === 'text' &&
+    <div>
+      <div className="property-label" style={{marginTop:10}}>
+          <Settings />
+          <p>Properties</p>
+      </div>
+      <div style={{padding:'0px 10px'}}>
+        {element.type === 'text' &&
+          <div>
+            <p className='font-label'>Text</p>
+            <textarea
+                rows="4"
+                name="elementContent"
+                className="form-input input"
+                value={element.text}
+                onChange={(e) => onElementUpdateProperty('text', e.target.value)}
+            />
             <div>
-              <p className='font-label'>Text</p>
-              <textarea
-                  rows="4"
-                  name="elementContent"
-                  className="form-input input"
-                  value={element.text}
-                  onChange={(e) => onElementUpdateProperty('text', e.target.value)}
-              />
+              <p className='font-label'>Font</p>
+              <select id="font" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontFamily', e.target.value)} value={element.fontFamily}>
+                {fonts.map((font, index)=>{
+                  return <option key={index} value={font.label}>{font.label}</option>
+                })
+                }
+              </select>
+            </div>
+            <div>
+              <p className='font-label'>Font Styles</p>
+              <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontStyle', e.target.value)} value={element.fontStyle}>
+                {selectedFont.styles.map((fontStyle, index)=>{
+                  return <option key={index} value={fontStyle}>{fontStyle}</option>
+                })
+                }
+              </select>
+            </div>
+            <div className='col-2 column-gap-2'>
               <div>
-                <p className='font-label'>Font</p>
-                <FontDropdown placeholder={element.fontFamily}>
-                  {FONTS.map((font, index)=>{
-                    return <p key={index} onClick={() => onElementUpdateProperty('fontFamily', font.family)} style={{fontFamily:font.family, cursor: "pointer"}} className="no-highlight">{font.family}</p>
-                  })
-                  }
-                </FontDropdown>
+                <p className='font-label'>Font Size</p>
+                <input id='font-size' className="form-input input font-label-input" value={element.fontSize} type='number' onChange={(e) => onElementUpdateProperty('fontSize', e.target.value)}/>
               </div>
               <div>
-                <p className='font-label'>Font Styles</p>
-                <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontStyle', e.target.value)} value={element.fontStyle}>
-                  {selectedFont.styles.map((fontStyle, index)=>{
-                    return <option key={index} value={fontStyle}>{fontStyle}</option>
+                <p className='font-label'>Font Weight</p>
+                <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontWeight', e.target.value)} value={element.fontWeight}>
+                  {selectedFont.weights.map((fontWeight, index)=>{
+                    return <option key={index} value={fontWeight}>{fontWeight}</option>
                   })
                   }
                 </select>
               </div>
-              <div className='col-2 column-gap-2'>
-                <div>
-                  <p className='font-label'>Font Size</p>
-                  <input id='font-size' className="form-input input font-label-input" value={element.fontSize} type='number' onChange={(e) => onElementUpdateProperty('fontSize', e.target.value)}/>
-                </div>
-                <div>
-                  <p className='font-label'>Font Weight</p>
-                  <select id="font-weight" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontWeight', e.target.value)} value={element.fontWeight}>
-                    {selectedFont.weights.map((fontWeight, index)=>{
-                      return <option key={index} value={fontWeight}>{fontWeight}</option>
-                    })
-                    }
-                  </select>
-                </div>
-              </div>
-              <div className='col-2 column-gap-2'>
-                <div>
-                  <p className='font-label'>Align</p>
-                  <div style={{display:'flex', alignItems:'center', height: '38px', margin: '5px 0px 10px 0px'}}>
-                      <img style={{width:30}} src={element.textAlign === 'left'? '/text_align_left_active.svg':'/text_align_left.svg'} onClick={() => onElementUpdateProperty('textAlign', 'left')}/>
-                      <img style={{width:30}} src={element.textAlign === 'center'? '/text_align_center_active.svg':'/text_align_center.svg'} onClick={() => onElementUpdateProperty('textAlign', 'center')}/>
-                      <img style={{width:30}} src={element.textAlign === 'right'? '/text_align_right_active.svg':'/text_align_right.svg'} onClick={() => onElementUpdateProperty('textAlign', 'right')}/>
-                  </div>
-                </div>
-                <div>
-                  <p className='font-label'>Line Height</p>
-                  <input id='line-Height' className="form-input input font-label-input" value={element.lineHeight} type='number' onChange={(e) => onElementUpdateProperty('lineHeight', e.target.value)}/>
-                </div>
-              </div>
             </div>
-          }
-
-          {element.type !== 'text' &&
-            <>
-              <hr/>
-              <div className="property-container">
-                <div className="property-label"><Maximize2 className="property-icon" /><p>Size</p></div>
-                {element.type === 'image' &&
-                  <div className='col-2 column-gap-2' style={{margin: '10px 0px 10px 0px'}}>
-                    <div>
-                      <p className='font-label'>Scale Width</p>
-                      {`${toPercent(element.width/element.originalWidth)} %`}
-                    </div>
-                    <div>
-                      <p className='font-label'>Scale Height</p>
-                      {`${toPercent(element.h/element.originalHeight)} %`}
-                    </div>
-                  </div>
-                }
-                <div className='col-2 column-gap-2'>
-                  <div style={{margin: '0px 0px 10px 0px'}}>
-                    <p className='font-label'>Width</p>
-                    <input
-                      id='properties-width'
-                      type='number'
-                      value={element.width}
-                      onChange={(e) => onElementUpdateProperty('width', e.target.value)}
-                      step={1}
-                      className="form-input input font-label-input"
-                    />
-                  </div>
-                  <div style={{margin: '0px 0px 0px px'}}>
-                    <p className='font-label'>Height</p>
-                    <input
-                      id='properties-height'
-                      type='number'
-                      value={element.h}
-                      onChange={(e) => onElementUpdateProperty('h', e.target.value)}
-                      step={1}
-                      className="form-input input font-label-input"
-                    />
-                  </div>
-                </div>
-                {element.type === 'image' &&
-                  <>
-                    <div style={{margin: '0px 0px 10px 0px'}}>
-                      <p className='font-label'>Image Sizing</p>
-                      <div style={{display:'flex', gap:'2px', marginTop:'10px'}}>
-                        <img src='/fit_width.svg' onClick={() => resizeImage('Fit Width')} style={{width:'28px', marginRight:'10px'}} alt='Fit Width'/>
-                        <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'10px'}} alt='Fit Page'/>
-                        <div style={{marginLeft:'-14px'}}>
-                          <ToolSVG
-                            icon={Frame}
-                            callBack={toolCallback}
-                            tool='cropping'
-                            label='Cropping'
-                            position={'right'}
-                            activeTool={activeTool}
-                            canvasEditorHeight={canvasEditorHeight}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="property-container">
-                      <div className="property-label"><FileImage className="property-icon" /><p>Image Details</p></div>
-                      <div style={{margin: '0px 0px 0px px', }}>
-                        <p className='font-label'>Caption</p>
-                        <textarea
-                            rows="3"
-                            name="elementContent"
-                            className="form-input input"
-                            value={element.mediaCaption??''}
-                            onChange={(e) => onElementUpdateProperty('mediaCaption', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </>
-                }
-              </div>
-              <hr/>
-            </>
-          }
-          <div className="property-container">
-            <div className="property-label"><Move className="property-icon" /><p>Position</p></div>
             <div className='col-2 column-gap-2'>
-              <div style={{margin: '0px 0px 0px px'}}>
-                <p className='font-label'>X</p>
-                <input
-                  id='properties-x'
-                  type='number'
-                  value={element.cx}
-                  onChange={(e) => onElementUpdateProperty('cx', e.target.value)}
-                  step={1}
-                  className="form-input input font-label-input"
-                />
+              <div>
+                <p className='font-label'>Align</p>
+                <div style={{display:'flex', alignItems:'center', height: '38px', margin: '5px 0px 10px 0px'}}>
+                    <img style={{width:30}} src={element.textAlign === 'left'? '/text_align_left_active.svg':'/text_align_left.svg'} onClick={() => onElementUpdateProperty('textAlign', 'left')}/>
+                    <img style={{width:30}} src={element.textAlign === 'center'? '/text_align_center_active.svg':'/text_align_center.svg'} onClick={() => onElementUpdateProperty('textAlign', 'center')}/>
+                    <img style={{width:30}} src={element.textAlign === 'right'? '/text_align_right_active.svg':'/text_align_right.svg'} onClick={() => onElementUpdateProperty('textAlign', 'right')}/>
+                </div>
               </div>
-              <div style={{margin: '0px 0px 0px px'}}>
-                <p className='font-label'>Y</p>
-                <input
-                  id='properties-y'
-                  type='number'
-                  value={element.cy}
-                  onChange={(e) => onElementUpdateProperty('cy', e.target.value)}
-                  step={1}
-                  className="form-input input font-label-input"
-                />
+              <div>
+                <p className='font-label'>Line Height</p>
+                <input id='line-Height' className="form-input input font-label-input" value={element.lineHeight} type='number' onChange={(e) => onElementUpdateProperty('lineHeight', e.target.value)}/>
               </div>
-            </div>
-            <p className='font-label'>Arrange</p>
-            <div className='col-2' style={{columnGap : '2%'}}>
-              <button className="btn secondary icon-button btn-sm" onClick={bringToFront} style={{flex:1, marginBottom:0}}><BringToFront className='button-icon'/>To Front</button>
-              <button className="btn secondary icon-button btn-sm" onClick={sendToBack} style={{flex:1, marginBottom:0}}><SendToBack className='button-icon'/>To Back</button>
-            </div>
-            <div className='col-2' style={{columnGap : '2%'}}>
-              <button className="btn secondary icon-button btn-sm" onClick={moveBackwards} style={{flex:1}}><BringToFront className='button-icon'/>Backward</button>
-              <button className="btn secondary icon-button btn-sm" onClick={moveForward} style={{flex:1}}><SendToBack className='button-icon'/>Forward</button>
             </div>
           </div>
-          {(element.type !== 'text') &&
-            <div style={{margin: '0px 0px 0px px'}}>
-              <p className='font-label'>Stroke Weight</p>
-              <input
-                id='stroke-weight'
-                type='number'
-                value={element.strokeWeight}
-                onChange={(e) => onElementUpdateProperty('strokeWeight', Number(e.target.value))}
-                step={1}
-                className="form-input input"
-              />
-            </div>
-          }
+        }
 
-          <div style={{margin: '0px 0px 0px px', }}>
-            <div style={{display:'flex', gap:'5px'}} className='font-label'>  <p>Opacity</p> <p>{Math.round(element.opacity * 100)}%</p></div>
-            <Slider
-              id='properties-opacity'
-              type='range'
-              value={[(element.opacity ?? 1) * 100]}
-              onChange={(e) => onElementUpdateProperty('opacity', (e.target.value / 100).toFixed(2))}
-              min={0}
-              max={100}
-              step={1}
-            />
-          </div>
-          <div style={{margin: '0px 0px 0px px', }}>
-            <div style={{display:'flex', gap:'5px'}} className='font-label'><p>Rotation</p> <p>{Math.round(radToDeg(element.angle))}</p></div>
-            <Slider
-              id="properties-angle"
-              type="range"
-              value={radToDeg(element.angle || 0)}
-              onChange={(e) =>
-                onElementUpdateProperty('angle', degToRad(parseFloat(e.target.value)))
+        {element.type !== 'text' &&
+          <>
+            <hr/>
+            <div className="property-container">
+              <div className="property-label"><Maximize2 className="property-icon" /><p>Size</p></div>
+              {element.type === 'image' &&
+                <div className='col-2 column-gap-2' style={{margin: '10px 0px 10px 0px'}}>
+                  <div>
+                    <p className='font-label'>Scale Width</p>
+                    {`${toPercent(element.width/element.originalWidth)} %`}
+                  </div>
+                  <div>
+                    <p className='font-label'>Scale Height</p>
+                    {`${toPercent(element.h/element.originalHeight)} %`}
+                  </div>
+                </div>
               }
-              min={0}
-              max={360}
+              <div className='col-2 column-gap-2'>
+                <div style={{margin: '0px 0px 10px 0px'}}>
+                  <p className='font-label'>Width</p>
+                  <input
+                    id='properties-width'
+                    type='number'
+                    value={element.width}
+                    onChange={(e) => onElementUpdateProperty('width', e.target.value)}
+                    step={1}
+                    className="form-input input font-label-input"
+                  />
+                </div>
+                <div style={{margin: '0px 0px 0px px'}}>
+                  <p className='font-label'>Height</p>
+                  <input
+                    id='properties-height'
+                    type='number'
+                    value={element.h}
+                    onChange={(e) => onElementUpdateProperty('h', e.target.value)}
+                    step={1}
+                    className="form-input input font-label-input"
+                  />
+                </div>
+              </div>
+              {element.type === 'image' &&
+                <div style={{margin: '0px 0px 10px 0px'}}>
+                  <p className='font-label'>Image Sizing</p>
+                  <div style={{display:'flex', gap:'2px', marginTop:'10px'}}>
+                    <img src='/fit_width.svg' onClick={() => resizeImage('Fit Width')} style={{width:'28px', marginRight:'10px'}} alt='Fit Width'/>
+                    <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'10px'}} alt='Fit Page'/>
+                    <ToolSVG
+                      icon={Crop}
+                      callBack={toolCallback}
+                      tool='cropping'
+                      label='Cropping'
+                      position={'right'}
+                      activeTool={activeTool}
+                    />
+                  </div>
+                </div>
+              }
+            </div>
+            <hr/>
+            <div className="property-container">
+              <div className="property-label"><Move className="property-icon" /><p>Position</p></div>
+              <div className='col-2 column-gap-2'>
+                <div style={{margin: '0px 0px 0px px'}}>
+                  <p className='font-label'>X</p>
+                  <input
+                    id='properties-x'
+                    type='number'
+                    value={element.cx}
+                    onChange={(e) => onElementUpdateProperty('cx', e.target.value)}
+                    step={1}
+                    className="form-input input font-label-input"
+                  />
+                </div>
+                <div style={{margin: '0px 0px 0px px'}}>
+                  <p className='font-label'>Y</p>
+                  <input
+                    id='properties-y'
+                    type='number'
+                    value={element.cy}
+                    onChange={(e) => onElementUpdateProperty('cy', e.target.value)}
+                    step={1}
+                    className="form-input input font-label-input"
+                  />
+                </div>
+              </div>
+              <p className='font-label'>Arrange</p>
+              <div className='col-2' style={{columnGap : '2%'}}>
+                <button className="btn secondary icon-button btn-sm" onClick={bringToFront} style={{flex:1, marginBottom:0}}><BringToFront className='button-icon'/>To Front</button>
+                <button className="btn secondary icon-button btn-sm" onClick={sendToBack} style={{flex:1, marginBottom:0}}><SendToBack className='button-icon'/>To Back</button>
+              </div>
+              <div className='col-2' style={{columnGap : '2%'}}>
+                <button className="btn secondary icon-button btn-sm" onClick={moveBackwards} style={{flex:1}}><BringToFront className='button-icon'/>Backward</button>
+                <button className="btn secondary icon-button btn-sm" onClick={moveForward} style={{flex:1}}><SendToBack className='button-icon'/>Forward</button>
+              </div>
+            </div>
+          </>
+        }
+        {(element.type === 'rectangle' ||  element.type === 'ellipse' || element.type === "triangle") &&
+          <div style={{margin: '0px 0px 0px px'}}>
+            <p className='font-label'>Stroke Weight</p>
+            <input
+              id='stroke-weight'
+              type='number'
+              value={element.strokeWeight}
+              onChange={(e) => onElementUpdateProperty('strokeWeight', e.target.value)}
               step={1}
+              className="form-input input font-label-input"
             />
           </div>
+        }
+
+        <div style={{margin: '0px 0px 0px px', }}>
+          <div style={{display:'flex', gap:'5px'}} className='font-label'>  <p>Opacity</p> <p>{element.opacity* 100}%</p></div>
+          <input
+            id='properties-opacity'
+            type='range'
+            value={[(element.opacity ?? 1) * 100]}
+            onChange={(e) => onElementUpdateProperty('opacity', e.target.value / 100)}
+            min={0}
+            max={100}
+            step={1}
+            className="form-input input font-label-input"
+          />
         </div>
+        <div style={{margin: '0px 0px 0px px', }}>
+          <div style={{display:'flex', gap:'5px'}} className='font-label'><p>Rotation</p> <p>{Math.round(radToDeg(element.angle))}</p></div>
+          <input
+            id="properties-angle"
+            type="range"
+            value={radToDeg(element.angle || 0)}
+            onChange={(e) =>
+              onElementUpdateProperty('angle', degToRad(parseFloat(e.target.value)))
+            }
+            min={0}
+            max={360}
+            step={1}
+            className="form-input input font-label-input"
+          />
+        </div>
+
+
       </div>
-
-
+    </div>
   )
 }
 
@@ -12074,65 +9900,28 @@ const Share = ({
 
   const [scheduleDate, setScheduleDate] = useState(postInfo?.data?.scheduleDate?new Date(postInfo.data.scheduleDate):new Date())
   const [selectedSocialPage, setSelectedSocialPage] = useState(null)
-  const [selectedSocialPages, setSelectedSocialPages] = useState([])
   const [socialPages, setSocialPages] = useState([])
   const [postLink, setPostLink] = useState(`https://${postInfo?.data.base_url}/${postInfo?.data.slug}`)
-  const [caption, setCaption] = useState(postInfo? postInfo?.data.caption : '')
+  const [caption, setCaption] = useState(postInfo? postInfo?.data.caption.split('\n')[0] + '\n' + `https://${postInfo?.data.base_url}/${postInfo?.data.slug}` : '')
   const videoBlobRef = useRef(null)
   const [videoSrc, setVideoSrc] = useState(null)
   const [loader, setLoader] = useState(false)
   const [videoLoader, setVideoLoader] = useState(false)
   const [scheduled, setScheduled] = useState(false)
   const [path, setPath]= useState('video_reels')
-  const [postType, setPostType]= useState('video_reels')
-  const [customCaptions, setCustomCaptions] = useState([])
-  const [customCaptionsToggle, setCustomCaptionsToggle] = useState(false)
-  const [postState, setPostState]= useState('SCHEDULE')
+  const [postState, setPostState]= useState('SCHEDULED')
   const [buttonText, setButtonText]= useState('Schedule')
-  const [isInstagram, setIsInstagram] = useState(false)
-  const [instagramCaptionError, setInstagramCaptionError] = useState(false)
-
 
 
   const handlePathChange = (event) => {
     setPath(event.target.value);
-    setPostType(event.target.value)
   };
-
-/*
-  const summarise = async() => {
-    setLoader(true)
-
-        try {
-          //const text = postData._def.extendedProps.caption
-
-          const response = await fetch('/api/gemma/summarise-video', {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ text : postInfo?.data.caption}),
-          });
-
-          const data = await response.json();
-          setSummary(data.post);
-
-        } catch(error) {
-          // Consider implementing your own error handling logic here
-          setLoader(false)
-          return showError(error.message);
-        }
-        finally {
-          setLoader(false)
-        }
-
-  }*/
 
   const handlePostStateChange = (event) => {
     setPostState(event.target.value);
-    if (event.target.value === 'SCHEDUL'){
+    if (event.target.value === 'SCHEDULED'){
       setButtonText('Schedule')
-    }else if (event.target.value === 'PUBLISH'){
+    }else if (event.target.value === 'PUBLISHED'){
       setButtonText('Publish Now')
     }else{
       setButtonText('Save Draft')
@@ -12141,298 +9930,52 @@ const Share = ({
 
   const getFacebookData = async() => {
     const data = await getFacebookPages(userId)
-    const preSelectedPage = data.find((page)=> page.facebook_page_id === postInfo?.data.facebook_page_id && channel.platform === 'facebook')
+    const preSelectedPage = data.find((page)=> page.facebook_page_id === postInfo?.data.facebook_page_id)
     setSelectedSocialPage(preSelectedPage)
     setSocialPages(data)
   }
 
-  const getChannelData = async() => {
-    const channels = await getChannels(userId)
+  useEffect(()=>{
 
-    const preSelectedPage = channels.find((channel)=> channel.external_account_id === postInfo?.data.facebook_page_id && channel.platform === 'facebook')
 
-    setSelectedSocialPage(preSelectedPage)
-    setSocialPages(channels)
+    if (!postInfo?.data.scheduled){
+      getFacebookData()
+      displayVideo()
+    }
 
-  }
 
-  const hasRun = useRef(false);
 
-  useEffect(() => {
-    if (hasRun.current) return;
-
-      hasRun.current = true;
-      displayVideo();
-      getChannelData();
-
-  }, []);
+  },[postInfo, userId])
 
 
   const displayVideo = async() => {
     setVideoLoader(true)
-    try {
-      const videoBlob = await exportVideoFrames(false, false)
+    const videoBlob = await exportVideoFrames(false, false)
 
-      videoBlobRef.current = videoBlob
+    videoBlobRef.current = videoBlob
 
-      const objectUrl = URL.createObjectURL(videoBlob)
-
-      setVideoSrc(objectUrl)
-
-    } catch (error) {
-
-
-      showError('Error creating video ' + error)
-
-      return
-
-    } finally {
-
-      setVideoLoader(false)
-
-    }
+    const objectUrl = URL.createObjectURL(videoBlob); //
+    setVideoSrc(objectUrl)
+    setVideoLoader(false)
   }
 
 
 
-  const scheduleFacebookReel = async (
-    channel,
-    video_url,
-    publication
-  ) => {
-
-    if (timeTravel(scheduleDate)){
-      showError('No Time Travel')
-      setLoader(false)
-      return
-    }
-
-    const video = videoBlobRef.current
-
-    const formData = new FormData();
-    formData.append('fileUrl', video_url);
-    //formData.append('videoBlob', video);
-    formData.append('channelId', channel.id);
-
-      const response = await fetch('/api/facebook/upload-facebook-reel', {
-        method: 'POST',
-        body: formData,
-      });
-      // Ensure the response is successful
-      if (!response.ok) {
-        throw new Error(`Upload failed with status: ${response.status}`);
-      }
-
-      const uploadedVideo = await response.json();
-
-      if (!uploadedVideo) return
-
-      const videoId = uploadedVideo.videoId;
-
-    // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
-    const scheduledPublishTime = (moment(scheduleDate).unix())
-
-    let video_state = 'SCHEDULED'
-    if (postState === 'PUBLISH'){
-      video_state = 'PUBLISHED'
-    }
-
-    let data = {
-      video_id: videoId,
-      upload_phase : 'finish',
-      video_state : video_state,
-      description: publication.caption + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
-      title :postInfo.data.title,
-      //scheduled_publish_time: scheduledPublishTime,
-    }
-
-    if (postState === 'SCHEDULE'){
-      data.scheduled_publish_time = scheduledPublishTime
-    }
-
-
-    try{
-
-      const facebookResponse = await fetch(`/api/facebook/schedule`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            channelId: channel.id,
-            postData:data,
-            endPoint:path
-          }),
-        })
-
-    if (!facebookResponse.ok) {
-      //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
-      setLoader(false)
-      showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
-    }
-
-    showSuccess('Video Scheduled')
-
-    const videoData = await facebookResponse.json();
-    const postId = videoData.post_id
-
-
-
-    const facebookCommentResponse = await fetch(`/api/facebook/add-comment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          postId: postId,
-          postLink:postLink,
-          channelId: channel.id,
-        }),
-      })
-
-    if (!facebookCommentResponse.ok) {
-      setLoader(false)
-      showError(`Upload to add facebook comment: ${facebookResponse.status}`)
-      return
-    }
-
-      showSuccess('Comment Added')
-      setScheduled(true)
-
-      postScheduled(postInfo)
-
-      let status
-      if (postState === 'SCHEDULE'){
-        status = "scheduled"
-
-      }else if (postState === 'PUBLISH'){
-        status = "published"
-      }
-
-      // update database
-      const updateData = {
-        status: status,
-        meta_data:{
-          post_id:videoId,
-        },
-        //published_at: new Date().toISOString()
-      }
-
-
-
-
-
-      await updatePostPublication(publication.id, updateData)
-
-    }catch(error){
-      showError(`Facebook error: ${error}`)
-       setLoader(false)
-    }
-
-  }
-
-
-
-
-  const scheduleMultiple = async() => {
-
-        if (timeTravel(scheduleDate)){
-          showError('No Time Travel')
-          return
-        }
-
-
-
-       setLoader(true)
-
-       if (!videoBlobRef.current) return
-
-        try{
-             const uploadedVideo = await uploadFile(videoBlobRef.current)
-
-             const videoId = uploadedVideo.id
-
-
-
-             const scheduledAtUTC = new Date(scheduleDate).toISOString()
-
-             const publications = selectedSocialPages.map((acc) => {
-
-               let captionData = caption
-
-               if (customCaptionsToggle){
-                 const findCaption = customCaptions.find((cap)=>cap.id === acc.id)
-                 if (findCaption){
-                   captionData = findCaption.caption
-                 }
-               }
-
-              return {
-               platform_id: acc.id,
-               scheduled_at: scheduledAtUTC,
-               platform:acc.platform,
-               status: 'scheduled',
-               caption:captionData,
-               title:postInfo.data.title,
-               type:postType,
-               user_id:userId,
-               link:postLink,
-               slug:postInfo.data.slug,
-               base_url:postInfo?.data.base_url
-             }
-           })
-
-             const savedPostPublications = await savePostPublications(publications)
-
-
-             for (const savedPostPublication of savedPostPublications) {
-               await savePostFile({
-                 file_id:uploadedVideo.id,
-                 usage_type: postType,
-                 post_publication_id: savedPostPublication.id
-               })
-             }
-
-             const savedPostPublicationsFacebook = savedPostPublications.filter((publication)=>publication.platform === 'facebook')
-
-             for (const publication of savedPostPublicationsFacebook) {
-               const channel = socialPages.find((social)=> social.id === publication.platform_id)
-               await scheduleFacebookReel(
-                 channel,
-                 uploadedVideo.file_url,
-                 publication
-               )
-             }
-
-        }catch(error){
-          showError(error)
-        }
-
-
-    setScheduled(true)
-
-     setLoader(false)
-  }
-
-
-/*
   const schedule = async () => {
 
      setLoader(true)
 
-     if (timeTravel(scheduleDate)){
-       showError('No Time Travel')
-       setLoader(false)
-       return
-     }
+    if (timeTravel(scheduleDate)) return
 
     const type = 'mp4'
     const video = videoBlobRef.current
 
+
     const formData = new FormData();
     formData.append('videoBlob', video);
     formData.append('accessToken', selectedSocialPage.access_token);
-    formData.append('socialId', selectedSocialPage.external_account_id);
+    formData.append('socialId', selectedSocialPage.facebook_page_id);
+
 
       const response = await fetch('/api/uploadFacebookReel', {
         method: 'POST',
@@ -12440,7 +9983,6 @@ const Share = ({
       });
       // Ensure the response is successful
       if (!response.ok) {
-
         throw new Error(`Upload failed with status: ${response.status}`);
       }
 
@@ -12448,7 +9990,7 @@ const Share = ({
 
       if (!uploadedVideo) return
 
-    const pageId = selectedSocialPage.external_account_id;
+    const pageId = selectedSocialPage.facebook_page_id;
     const videoId = uploadedVideo.videoId;
     const accessToken = selectedSocialPage.access_token;
     const description = caption;
@@ -12456,34 +9998,28 @@ const Share = ({
     // Unix timestamp for a future date (e.g., tomorrow at 10 AM)
     const scheduledPublishTime = (moment(scheduleDate).unix())
 
-    try{
-
-      const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${path}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            video_id: videoId,
-            upload_phase : 'finish',
-            video_state : postState,
-            description: description + '\n\n' + `Full story here: https://${postInfo?.data.base_url}/${postInfo?.data.slug}`,
-            title : postInfo.data.title,
-            scheduled_publish_time: scheduledPublishTime,
-            access_token: accessToken
-          }),
-        })
+  const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${pageId}/${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        video_id: videoId,
+        upload_phase : 'finish',
+        video_state : postState,
+        description: description,
+        title : postInfo.data.title,
+        scheduled_publish_time: scheduledPublishTime,
+        access_token: accessToken
+      }),
+    })
 
     if (!facebookResponse.ok) {
-      //throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
-      setLoader(false)
-      showError(`Upload to facebook failed with status: ${facebookResponse.status}`)
+      throw new Error(`Upload to facebook failed with status: ${facebookResponse.status}`);
     }
 
     const videoData = await facebookResponse.json();
     const postId = videoData.post_id
-
-    //
 
     const commentResponse = await fetch(`https://graph.facebook.com/${videoId}/comments`, {
         method: 'POST',
@@ -12497,9 +10033,7 @@ const Share = ({
       })
 
       if (!commentResponse.ok) {
-        //throw new Error(`Adding comments failed with status: ${facebookResponse.status}`);
-        setLoader(false)
-        showError(`Adding comments failed with status: ${facebookResponse.status}`)
+        throw new Error(`Adding comments failed with status: ${facebookResponse.status}`);
       }
 
       showSuccess('Video Scheduled')
@@ -12507,19 +10041,14 @@ const Share = ({
       setScheduled(true)
       postScheduled(postInfo)
 
-    }catch(error){
-      showError(`Facebook error: ${error}`)
-       setLoader(false)
-    }
-
   }
-*/
+
+
 
   const onSocialChange = (value) => {
-
-    const selectedSocial = socialPages.find(item => item.external_account_id === value);
-
+    const selectedSocial = socialPages.find(item => item.facebook_page_id === value);
     setSelectedSocialPage(selectedSocial)
+
   }
 
   const calculateMinTime = date => {
@@ -12533,52 +10062,52 @@ const Share = ({
 
 const uploadFile = async (videoBlob) => {
   try {
-    const file = videoBlob;
-    const fileType = 'video/mp4';
-    const fileName = postInfo.data.title;
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('tag', '.mp4');
-
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    const result = await res.json();
-
-    if (!res.ok) {
-      throw new Error(result.error || 'Upload failed');
+    if (!event.target.files || event.target.files.length === 0) {
+      throw new Error('You must select an image to upload.')
     }
 
-    const fileinfo = await storeFileInfo({
-      user_id: userId,
-      file_url: result.url,
-      file_type: fileType,
-      file_name: `${Date.now()}-${fileName}`,
-      file_description: caption ?? ''
-    });
+    const file = videoBlob;
+    const fileExt = 'mp4';
+    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+    const fileType = 'video/mp4';
+    const fileName = postInfo.data.title
+    const formData = new FormData()
+    formData.append('file', file)
 
-    return fileinfo;
+    try{
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await res.json()
+
+      if (res.ok) {
+
+
+        const fileinfo = await storeFileInfo({
+          user_id:userId,
+          file_url: result.url,
+          file_type:fileType,
+          file_name:`${Date.now()}-${fileName}`,
+          file_description:caption??''
+        })
+
+
+
+      } else {
+        showError(result.error)
+      }
+    }catch(error){
+      showError('file upload error', error)
+    }
 
   } catch (error) {
-    showError(error);
-    throw error; // important: rethrow so caller can handle it
+    showError(error)
+    alert('Error uploading image!')
+  } finally {
   }
-};
-
-
-const channelSelectorCallback = (pages) => {
-
-  setSelectedSocialPages(pages)
-}
-
-const getPostsScheduledPosts = async() => {
-
-  const scheduledAtUTC = new Date(scheduleDate).toISOString()
-  const posts = getPostsWithDate(scheduledAtUTC)
-
 }
 
 
@@ -12596,11 +10125,12 @@ const getPostsScheduledPosts = async() => {
           top: "5px",
         }}
       />
-      <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-          <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
-      </div>
       <div className='col-2 column-gap-2' style={{height:'100%'}}>
-<div className='col' style={{position:'relative', overflowY: 'scroll', padding: '15px', flex:3}}>
+        <div style={{position:'relative'}}>
+
+          <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+              <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+          </div>
             <h2>Share To Social Media</h2>
             <hr/>
             <div style={{marginTop:'25px'}}>
@@ -12610,20 +10140,18 @@ const getPostsScheduledPosts = async() => {
                   <CircleCheck />
                 </div>
               }
-              {/*}
                 <p className='font-label'>Facebook Page</p>
-                <select id="rss-select" className="form-input select" onChange={(e) => onSocialChange(e.target.value)} value={selectedSocialPage?.external_account_id || ""}>
+                <select id="rss-select" className="form-input select" onChange={(e) => onSocialChange(e.target.value)} value={selectedSocialPage?.facebook_page_id || ""}>
                   <option value="" disabled>
                     Choose a page…
                   </option>
                   {socialPages.map((social, index)=>{
-                    return <option key={index} value={social.external_account_id}>{social.name}</option>
+                    return <option key={index} value={social.facebook_page_id}>{social.facebook_page_name}</option>
                   })
                   }
                 </select>
-                */}
 
-                <ChannelSelector userId={userId} postInfo={postInfo} callback={channelSelectorCallback}/>
+                <ChannelSelector userId={userId} postInfo={postInfo}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>
                   <p className='font-label'>Post Type</p>
                   <input
@@ -12641,7 +10169,7 @@ const getPostsScheduledPosts = async() => {
                     onChange={handlePathChange}
                   /><span style={{fontSize:'.9em'}}>Post</span>
                 </div>
-              {postInfo&&
+              { postInfo&&
                 <>
                   <p className='font-label'>Post Link</p>
                   <div className={'form-input'} style={{display:'flex', alignItems:'center', padding: '0px 5px 0px 0px'}}>
@@ -12658,43 +10186,36 @@ const getPostsScheduledPosts = async() => {
                   </div>
                 </>
               }
-              <Caption
-                caption={caption}
-                setCaption={setCaption}
-                customCaptions={customCaptions}
-                setCustomCaptions={setCustomCaptions}
-                customCaptionsToggle={customCaptionsToggle}
-                setCustomCaptionsToggle={setCustomCaptionsToggle}
-                selectedSocialPages={selectedSocialPages}
-                setIsInstagram={setIsInstagram}
-                isInstagram={isInstagram}
-                instagramCaptionError={instagramCaptionError}
-                setInstagramCaptionError={setInstagramCaptionError}
-                postData={postInfo}
-              />
-                <Summary text={caption} defaultPlatform={'facebook'}/>
+                <p className='font-label'>Post Caption</p>
+                <textarea
+                  style={{minHeight:200}}
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  className={'form-input'}
+                  cols={8}
+                />
                 <div className="properties-container" style={{margin:'15px 0px'}}>
                   <p className='font-label'>Schedule Date & Time</p>
                   <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
-                    <div style={{display:'flex', alignItems:'center'}}>
+                    <div>
                       <input
                         style={{marginRight:'5px'}}
                         type="radio"
-                        value="SCHEDULE"
-                        checked={postState === 'SCHEDULE'}
+                        value="SCHEDULED"
+                        checked={postState === 'SCHEDULED'}
                         onChange={handlePostStateChange}
                       /><strong style={{fontSize:'.9em'}}>Schedule</strong>
                     </div>
-                    <div style={{display:'flex', alignItems:'center'}}>
+                    <div>
                       <input
                         style={{marginRight:'5px'}}
                         type="radio"
-                        value="PUBLISH"
-                        checked={postState === 'PUBLISH'}
+                        value="PUBLISHED"
+                        checked={postState === 'PUBLISHED'}
                         onChange={handlePostStateChange}
                       /><strong style={{fontSize:'.9em'}}>Publish Now</strong>
                     </div>
-                    <div style={{display:'flex', alignItems:'center', marginLeft: 'auto', display:'none'}}>
+                    <div style={{marginLeft: 'auto'}}>
                       <input
                         style={{marginRight:'5px'}}
                         type="radio"
@@ -12717,28 +10238,12 @@ const getPostsScheduledPosts = async() => {
                   />
                 </div>
 
-                {/*}
                 {(videoSrc && selectedSocialPage) &&
-                  <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText} Facebook only</button>
-                }*/}
-
-
-
-                {(videoSrc &&selectedSocialPages.length>0) &&
-                  <button style={{marginLeft:'10px'}} disabled={scheduled || (isInstagram && instagramCaptionError)} className="btn primary" onClick={scheduleMultiple}>{buttonText}</button>
+                  <button disabled={scheduled} className="btn primary" onClick={schedule}>{buttonText}</button>
                 }
-
-              {/*}  <button className="btn primary" onClick={getPostsScheduledPosts}>Get Posts</button>*/}
-
             </div>
         </div>
-        <div className='col' style={{
-          flex:2,
-          position: 'relative',
-          overflowY: 'scroll',
-          padding: '30px 15px 10px 15px',
-          backgroundColor: 'var(--md-sys-color-surface-container)'
-        }}>
+        <div style={{position:'relative'}}>
           <div style={videoLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
               <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
               {videoFrameProgress > 0 &&
@@ -12786,48 +10291,23 @@ const getPostsScheduledPosts = async() => {
 }
 
 
-const ChannelSelector = ({userId, postInfo, callback}) => {
+const ChannelSelector = ({userId, postInfo}) => {
   const [open, setOpen] = useState(false)
   const [socialPages, setSocialPages] = useState([])
   const [selectedChannelIds, setSelectedChannelIds] = useState([])
-  const [selectedSocialPages, setSelectedSocialPages] = useState([])
-  const dropdownRef = useRef(null);
 
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-
+  //const preSelectedPage = data.find((page)=> page.facebook_page_id === postInfo?.data.facebook_page_id)
 
   useEffect(() => {
     if (!userId) return
 
     const loadInfo = async () => {
-      //const facebookPages = await getFacebookPages(userId)
-      //const instagramPages = await getInstagramPages(userId)
-
-      const channels = await getChannels(userId)
-
-
-
-      const facebookPages = channels.filter((channel)=> channel.platform === 'facebook')
-      const instagramPages = channels.filter((channel)=> channel.platform === 'instagram')
-
-
-
-      if (!facebookPages || !instagramPages) return
+      const facebookPages = await getFacebookPages(userId)
+      const instagramPages = await getInstagramPages(userId)
 
       const newPages = facebookPages.map(facebookPage => {
         const instagramPage = instagramPages.find(
-          insta => insta.metadata?.facebook_page_id === facebookPage.metadata?.facebook_page_id
+          insta => insta.facebook_page_id === facebookPage.facebook_page_id
         )
 
         return instagramPage
@@ -12835,19 +10315,17 @@ const ChannelSelector = ({userId, postInfo, callback}) => {
           : { facebook: facebookPage }
       })
 
-
-
       setSocialPages(newPages)
 
       // ✅ Preselect safely
       if (postInfo?.data?.facebook_page_id) {
         const preSelectedIds = [
           ...facebookPages
-          .filter(p => p.metadata.facebook_page_id === postInfo.data.facebook_page_id)
+            .filter(p => p.facebook_page_id === postInfo.data.facebook_page_id)
             .map(p => p.id),
 
           ...instagramPages
-            .filter(p => p.metadata.facebook_page_id === postInfo.data.facebook_page_id)
+            .filter(p => p.facebook_page_id === postInfo.data.facebook_page_id)
             .map(p => p.id)
         ]
 
@@ -12858,7 +10336,10 @@ const ChannelSelector = ({userId, postInfo, callback}) => {
     loadInfo()
   }, [userId, postInfo])
 
+
   const selectSocial = (id) => {
+
+
     setSelectedChannelIds(prev =>
       prev.includes(id)
         ? prev.filter(existingId => existingId !== id)
@@ -12875,9 +10356,10 @@ const ChannelSelector = ({userId, postInfo, callback}) => {
 
 
 useEffect(()=>{
-    const selectedPages = allPages.filter((page)=> selectedChannelIds.includes(page.id))
-    setSelectedSocialPages(selectedPages)
-    callback(selectedPages)
+
+    const selectedPgaes =  allPages.filter((page)=> selectedChannelIds.includes(page.id))
+
+
 },[selectedChannelIds])
 
 const sortedSocialPages = useMemo(() => {
@@ -12896,58 +10378,15 @@ const sortedSocialPages = useMemo(() => {
     }
   })
 
+
   return [...selected, ...unselected]
 }, [socialPages, selectedChannelIds])
 
 
 
 return(
-
-    <div ref={dropdownRef} style={{position:'relative', zIndex:1}}>
-      <p className="font-label">Social Pages</p>
-      <button style={{
-        width:'100%',
-        paddingLeft: '10px'
-      }} onClick={() => setOpen(prev => !prev)} className='btn primary icon-button'>
-        {selectedSocialPages.length<1?
-          <>
-              Choose a Channel...
-          </>
-          :
-          <div style={{display:'flex', flexDirection:'column'}}>
-            {selectedSocialPages.map((page, index)=>{
-
-                return(
-                  <div key={index}
-                    style={{
-                      padding: '5px 10px 5px 5px',
-                      background: 'var(--md-sys-color-primary-container)',
-                      borderRadius: '7px',
-                      marginBottom: `${index === (selectedSocialPages.length-1)? '0px':'10px'}`
-                    }}>
-                      {page.platform === 'instagram' &&
-                        <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
-                          <Instagram style={{width:'20px', height:'20px'}}/>
-                          {page.name}
-                          <X onClick={()=>selectSocial(page.id)}/>
-                        </div>
-                    }
-                    {page.platform === 'facebook' &&
-                      <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
-                        <Facebook style={{width:'20px', height:'20px'}}/>
-                        {page.name}
-                        <X onClick={()=>selectSocial(page.id)}/>
-                      </div>
-                    }
-
-                  </div>
-                )
-              })
-            }
-          </div>
-        }
-        <ChevronDown style={{marginLeft: 'auto'}} className='button-icon'/>
-      </button>
+    <div style={{position:'relative'}}>
+      <button style={{width:'100%'}} onClick={() => setOpen(prev => !prev)} className='btn primary icon-button'>Choose a Channel...<ChevronDown style={{marginLeft: 'auto'}} className='button-icon'/></button>
       {open &&
         <div style={{position:'absolute', height:'300px', overflowY:'scroll', paddingTop:0, paddingBottom:0, width: '100%'}} className='canvas-zoom-dropdown dropshadow'>
           {sortedSocialPages.map((social, index)=> {
@@ -12966,7 +10405,7 @@ return(
                     />
                       <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
                         <Facebook style={{width:'20px', height:'20px'}}/>
-                        {social.facebook.name}
+                        {social.facebook.facebook_page_name}
                       </div>
                     </label>
                     <label style={{ marginRight: '1em', display: 'flex', alignItems: 'center'}}>
@@ -12980,7 +10419,7 @@ return(
                       />
                       <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
                         <Instagram style={{width:'20px', height:'20px'}}/>
-                        {social.instagram.name}
+                        {social.instagram.connected_facebook_page_name}
                       </div>
                     </label>
 
@@ -12998,7 +10437,7 @@ return(
 
                       <div style={{display:'flex', gap:'5px', alignItems: 'center'}}>
                         <Facebook style={{width:'20px', height:'20px'}}/>
-                        {social.facebook.name}
+                        {social.facebook.facebook_page_name}
                       </div>
                     </label>
                   </div>
@@ -13025,451 +10464,5 @@ const SelectCheckBox = ({ style, id, callBackFunction, checked }) => {
       onChange={() => callBackFunction(id)}
       checked={checked}
     />
-  )
-}
-
-const MediaMenu = ({
-  setShowFileEdit,
-  setFileEdit,
-  file,
-  deleteCallback
-}) => {
-  const [open, setOpen] = useState(false)
-
-
-  const editImage = () => {
-    setShowFileEdit(true)
-    setFileEdit(file)
-  }
-
-  const deleteFile = async() => {
-
-      try{
-        await fetch('/api/delete-file', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: file.file_url }),
-        })
-
-      }catch(error){
-        showError(error)
-      }
-
-    await deleteFiles([file.id]);
-
-    deleteCallback(file.id)
-    setOpen(false)
-
-    showSuccess('File Deleted')
-  }
-
-  return(
-    <div style={{position:'relative'}}>
-        <EllipsisVertical
-          onClick={() => setOpen(prev => !prev)}
-        style={{color:'#ffffff'}}
-          />
-      {open &&
-        <div style={{position:'absolute', marginTop: '0px', right: '0px', zIndex: '100'}} className='canvas-zoom-dropdown dropshadow'>
-          <p style={{display:'block', textAlign:'right'}} onClick={editImage}>Edit</p>
-          <button onClick={deleteFile} className="btn danger">Delete</button>
-        </div>
-      }
-    </div>
-  )
-}
-
-const MediaEdit = ({
-setShowFileEdit,
-file
-}) => {
-const [fileDescription, setFileDescription] = useState(file?.file_description??'')
-const [editAction, setEditAction] = useState('')
-const [scale, setScale] = useState(0)
-const [offset, setOffset] = useState({
-  x: 0,
-  y: 0
-})
-const fileEditContainerRef = useRef()
-
-const resize = () => {
-    const container = fileEditContainerRef.current
-    const containerWidth = container.offsetWidth
-    const containerHeight = container.offsetHeight
-
-
-    let displayWidth = file.originalWidth;
-    let displayHeight = file.originalHeight;
-
-    const scaleX = containerWidth / displayWidth;
-    const scaleY = containerHeight / displayHeight;
-
-
-    const scaleMaths = Math.min(scaleX, scaleY);
-
-    setScale(scaleMaths);
-
-
-}
-
-useEffect(()=>{
-  if (scale === 0 && offset.x === 0 && offset.y === 0){
-    resize()
-  }
-
-},[])
-
-
-
-const save = async() => {
-
-  await updateFileDescriptionValue(fileDescription, file.id)
-  showSuccess('Image Caption Updated')
-}
-
-const boxRef = useRef(null);
-
-useEffect(() => {
-  const box = boxRef.current;
-  if (!box) return;
-
-  let isDragging = false;
-  let startX = 0;
-  let startY = 0;
-
-  const onMouseDown = (e) => {
-    isDragging = true;
-    startX = e.clientX - box.offsetLeft;
-    startY = e.clientY - box.offsetTop;
-  };
-
-  const onMouseMove = (e) => {
-    if (!isDragging) return;
-
-    const x = e.clientX - startX;
-    const y = e.clientY - startY;
-
-    box.style.left = `${x}px`;
-    box.style.top = `${y}px`;
-  };
-
-  const onMouseUp = () => {
-    isDragging = false;
-  };
-
-  box.addEventListener("mousedown", onMouseDown);
-  window.addEventListener("mousemove", onMouseMove);
-  window.addEventListener("mouseup", onMouseUp);
-
-  return () => {
-    box.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-  };
-}, []);
-
-  return(
-    <>
-        <div className={'loader_screen'}></div>
-        <div className='share-dialog dropshadow'>
-          <div
-            className='dropshadow'
-            style={{
-              position:'absolute',
-              right:'10px',
-              top:'10px',
-              borderRadius: 'var(--btn-border-radius)',
-              background: 'var(--md-sys-color-surface)',
-              display:'flex',
-              flexDirection:'column',
-              zIndex:'100',
-              padding:'10px',
-              gap: '10px'
-            }}>
-              <X
-                onClick={() => setShowFileEdit(false)}
-                className="close-icon"
-              />
-            <ZoomIn onClick={() => setScale(prev => prev * 1.25)}/>
-            <ZoomOut onClick={() => setScale(prev => prev / 1.25)}/>
-          </div>
-          <div className='col-2' style={{height:'100%'}}>
-            <div style={{position:'relative', flex:.4, padding:'20px'}}>
-                <h2>Edit Image</h2>
-                <hr/>
-                {fileDescription &&
-                  <div style={{marginTop:'25px'}}>
-                    <p className='font-label'>Caption</p>
-                    <textarea
-                        rows="4"
-                        name="imageDescription"
-                        className="form-input input"
-                        value={fileDescription}
-                        onChange={(e) => setFileDescription(e.target.value)}
-                    />
-                    <button className="btn primary" onClick={save}>Save</button>
-                  </div>
-                }
-                <button style={{marginTop:'25px'}} className='btn secondary'>Generative Expand</button>
-
-              </div>
-              <div ref={fileEditContainerRef}
-                style={{
-                  position:'relative',
-                  background: 'var(--md-sys-color-surface-container)'
-                }}
-              >
-                {file &&
-                  <>
-                    {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
-                        <img
-                          style={{
-                            width:'100%',
-                            borderRadius: 'var(--input-border-radius)'
-                          }}
-                          src={file.file_url}
-                        />
-                    }
-                    {file.imageSrc &&
-                      <>
-
-                      <img
-                        style={{
-                          width: file.originalWidth,
-                          height: file.originalHeight,
-                          left: '50%',
-                          top: '50%',
-                          position:'absolute',
-                          background: "white",
-                          boxShadow: "0 0",
-                          transformOrigin: "0 0",
-                          transform: `scale(${scale}) translate(-50%, -50%)`,
-                          willChange: 'transform'
-                        }}
-                        src={file.imageSrc}
-                      />
-                      <ExpandEditor file={file} scale={scale}/>
-
-                      {/* EXPAND BOX */}
-
-                      </>
-                    }
-                  </>
-
-                }
-              </div>
-          </div>
-        </div>
-
-    </>
-  )
-
-
-}
-
-
-export default function ExpandEditor({ file }) {
-  const containerRef = useRef(null);
-  const boxRef = useRef(null);
-
-  const [box, setBox] = useState({
-    x: 80,
-    y: 80,
-    width: 400,
-    height: 400,
-  });
-
-  // -----------------------------
-  // DRAG BOX
-  // -----------------------------
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-
-    let dragging = false;
-
-    let offsetX = 0;
-    let offsetY = 0;
-
-    const onMouseDown = (e) => {
-      dragging = true;
-
-      const rect = el.getBoundingClientRect();
-
-      // IMPORTANT: store click offset INSIDE the box
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
-    };
-
-    const onMouseMove = (e) => {
-      if (!dragging) return;
-
-      const container = containerRef.current;
-      const containerRect = container.getBoundingClientRect();
-
-      setBox((prev) => ({
-        ...prev,
-        x: e.clientX - containerRect.left - offsetX,
-        y: e.clientY - containerRect.top - offsetY,
-      }));
-    };
-
-    const onMouseUp = () => {
-      dragging = false;
-    };
-
-    el.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    return () => {
-      el.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, []);
-
-  // -----------------------------
-  // RESIZE HANDLER (bottom-right)
-  // -----------------------------
-  useEffect(() => {
-    const handle = document.getElementById("resize-handle");
-    if (!handle) return;
-
-    let resizing = false;
-    let startX = 0;
-    let startY = 0;
-
-    const onDown = (e) => {
-      e.stopPropagation();
-      resizing = true;
-      startX = e.clientX;
-      startY = e.clientY;
-    };
-
-    const onMove = (e) => {
-      if (!resizing) return;
-
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-
-      setBox((prev) => ({
-        ...prev,
-        width: Math.max(100, prev.width + dx),
-        height: Math.max(100, prev.height + dy),
-      }));
-
-      startX = e.clientX;
-      startY = e.clientY;
-    };
-
-    const onUp = () => {
-      resizing = false;
-    };
-
-    handle.addEventListener("mousedown", onDown);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-
-    return () => {
-      handle.removeEventListener("mousedown", onDown);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
-
-  // -----------------------------
-  // EXPORT EXPAND METADATA
-  // -----------------------------
-  const getExpandData = () => {
-    const data = {
-      expandWidth: box.width,
-      expandHeight: box.height,
-      offsetX: box.x,
-      offsetY: box.y,
-      originalWidth: file.originalWidth,
-      originalHeight: file.originalHeight,
-    };
-
-
-    return data;
-  };
-
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-      }}
-    >
-      {/* ORIGINAL IMAGE */}
-      {/*}
-      <img
-        src={file.imageSrc}
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          maxWidth: "60%",
-          maxHeight: "60%",
-          zIndex: 1,
-        }}
-      />*/}
-
-      {/* EXPAND BOX */}
-      <div
-        ref={boxRef}
-        style={{
-          position: "absolute",
-          left: box.x,
-          top: box.y,
-          width: box.width,
-          height: box.height,
-          border: "2px dashed #00b7ff",
-          background: "rgba(0,183,255,0.08)",
-          cursor: "move",
-          zIndex: 2,
-        }}
-      >
-        {/* RESIZE HANDLE */}
-        <div
-          id="resize-handle"
-          style={{
-            position: "absolute",
-            right: -6,
-            bottom: -6,
-            width: 14,
-            height: 14,
-            background: "#00b7ff",
-            cursor: "nwse-resize",
-          }}
-        />
-      </div>
-
-      {/* ACTION BUTTON */}
-      <button
-        onClick={getExpandData}
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          zIndex: 10,
-          padding: 10,
-        }}
-      >
-        Export Expand
-      </button>
-    </div>
-  );
-}
-
-export const Summarise = ({}) => {
-  return(
-    <div>
-    </div>
   )
 }
