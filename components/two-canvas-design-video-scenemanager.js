@@ -75,6 +75,7 @@ var WPAPI = require( 'wpapi' );
 import WavesurferPlayer from '@wavesurfer/react'
 const workflowJson = require('../outpainting_api.json');
 import { FONTS } from '@/utils/fonts.config.js';
+import { FontDropdown } from  "@/components/font-dropdown"
 //const workflowJson = require('../outpainting_api_v2.json');
 
 
@@ -10064,16 +10065,25 @@ const FontSelection = ({callBack, selectedFont}) => {
   return(
     <div>
       <p className='font-label'>Font</p>
+      {/*}
       <select id="font" className="form-input select font-label-input" onChange={(e) => setFontFunction(e.target.value)} value={font}>
         {FONTS.map((font, index)=>{
           return <option key={index} value={font.family}>{font.family}</option>
         })
         }
-      </select>
+      </select>*/}
+      <FontDropdown placeholder={font}>
+        {FONTS.map((font, index)=>{
+          return <p key={index} onClick={() => setFontFunction(font.family)} style={{fontFamily:font.family, cursor: "pointer"}} className="no-highlight">{font.family}</p>
+        })
+        }
+      </FontDropdown>
     </div>
   )
 
 }
+
+
 
 const FontWeightSelection = ({callBack, selectedFontWeight, fontWeights}) => {
 
@@ -11820,12 +11830,12 @@ const PropertiesPanel = ({
             />
             <div>
               <p className='font-label'>Font</p>
-              <select id="font" className="form-input select font-label-input" onChange={(e) => onElementUpdateProperty('fontFamily', e.target.value)} value={element.fontFamily}>
+              <FontDropdown placeholder={element.fontFamily}>
                 {FONTS.map((font, index)=>{
-                  return <option key={index} value={font.family}>{font.family}</option>
+                  return <p key={index} onClick={() => onElementUpdateProperty('fontFamily', font.family)} style={{fontFamily:font.family, cursor: "pointer"}} className="no-highlight">{font.family}</p>
                 })
                 }
-              </select>
+              </FontDropdown>
             </div>
             <div>
               <p className='font-label'>Font Styles</p>

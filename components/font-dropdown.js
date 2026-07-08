@@ -1,6 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+'use client'
 
-export default function Dropdown({placeholder = "Select...", children }) {
+
+import {useState, useRef, useEffect} from 'react'
+
+
+
+
+export const FontDropdown = ({placeholder = "Select...", children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -20,11 +26,11 @@ export default function Dropdown({placeholder = "Select...", children }) {
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
       <button
-        className="btn primary"
+        className="form-input select font-button"
         onClick={() => setIsOpen(!isOpen)}
-        style={{ width: "100%", padding: "10px", textAlign: "left", cursor: "pointer" }}
+        style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
       >
-        {placeholder}
+        <p style={{fontFamily:placeholder, margin:0, cursor: "pointer"}} className="no-highlight">{placeholder}</p>
       </button>
 
       {isOpen && (
@@ -32,7 +38,7 @@ export default function Dropdown({placeholder = "Select...", children }) {
           position:'absolute',
           marginTop: '0px',
           zIndex: '100',
-          backgroundColor: 'var(--md-sys-color-surface)',
+          background: 'var(--md-sys-color-surface)',
           borderRadius:'var(--input-border-radius)',
           padding:'10px',
           left: '0px',

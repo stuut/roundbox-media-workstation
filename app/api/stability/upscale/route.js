@@ -8,7 +8,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 export async function POST(req) {
   try {
 
-    const {imageUrl, fileName, fileType, left, right, up, down, prompt, seed} = await req.json(); // Parses the JSON body
+    const {imageUrl, fileName, fileType } = await req.json(); // Parses the JSON body
 
 // Fetch the image as an ArrayBuffer
     const imageResponse = await axios.get(imageUrl, { responseType: "arraybuffer" });
@@ -28,23 +28,23 @@ export async function POST(req) {
       filename: `outpaint-${fileName}`, // important to set a filename
       contentType: fileType,          // content type
     });
-    form.append("left", left);
-    form.append("right", right);
-    form.append("up", up);
-    form.append("down", down);
+  //  form.append("left", left);
+  //  form.append("right", right);
+  //  form.append("up", up);
+  //  form.append("down", down);
     form.append("output_format", "jpeg");
-    if (prompt){
-      form.append("prompt", prompt);
-    }
-    if (seed){
-      form.append("seed", seed);
-    }
+  //  if (prompt){
+  //    form.append("prompt", prompt);
+  //  }
+  //  if (seed){
+  //    form.append("seed", seed);
+  //  }
 
 
 
     // Send to Stability API
     const response = await axios.post(
-      `https://api.stability.ai/v2beta/stable-image/edit/outpaint`,
+      `https://api.stability.ai/v2beta/stable-image/upscale/fast`,
       form,
       {
         headers: {

@@ -65,7 +65,7 @@ export async function POST(req){
 
 
 
-        return NextResponse.json({ text: message  }, {status: 200})
+        return NextResponse.json({ rewritten: message  }, {status: 200})
 
     } catch (err) {
       console.error("Error:", err);

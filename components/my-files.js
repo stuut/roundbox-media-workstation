@@ -395,9 +395,10 @@ const copyFileUrl = (url) => {
                             htmlFor="file-upload"
                             style={{
                               padding: '10px 15px',
-                              marginTop:'0px',
-                              marginBottom: '0px',
-                              marginLeft: '5px'
+                              marginTop:'10px',
+                              marginBottom: '10px',
+                              marginLeft: '5px',
+                              height: '38.5px'
                             }}
                           >
                           <Upload className='button-icon'/>

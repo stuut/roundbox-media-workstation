@@ -54,12 +54,6 @@ export const Summary = ({text, defaultPlatform}) => {
 
           const data = await response.json();
 
-          console.log('rewritten', data.rewritten)
-
-          //const formattedText = data.rewritten.replace(/\. ?/g, '.\n');
-
-          //console.log('formattedText', formattedText)
-
           setSummary(data.rewritten);
 
         } catch(error) {

@@ -50,7 +50,7 @@ return(
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "out paint"? 'active':''}`}onClick={() => setActiveTool('out paint')}> Out Paint </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "cropper"? 'active':''}`}onClick={() => setActiveTool('cropper')}> Cropper </p>
-
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "upscale"? 'active':''}`}onClick={() => setActiveTool('upscale')}> Upscale </p>
               </div>
               <div style={{flex:4, position:'relative'}}>
                 {activeTool === 'crop' &&
@@ -94,6 +94,15 @@ return(
                  />
 
                 }
+                {activeTool === 'upscale' &&
+
+                  <Upscale
+                    user={user}
+                    image={item}
+                    newFile={newFile}
+                    setNewFile={setNewFile}
+                 />
+                }
               </div>
             </div>
           </div>
@@ -104,7 +113,70 @@ return(
 )
 }
 
+const Upscale = ({
+  user,
+  image,
+  setNewFile,
+  newFile
+})=>{
 
+  const [fileUrl, setFileUrl] = useState(image.file_url)
+
+const upscale = async () => {
+  const response = await fetch(`/api/stability/upscale`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        imageUrl: image.file_url,
+        fileName: image.file_name,
+        fileType: image.file_type,
+      }),
+    })
+
+    if (!response.ok) {
+      showError(`Out painting error: ${response.status}`)
+      return
+    }
+
+    const result = await response.json()
+
+    if (response.ok) {
+
+      const fileinfo = await storeFileInfo({
+        user_id: user.id,
+        file_url: result.url,
+        file_type: 'image/jpeg',
+        file_name: result.fileName,
+        file_description: image.file_description ?? null
+      })
+
+      setFileUrl(result.url)
+
+      setNewFile({
+        created_at: fileinfo.created_at,
+        file_type: 'image/jpeg',
+        file_url: result.url,
+        file_name: result.fileName,
+        file_description: image.file_description??null,
+        id: fileinfo.id,
+        user_id: user.id
+      })
+
+    }
+
+}
+
+
+
+  return(
+    <div>
+      <img src={fileUrl} />
+      <button className='btn primary' onClick={upscale}>Up Scale</button>
+    </div>
+  )
+}
 
 
 const CropComponent = ({
@@ -114,7 +186,7 @@ const CropComponent = ({
   newFile
 }) => {
 
-  console.log('image', image)
+
   const [fileUrl, setFileUrl] = useState(image.file_url);
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)

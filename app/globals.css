@@ -157,6 +157,8 @@
   border: 2px dashed var(--md-sys-color-primary);
 }
 
+
+
 .btn{
   white-space: nowrap;
   cursor:pointer;
@@ -1951,6 +1953,25 @@ button:disabled{
   max-width: 90%;
   max-height: 90%;
   object-fit: contain;
+}
+
+.font-button{
+  margin: 10px 0px;
+      display: block;
+      width: 100%;
+      padding: .375rem .75rem;
+      font-size: var(--font-size);
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--md-sys-color-on-surface);
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-color: var(--md-sys-color-surface);
+      background-clip: padding-box;
+      border: var(--input-border-width) solid var(--md-sys-color-primary);
+      border-radius: var(--input-border-radius);
+      transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
 }
 
 
