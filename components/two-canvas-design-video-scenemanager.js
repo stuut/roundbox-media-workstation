@@ -3559,6 +3559,7 @@ const applyTemplate = async(type, template) => {
 
 
 const loadPost = async (postData) => {
+  setCanvasLoader(true)
 
   setProjectTitle(postData.title)
 
@@ -3634,13 +3635,12 @@ const loadPost = async (postData) => {
   drawLower()
   drawArtboard()
   drawUpper()
+  setCanvasLoader(false)
 
 }
 
 
 const onDrop = async(e) => {
-
-  console.log('dragMedia', dragMedia)
 
   if (dragMedia){
     if (dragMedia.file_type === 'video/mp4' || dragMedia.file_type === 'video/webm'){
@@ -9818,9 +9818,10 @@ const ToolSVG = ({
           maxHeight:`calc(${canvasEditorHeight}px - 10px)`
         }}
           className={`dropshadow ${position === "left" ? "side_menu_left" : "side_menu_right"}`}>
-          <div style={{ display: "flex" }}>
+          <div style={{ display: "flex", alignItems:'center' }}>
+            <ToolIcon size={15} style={{marginLeft:'5px'}}/>
             <strong>
-              <p style={{ paddingLeft: "10px" }}>{label}</p>
+              <p style={{ paddingLeft: "5px" }}>{label}</p>
             </strong>
             <X
               onClick={() => callBack(tool, !isOpen)}
@@ -11351,6 +11352,7 @@ const TemplatePanel = ({
       return(
         <div key={index}>
           <button
+            style={{ whiteSpace: 'break-spaces'}}
             onClick={() => loadTemplate(template.json)}
             className='btn btn-secondary'>
             {template.title}

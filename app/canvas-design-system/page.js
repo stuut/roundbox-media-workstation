@@ -3,7 +3,7 @@ import ImageGeneration from "@/components/image-generation"
 import { redirect } from 'next/navigation'
 import { CanvasDesignSystem } from "@/components/canvas-design-system"
 import { Danva }  from "@/components/two-canvas-design-video-scenemanager"
-import { getFeeds } from '@/lib/supabase'
+import { getPublishFeeds } from '@/lib/supabase'
 
 
 export default async function Page() {
@@ -22,7 +22,7 @@ export default async function Page() {
 
   const userId = user.id
 
-  const data = await getFeeds(userId)
+  const data = await getPublishFeeds(userId)
 
 
   const feeds = data.map((feed)=>{
