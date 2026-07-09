@@ -718,6 +718,12 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
 
 
+  const processAIDesign = () =>{
+
+  }
+
+
+
   class SceneManager {
     constructor({
       id,
@@ -3565,6 +3571,10 @@ const loadPost = async (postData) => {
 
   const activeScene = sceneManagerRef.current.getActiveScene()
 
+
+  console.log('postData', postData)
+
+
   const imageId = generateUniqueId()
   const newImageObj =  new Element({
     id: imageId,
@@ -3572,7 +3582,9 @@ const loadPost = async (postData) => {
     cy:lowerRef.current.height/2,
     imageSrc : postData.image_url,
     type:'image',
-    mediaCaption:postData.file_description??''
+    mediaCaption:postData.file_description??'',
+    mediaFileType:postData.file_type,
+    mediaFileName:postData.file_name
   })
 
   const lower = lowerRef.current;
@@ -8809,16 +8821,20 @@ const editImage = () => {
   const activeElement = getActiveElement()
   if (!activeElement) return
 
+  console.log('activeElement', activeElement)
+
   const newFile={
     id: activeElement.id,
     file_url:activeElement.imageSrc,
-    file_type:activeElement.file_type,
+    file_type:activeElement.mediaFileType,
     file_description:activeElement.mediaCaption,
     file_name: activeElement.mediaFileName,
     database_id:activeElement.mediaDataBaseId,
     source: "internal",
     user_id: user.id,
   }
+
+  console.log('newFile', newFile)
 
   setDisplayEditItem(true)
   setItem(newFile)
@@ -9142,6 +9158,7 @@ useEffect(() => {
             <TemplatePanel
               applyTemplate={applyTemplate}
               loadTemplate={loadProject}
+              postInfo={postInfo}
               user={user}
             />
           </div>
@@ -10345,7 +10362,7 @@ const uploadFile = async (event) => {
 
   } catch (error) {
     showError(error)
-    alert('Error uploading image!')
+    console.log('Error uploading image!')
   } finally {
     setUploading(false)
     //setUploadFileState(null)
@@ -11257,6 +11274,7 @@ return(
 const TemplatePanel = ({
   applyTemplate,
   loadTemplate,
+  postInfo,
   user
 }) => {
 
@@ -11331,20 +11349,31 @@ const TemplatePanel = ({
           paddingTop: '7px'
         }} onClick={createDesign} className='btn btn-small primary'>Go</button>
       </div>
-      <p className='font-label'>Videos</p>
-    {TEMPLATES.videos.map((videoTemp, index) => {
-      return(
-        <button key={videoTemp.label} onClick={() => applyTemplate('videos', videoTemp.label)} className='btn btn-secondary'>{videoTemp.label}</button>
+      <p className='font-label'>Post Templates</p>
 
-      )
-    })}
-    <p className='font-label'>Images</p>
-    {TEMPLATES.images.map((imageTemp, index) => {
-      return(
-        <button key={imageTemp.label} onClick={() => applyTemplate('image', imageTemp.label)} className='btn btn-secondary'>{imageTemp.label}</button>
+      {postInfo?(
+        <>
+          <p className='font-label'>Videos</p>
+          {TEMPLATES.videos.map((videoTemp, index) => {
+            return(
+              <button key={videoTemp.label} onClick={() => applyTemplate('videos', videoTemp.label)} className='btn btn-secondary'>{videoTemp.label}</button>
 
-      )
-    })}
+            )
+          })}
+          <p className='font-label'>Images</p>
+          {TEMPLATES.images.map((imageTemp, index) => {
+            return(
+              <button key={imageTemp.label} onClick={() => applyTemplate('image', imageTemp.label)} className='btn btn-secondary'>{imageTemp.label}</button>
+
+            )
+          })}
+        </>
+      ):(
+        <div style={{textAlign:'left', marginTop:'10px'}} className='alert alert-danger'>
+          Load A Post To Use Post Templates
+        </div>
+      )}
+
     {templates.length>0&&
         <p className='font-label'>Saved Templates</p>
     }
@@ -11450,12 +11479,16 @@ const FeedsPanel = ({
 
 
         const posts = filterPosts.map((item)=>{
+
+            console.log('item',item)
             return {
               id: item.sys.id,
               scheduleDate: item.fields[selectedFeed.scheduleDate],
               link: selectedFeed.website+'/'+item.fields[selectedFeed.slug],
               image_url: 'https:' + item.fields[selectedFeed.image].fields.file?.url,
-              file_description: item.fields[selectedFeed.image].fields.file?.description,
+              file_description: item.fields[selectedFeed.image].fields.description,
+              file_type: item.fields[selectedFeed.image].fields.file?.contentType,
+              file_name: item.fields[selectedFeed.image].fields.file?.fileName,
               title: item.fields[selectedFeed.title],
               slug: item.fields[selectedFeed.slug],
               base_url: selectedFeed.website,
@@ -11467,7 +11500,7 @@ const FeedsPanel = ({
             }
         })
 
-
+        console.log('posts', posts)
         setPosts(posts)
 
       }else if (selectedFeed.CMSType === 'wordpress'){
@@ -11509,13 +11542,16 @@ const FeedsPanel = ({
 
 
         const posts = response?.data.map((item)=>{
+          console.log('item', item)
 
             return {
               id : item.id.toString(),
               scheduleDate: selectedFeed.scheduleDate? pathIndex(item, selectedFeed.scheduleDate):null,
               link: item.slug? 'https://' + selectedFeed.website +'/' + item.slug : null,
               image_url:!isCustomApi? (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null : item[`${selectedFeed.query_image_field}`]??null,
-              file_description: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].caption.rendered : null,
+              file_description: (item._embedded && item._embedded['wp:featuredmedia'])? decodeEntities(item._embedded['wp:featuredmedia'][0].caption.rendered) : null,
+              file_type: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].mime_type : null,
+              file_name: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].title.rendered : null,
               title: !isCustomApi? decodeEntities(item.title.rendered) : item[`${selectedFeed.query_title_field}`]??null,
               slug: item.slug,
               base_url: selectedFeed.website,
@@ -11527,6 +11563,8 @@ const FeedsPanel = ({
             }
         })
         setPosts(posts)
+
+        console.log('posts', posts)
 
       }
 
@@ -13038,8 +13076,10 @@ const MediaMenu = ({
 }) => {
   const [open, setOpen] = useState(false)
 
+console.log('file', file)
 
   const editImage = () => {
+
     setShowFileEdit(true)
     setFileEdit(file)
   }

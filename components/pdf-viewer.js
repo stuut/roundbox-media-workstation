@@ -31,16 +31,6 @@ export const PDFViewer = ({pdfUrl, sizeCallBack, setPageNumberCallBack}) => {
   const loader = 'pdf loading'
 
 
-  const onResize = useCallback(entries => {
-    const [entry] = entries
-
-    if (entry) {
-      setContainerWidth(entry.contentRect.width)
-    }
-  }, [])
-
-  useResizeObserver(containerRef, resizeObserverOptions, onResize)
-
 
 
   function onDocumentLoadSuccess(pdfDocument) {

@@ -130,7 +130,7 @@ try {
 
     for (let image of images) {
       const imagePath = image.file_url
-      const caption = image.caption
+      const caption = image.file_description??''
       const fileName = image.file_name
       const fileType = image.file_type
 

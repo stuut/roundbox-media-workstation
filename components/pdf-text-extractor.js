@@ -17,6 +17,7 @@ import { storeFileInfo } from "@/lib/supabase";
 import * as contentful from 'contentful'
 import Dropdown from "@/components/dropdown"
 import nspell from 'nspell';
+import './pdf-extract-css.css'
 
 var WPAPI = require( 'wpapi' );
 import {
@@ -225,7 +226,8 @@ export default function PdfTextExtractor({user, feeds}) {
   const mdValueRef = useRef('')
   const [uploadedPosts, setUploadedPosts] = useState([]);
   const [usedDates, setUsedDates] = useState([]);
-
+  const [dummyState, setDummyState] = useState(0);
+  const [mediaLoader, setMediaLoader]  = useState(false);
 
 
   function isInArray(value, array) {
@@ -298,70 +300,79 @@ export default function PdfTextExtractor({user, feeds}) {
 
   const getMedia = async (e) => {
     e.preventDefault();
-    setMediaList([])
 
-  if (selectedFeedRef.current.CMSType === 'wordpress'){
+    try{
+      setMediaList([])
+      setMediaLoader(true)
 
-    const response = await fetch('/api/wordpress/get-assets', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            feedId: selectedFeed.id,
-            searchTerm: searchMedia
-          }),
-      });
+        if (selectedFeedRef.current.CMSType === 'wordpress'){
 
-      const images = await response.json();
+          const response = await fetch('/api/wordpress/get-assets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  feedId: selectedFeed.id,
+                  searchTerm: searchMedia
+                }),
+            });
 
-      const updateImages = images.data.map((entry, index) => {
+            const images = await response.json();
 
-          return {
-            id : entry.id,
-            file_name : entry?.filename??null,
-            file_url : entry?.source_url??null,
-            width: entry?.media_details.width??null,
-            height: entry?.media_details.height??null,
-            file_description: entry?.caption.rendered?removeTags(entry.caption.rendered):null,
-            file_type: entry?.mime_type??null,
-            source:'wordpress'
-          }
-      })
+            const updateImages = images.data.map((entry, index) => {
 
-      setMediaList(updateImages)
+                return {
+                  id : entry.id,
+                  file_name : entry?.filename??null,
+                  file_url : entry?.source_url??null,
+                  width: entry?.media_details.width??null,
+                  height: entry?.media_details.height??null,
+                  file_description: entry?.caption.rendered?removeTags(entry.caption.rendered):null,
+                  file_type: entry?.mime_type??null,
+                  source:'wordpress'
+                }
+            })
 
-  }else{
+            setMediaList(updateImages)
 
-    const response = await fetch('/api/contentful/get-assets', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            feedId: selectedFeed.id,
-            searchTerm: searchMedia
-          }),
-      });
+        }else{
 
-      const images = await response.json();
-      console.log('images', images)
+          const response = await fetch('/api/contentful/get-assets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  feedId: selectedFeed.id,
+                  searchTerm: searchMedia
+                }),
+            });
 
-      const updateImages = images.data.map((entry, index) => {
+            const images = await response.json();
+            console.log('images', images)
 
-            return {
-              id : entry.sys.id,
-              file_name : entry?.fields?.file?.fileName,
-              file_url : entry?.fields?.file.url,
-              width: entry?.fields?.file?.details?.image?.width??null,
-              height: entry?.fields?.file?.details?.image?.height??null,
-              caption: entry?.fields?.description,
-              file_type: entry?.fields?.file?.contentType??null,
-              source:'contentful'
-            }
-      })
-      setMediaList(updateImages)
-  }
+            const updateImages = images.data.map((entry, index) => {
+
+                  return {
+                    id : entry.sys.id,
+                    file_name : entry?.fields?.file?.fileName,
+                    file_url : entry?.fields?.file.url,
+                    width: entry?.fields?.file?.details?.image?.width??null,
+                    height: entry?.fields?.file?.details?.image?.height??null,
+                    caption: entry?.fields?.description,
+                    file_type: entry?.fields?.file?.contentType??null,
+                    source:'contentful'
+                  }
+            })
+            setMediaList(updateImages)
+        }
+
+    }catch(err){
+      showError(err)
+    }finally{
+      setMediaLoader(false)
+    }
 }
 
 
@@ -656,6 +667,8 @@ const sendAreaData = async(selectionArea) => {
 
   if (width < 50) return
 
+  try{
+
   setLoader(true)
 
 
@@ -685,39 +698,23 @@ const sendAreaData = async(selectionArea) => {
   const responseJson = await response.json()
 
 
+
   if (inputTypeRef.current === 'images'){
+
     const checkedImages = await checkInstagramImages([responseJson.image])
-    console.log('setImages')
-    setImages(prev => [...checkedImages, ...prev])
+    console.log('setImages', images)
+
+    const updatingItems = [...imagesRef.current, ...checkedImages]
+    reflowImages(updatingItems)
+
+
+
+    setImages(prev => [...prev, ...checkedImages])
+
 
   }else{
 
-
-    //const {paragraphs, heading, captions} = detectArticle(responseJson)
-
-    const raw = detectArticle(responseJson);
-
-
-    const paragraphsResponse = await fetch('/api/resolve-spacing/', {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        paragraphs: raw.paragraphs
-      }),
-    });
-
-
-    const paragraphsJson = await paragraphsResponse.json()
-
-
-
-    const result = { ...raw, ...paragraphsJson.paragraphs };
-
-
-    const paragraphs = paragraphsJson.paragraphs
-
+    const {paragraphs, heading, captions} = detectArticle(responseJson)
 
     if (paragraphs){
       setParagraphsState(prev => [...prev, ...paragraphs])
@@ -728,20 +725,26 @@ const sendAreaData = async(selectionArea) => {
     let imagesWithCaptions = []
 
 
-    if (raw.heading){
-      const TrimHeading = result.heading.trimStart()
+    if (heading){
+      const TrimHeading = heading.trimStart()
       const ReplaceHeading = TrimHeading.replace(/\s{2,}/g, ' ')
       setHeading(toTitleCase(ReplaceHeading))
     }
 
+
+
     if (responseJson.images.length > 0){
-      imagesWithCaptions = addCaptions(responseJson.images, result.captions)
+      imagesWithCaptions = addCaptions(responseJson.images, captions)
 
       const newCheckedImages = await checkInstagramImages(imagesWithCaptions)
 
       newImages = [...imagesRef.current, ...newCheckedImages]
 
       setImages(prev => [...prev, ...newCheckedImages])
+
+    }else{
+
+      newImages = imagesRef.current
 
     }
     if (selectedFeedRef.current.CMSType === 'wordpress'){
@@ -751,7 +754,13 @@ const sendAreaData = async(selectionArea) => {
     }
   }
 
-  setLoader(false)
+  }catch(err){
+    showError(err)
+  }finally{
+      setLoader(false)
+  }
+
+
 }
 
 const addCaptions = (images, captions) => {
@@ -904,13 +913,13 @@ const addWordPressArticle = (paragraphs, images) => {
 
   }else{
 
-
     var firstImage = addFirstImage(images)
+    console.log('firstImage', firstImage )
 
     if (images.length>1){
       let lastImages = addLastImages(images)
 
-
+      console.log('lastImages', lastImages)
 
       if (lastImages){
         setTinymceContent(firstImage + combinedContent + lastImages)
@@ -942,6 +951,8 @@ const addLastImages = (images) => {
 
   let imagesWithoutFirstElement = images.slice(1);
 
+  console.log('imagesWithoutFirstElement', imagesWithoutFirstElement)
+
   imagesWithoutFirstElement.forEach((image, index) => {
 
 
@@ -950,14 +961,13 @@ const addLastImages = (images) => {
 
         if (selectedFeedRef.current.CMSType === 'wordpress'){
 
+          /*
+
          let editorContent = getEditorContent()
 
           const extractedImages = extractImagesFromWordpress(editorContent);
 
-
           const findImage = extractedImages.find((extracted)=> extracted.file_url === image.file_url)
-
-
 
           if (!findImage){
             newImage = createImageHTML(image)
@@ -966,11 +976,13 @@ const addLastImages = (images) => {
           }else{
             newImage = ''
           }
+          */
+          newImage = createImageHTML(image)
 
 
 
         }else{
-
+          /*
           const extractedImages = extractImagesFromMarkdown(mdValue);
 
           const findImage = extractedImages.find((extracted)=> extracted.file_url === image.file_url)
@@ -979,7 +991,9 @@ const addLastImages = (images) => {
             newImage = createImageMd(image)
           }else{
             newImage = ''
-          }
+          }*/
+
+          newImage = createImageMd(image)
 
 
         }
@@ -1051,10 +1065,9 @@ function detectArticle(data) {
   let currentParagraph = "";
   let currentCaption = "";
   let previousParagraph = '';
-  let previousBodyY = null;
-  let previousWasNoSpace = false;
+  let suppressNextSpace = false;
   let pendingHyphenGlue = false;
-  let currentSection = 'none'; // tracks which of body/caption/heading is currently active
+  let currentSection = 'none';
 
   function stripTrailingSpace(section) {
     if (section === 'body') currentParagraph = currentParagraph.replace(/[ \t]+$/, '');
@@ -1064,28 +1077,19 @@ function detectArticle(data) {
 
   data.text_json.blocks.forEach(block => {
     const rawText = block.text;
-    if (rawText.length === 0) return; // truly empty marker/spacer block
+    if (rawText.length === 0) return;
 
-    // NEW: pure whitespace block — an explicit inter-word space PDF emits
-    // as its own block (height 0). Insert a real space wherever we're
-    // currently accumulating text, instead of silently dropping it.
     if (rawText.trim() === '') {
-      if (currentSection === 'body') {
-        if (!previousWasNoSpace) currentParagraph += ' ';
-      } else if (currentSection === 'caption') {
-        currentCaption += ' ';
-      } else if (currentSection === 'heading') {
-        heading += ' ';
-      }
+      if (suppressNextSpace) return;
+      if (currentSection === 'body') currentParagraph += ' ';
+      else if (currentSection === 'caption') currentCaption += ' ';
+      else if (currentSection === 'heading') heading += ' ';
       return;
     }
 
-    // Standalone line-break hyphen: word split across a column edge, "-"
-    // is its own block. No text to add — just glue the next block on.
     if (rawText.trim() === '-') {
       stripTrailingSpace(currentSection);
       pendingHyphenGlue = true;
-      if (currentSection === 'body') previousBodyY = block.y;
       return;
     }
 
@@ -1094,6 +1098,7 @@ function detectArticle(data) {
       block.fontName === 'KSGAJY+Helvetica-Bold'
     let text = rawText
     let noSpace = false
+    let isDropCap = false
     previousParagraph = text
 
     if (text.endsWith("-")) {
@@ -1106,11 +1111,9 @@ function detectArticle(data) {
       const lastIndex = text.lastIndexOf("/");
       if (lastIndex !== -1) text = text.substring(0, lastIndex) + text.substring(lastIndex + 1);
     }
-    // Drop cap only if visually much taller than body text — a lone
-    // one-letter word ("a", "I") has normal height and must NOT glue.
-    if (text.length === 1 && block.height > 20) noSpace = true
+    if (text.length === 1 && block.height > 20) { noSpace = true; isDropCap = true; }
 
-    if (block.height < 9) {
+    if (block.height < 8) {
       currentSection = 'caption';
       const endsWithPeriod = currentCaption.trim().endsWith('.');
       const endsWithQuotePeriod = currentCaption.trim().endsWith('".');
@@ -1119,12 +1122,24 @@ function detectArticle(data) {
         captions.push(currentCaption);
         currentCaption = "";
       }
-      if (pendingHyphenGlue) { currentCaption += text; pendingHyphenGlue = false; }
-      else currentCaption += noSpace ? text : text + " "
+      if (pendingHyphenGlue) {
+        currentCaption += noSpace ? text : text + " ";
+        pendingHyphenGlue = false;
+        suppressNextSpace = isDropCap;
+      } else {
+        currentCaption += noSpace ? text : text + " ";
+        suppressNextSpace = isDropCap;
+      }
     } else if (block.height > 11 && text.length > 1) {
       currentSection = 'heading';
-      if (pendingHyphenGlue) { heading += text; pendingHyphenGlue = false; }
-      else heading += noSpace ? text : text + " "
+      if (pendingHyphenGlue) {
+        heading += noSpace ? text : text + " ";
+        pendingHyphenGlue = false;
+        suppressNextSpace = isDropCap;
+      } else {
+        heading += noSpace ? text : text + " ";
+        suppressNextSpace = isDropCap;
+      }
     } else {
       currentSection = 'body';
       if (selectedFeedRef.current?.CMSType === "wordpress") {
@@ -1141,42 +1156,38 @@ function detectArticle(data) {
       if ((endsWithPeriod || endsWithQuotePeriod || endsWithPeriodQuote || endsWithColon || startsWithBullet) && !endsWithWWW) {
         paragraphs.push(currentParagraph);
         currentParagraph = "";
-        previousBodyY = null;
-        previousWasNoSpace = false;
+        suppressNextSpace = false;
         pendingHyphenGlue = false;
       }
       if (previousParagraph === '-') text.trim()
 
-      const isLineWrap = previousBodyY !== null && block.y !== previousBodyY
-        && !noSpace && !previousWasNoSpace && !pendingHyphenGlue
-        && currentParagraph.length > 0;
-
       if (pendingHyphenGlue) {
-        currentParagraph += text;
+        currentParagraph += noSpace ? text : text + " "; // <-- KEY FIX: always add trailing space unless noSpace
         pendingHyphenGlue = false;
-        previousWasNoSpace = true;
+        suppressNextSpace = isDropCap;
       } else if (noSpace) {
         currentParagraph += text;
-        previousWasNoSpace = true;
-      } else if (isLineWrap) {
-        currentParagraph = currentParagraph.replace(/[ \t]+$/, '');
-        currentParagraph += LINE_WRAP_MARK + text;
-        previousWasNoSpace = false;
+        suppressNextSpace = isDropCap;
       } else {
         currentParagraph += text + " ";
-        previousWasNoSpace = false;
+        suppressNextSpace = false;
       }
-      previousBodyY = block.y;
     }
   })
 
-  if (currentParagraph.trim() !== "") paragraphs.push(currentParagraph.trim());
-  if (currentCaption.trim() !== "") captions.push(currentCaption.trim());
+  if (currentParagraph.trim() !== "") paragraphs.push(normalizeSpaces(currentParagraph));
+  if (currentCaption.trim() !== "") captions.push(normalizeSpaces(currentCaption));
 
   const filterCaptions = captions.filter((cap) => cap !== "")
   const filterParagraphs = paragraphs.filter((par) => par !== "")
-  return { paragraphs: filterParagraphs, heading, captions: filterCaptions };
+  return { paragraphs: filterParagraphs, heading: normalizeSpaces(heading), captions: filterCaptions };
 }
+
+function normalizeSpaces(text) {
+  return text.replace(/[ \t]{2,}/g, ' ').trim();
+}
+
+
 
 useEffect(()=>{
 
@@ -1199,7 +1210,7 @@ useEffect(()=>{
 
 
 const reflowImages = (images) => {
-  if (inputTypeRef.current === 'articles'){
+console.log('reflowImages', images)
     if (selectedFeedRef.current.CMSType === 'wordpress'){
         setTinymceContent('')
         addWordPressArticle(null, images)
@@ -1208,10 +1219,10 @@ const reflowImages = (images) => {
         addContentfulArticle(null, images)
     }
 
-  }
 }
 
 useEffect(()=>{
+  console.log('update images', images)
 
   imagesRef.current = images
 
@@ -1404,7 +1415,14 @@ useEffect(()=>{
 
 const removeArticleImage = (id) => {
   console.log('setImages')
+
+  const updatingItems = images.filter((image)=>image.id !== id)
+
+  reflowImages(updatingItems)
+
+
   setImages(prev => prev.filter((image)=>image.id !== id))
+
 
 
 }
@@ -1473,7 +1491,6 @@ const handleDrop = (e, id) => {
         targetItem.instagram_image_error = tempDraggedInstagramError;
 
       } else if (draggedType === 'caption') {
-
           [updatedItems[draggedItemIndex].file_description, updatedItems[targetItemIndex].file_description] =
           [updatedItems[targetItemIndex].file_description, updatedItems[draggedItemIndex].file_description];
       } else if (draggedType === 'container') {
@@ -1481,12 +1498,12 @@ const handleDrop = (e, id) => {
         updatedItems.splice(targetItemIndex, 0, draggedItem);
       }
       setImages(updatedItems);
+      console.log('reflowImages')
       reflowImages(updatedItems)
     }
   }else{
 
-
-const newImage = mediaList.find((media)=>{
+    const newImage = mediaList.find((media)=>{
 
       let checkId
 
@@ -1500,24 +1517,24 @@ const newImage = mediaList.find((media)=>{
 
     })
 
-
     if (newImage){
 
-      setImages(prev => [ newImage, ...prev]);
 
-      const updatedItems = [ newImage, ...images]
+
+      const updatedItems = [ newImage, ...imagesRef.current]
 
       reflowImages(updatedItems)
 
-    }
+      setImages(prev => [ newImage, ...prev]);
 
+    }
 
   }
 };
 
 const handleDragOver = (e) => {
   e.preventDefault();
-  console.log('handleDragOver', e)
+
 };
 
 const getEditorContent = () => {
@@ -1529,10 +1546,15 @@ const getEditorContent = () => {
 
 const updateCaption = (value, id) => {
 
+  console.log('value', value)
+  console.log('id', id)
+
+  console.log('images', images)
+
   setImages(prev =>
     prev.map(image =>
       image.id === id
-        ? { ...image, caption: value }
+        ? { ...image, file_description: value }
         : image
     )
   );
@@ -1572,7 +1594,7 @@ useEffect(() => {
 
 
   if (!displayEditItem && item) {
-      console.log('handleEditReplace')
+      console.log('handleEditReplace', item)
       handleEditReplace(editingIndex.current, item)
       setItem(null)
   }
@@ -1658,7 +1680,12 @@ const startSSE = () => {
             file_description:editImageData.current.file_description??null
           })
 
-          console.log('setImages')
+          console.log('Images', images)
+
+          console.log('editImageData', editImageData)
+
+          console.log('fileInfo', fileInfo)
+
           setImages(prevItems =>
             prevItems.map((item, i) => item.id === editImageData.current.id ? fileInfo : item)
           );
@@ -1702,12 +1729,29 @@ if (data.publicUrl) {
   }
 }
 
+const triggerCatRebuild = () => {
+  // Trigger a rebuild by updating the state with a new reference of the same array
+  setCategoriesNested([...categoriesNested]);
+  setDummyState(prev => prev + 1);
+
+};
+
+
+useEffect(() => {
+  // This useEffect will run every time categoriesNested changes
+  if (categoriesList.length === 0){
+    triggerCatRebuild()
+  }
+}, [categoriesList]);
+
+
+
 const clear = () => {
   setTinymceContent('')
   if (editorRef.current){
       editorRef.current.setContent('');
   }
-
+  //setCategoriesNested([])
   setHeading('')
   setImages([])
   setCategoriesList([])
@@ -2137,7 +2181,7 @@ const changeScheduleDate = (date) => {
 
   return (
     <>
-    <div style={{height:'100%'}}>
+    <div style={{height:'95%'}} className='pdf-text-extractor-datepicker'>
       <div className='properties-container'>
         <label className='label'>Publication</label>
         <select id="rss-select" className="form-input select" onChange={(e) => onFeedChange(e.target.value)} value={selectedFeed.label}>
@@ -2167,7 +2211,7 @@ const changeScheduleDate = (date) => {
         <div className="form-check properties-container"
           style={{
             marginLeft: '15px',
-            marginBottom:'15px',
+            marginBottom:'10px',
             position: 'relative',
             display: 'inline-flex',
             alignItems:'center'
@@ -2215,7 +2259,6 @@ const changeScheduleDate = (date) => {
               </div>
               <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px', height:'calc(100% - 71px)', overflowY: 'scroll', position:'relative'}}>
                 <div style={uploadLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-                    <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                 </div>
                 <Dropdown placeholder="Add Images">
                   <button className="btn btn-sm clear" onClick={() => {
@@ -2331,7 +2374,7 @@ const changeScheduleDate = (date) => {
                       onChange={(date) => changeScheduleDate(date)}
                       showTimeSelect
                       dateFormat="MMMM d, yyyy h:mm aa"
-                      className={'form-input'}
+                      className={'form-input pdf-text-extractor-datepicker'}
                     />
 
                   {images.length !== 0 &&
@@ -2454,10 +2497,9 @@ const changeScheduleDate = (date) => {
                     </div>
                   }
               </div>
-              {inputType === 'articles'&&
-                <div style={{flex:.5, padding:'10px', minWidth:'280px', height:'calc(100% - 71px)', overflowY: 'scroll', position:'relative'}}>
+
+                <div style={{flex:.5, padding:'10px', minWidth:'300px', height:'calc(100% - 71px)', overflowY: 'scroll', position:'relative'}}>
                   <div style={uploadLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-                      <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                   </div>
                   {(selectedFeed.CMSType === 'wordpress' && categoriesNested.length > 0) &&
                     <div className='properties-container'>
@@ -2465,13 +2507,13 @@ const changeScheduleDate = (date) => {
                         categoriesNested.map((category, index) => {
                           return (
                             <div key={index} style={{marginLeft:'20px', marginTop:'5px', marginBottom:'5px'}}>
-                              <CheckBox key={index} category={category} checkFunction={checkFunction} state={categoriesState} style={{fontWeight:'bold'}}/>
+                              <CheckBox key={index} category={category} checkFunction={checkFunction} state={dummyState} style={{fontWeight:'bold'}}/>
                               {category.children.length > 0 &&
                                 <>
                                  {category.children.map((catChild, i) => {
                                    return (
-                                     <div key={i} style={{paddingLeft:'20px'}}>
-                                        <CheckBox key={i} category={catChild} checkFunction={checkFunction} state={categoriesState} style={{fontSize:'.9em'}}/>
+                                     <div key={i} style={{paddingLeft:'20px', margin:'5px 0px'}}>
+                                        <CheckBox key={i} category={catChild} checkFunction={checkFunction} state={dummyState} style={{fontSize:'.9em'}}/>
                                      </div>
                                    )
                                  })
@@ -2624,9 +2666,8 @@ const changeScheduleDate = (date) => {
                       </div>
                   }
                 </div>
-              }
               {uploadedPosts.length>0 &&
-              <div style={{flex:.2, padding:'10px', maxWidth:'200px', height:'100%'}}>
+              <div style={{flex:.2, padding:'10px', minWidth:'285px', height:'calc(100% - 70px)', overflowY:'scroll'}}>
                 <h3 style={{textAlign:'center'}}><strong>Uploaded Posts</strong></h3>
                 {uploadedPosts.map((entry, index) => {
                       if (entry === null) return null
@@ -2664,6 +2705,7 @@ const changeScheduleDate = (date) => {
         searchMedia={searchMedia}
         setSearchMedia={setSearchMedia}
         handleDragStart={handleDragStart}
+        mediaLoader={mediaLoader}
       />
     }
   </>
@@ -2747,12 +2789,12 @@ const MediaPanel = ({
   getMedia,
   searchMedia,
   setSearchMedia,
-  handleDragStart
+  handleDragStart,
+  mediaLoader
 
 }) => {
 
   const mediaPanelRef = useRef(null);
-
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -2779,7 +2821,10 @@ const MediaPanel = ({
         overflowY: 'scroll',
         zIndex:1000
       }}>
-      <p style={{display:'block'}} onClick={() => setShowMedia(false)}>CLOSE</p>
+        <div style={mediaLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+            <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+        </div>
+      <X style={{display:'block', marginLeft:'auto'}} onClick={() => setShowMedia(false)}/>
       <form onSubmit={getMedia}>
         <div style={{marginBottom:'10px', width:'100%'}}>
           <input style={{
@@ -2797,7 +2842,7 @@ const MediaPanel = ({
             placeholder="Search..."
           />
         </div>
-        <button style={{marginTop:'15px'}} className="btn primary btn-sm" type="submit" disabled={searchMedia.length>0?false:true}>Search</button>
+        <button style={{marginTop:'0px'}} className="btn primary" type="submit" disabled={searchMedia.length>0?false:true}>Search</button>
       </form>
       <div  style={{
         display:'flex',

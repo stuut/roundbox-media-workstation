@@ -1,0 +1,4 @@
+.pdf-text-extractor-datepicker .react-datepicker-popper{
+  left: 62px !important;
+  z-index:1000
+}

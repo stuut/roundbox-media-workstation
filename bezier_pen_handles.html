@@ -1,0 +1,305 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+#wrap { display: flex; flex-direction: column; height: 520px; font-family: var(--font-sans); }
+#toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; color: var(--color-text-secondary); }
+.tbtn { padding: 4px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: 6px; background: transparent; cursor: pointer; font-size: 12px; color: var(--color-text-secondary); }
+.tbtn.active { background: var(--color-background-secondary); color: var(--color-text-primary); }
+#canvas-area { flex: 1; position: relative; }
+canvas { position: absolute; top: 0; left: 0; background: white; }
+#hint { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--color-text-secondary); background: var(--color-background-secondary); padding: 4px 10px; border-radius: 20px; pointer-events: none; white-space: nowrap; }
+</style>
+
+<div id="wrap">
+  <div id="toolbar">
+    <button class="tbtn active" id="btn-pen">Pen tool</button>
+    <button class="tbtn" id="btn-select">Select</button>
+    <button class="tbtn" id="btn-clear">Clear</button>
+    <span style="margin-left:auto">Click = corner · Click+drag = smooth curve · Double-click = close path</span>
+  </div>
+  <div id="canvas-area">
+    <canvas id="c"></canvas>
+    <div id="hint">Click to place anchor points</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const area = document.getElementById('canvas-area');
+const hint = document.getElementById('hint');
+
+function resize() {
+  canvas.width = area.clientWidth;
+  canvas.height = area.clientHeight;
+  render();
+}
+new ResizeObserver(resize).observe(area);
+
+const ANCHOR_R = 5;
+const HANDLE_R = 4;
+
+/* ── State ── */
+const pts = [];          // array of { x, y, cpOut: {x,y}|null, cpIn: {x,y}|null }
+let closed = false;
+let tool = 'pen';
+
+/* Interaction phases:
+   idle | placing | drag-handle | drag-anchor | drag-new-handle
+*/
+let phase = 'idle';
+let dragTarget = null;   // { kind: 'anchor'|'cpOut'|'cpIn', index }
+let mousePos = { x: 0, y: 0 };
+let newHandleIndex = -1; // index of anchor currently having its handle dragged out
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+/* ── Hit testing ── */
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+function hitTest(pos) {
+  // check handles first (on top visually)
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    if (p.cpOut && dist(pos, p.cpOut) < HANDLE_R + 4) return { kind: 'cpOut', index: i };
+    if (p.cpIn  && dist(pos, p.cpIn)  < HANDLE_R + 4) return { kind: 'cpIn',  index: i };
+  }
+  for (let i = 0; i < pts.length; i++) {
+    if (dist(pos, pts[i]) < ANCHOR_R + 4) return { kind: 'anchor', index: i };
+  }
+  return null;
+}
+
+/* ── Mouse events ── */
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const pos = getPos(e);
+
+  if (tool === 'select') {
+    const h = hitTest(pos);
+    if (h) { dragTarget = h; phase = 'drag-anchor'; }
+    return;
+  }
+
+  // pen tool
+  if (closed) return;
+
+  const h = hitTest(pos);
+
+  // clicking the first point closes the path
+  if (h && h.kind === 'anchor' && h.index === 0 && pts.length >= 2) {
+    closed = true;
+    phase = 'idle';
+    hint.textContent = 'Path closed · Switch to Select to move points/handles';
+    render();
+    return;
+  }
+
+  // clicking an existing handle or anchor → drag it
+  if (h) {
+    dragTarget = h;
+    phase = 'drag-anchor';
+    return;
+  }
+
+  // new anchor point — we'll drag out its handle if mouse moves
+  pts.push({ x: pos.x, y: pos.y, cpOut: null, cpIn: null });
+  newHandleIndex = pts.length - 1;
+  phase = 'drag-new-handle';
+  hint.textContent = 'Drag to pull out handles · Release to place';
+  render();
+});
+
+canvas.addEventListener('mousemove', e => {
+  mousePos = getPos(e);
+
+  if (phase === 'drag-new-handle') {
+    const p = pts[newHandleIndex];
+    const dx = mousePos.x - p.x;
+    const dy = mousePos.y - p.y;
+    if (Math.hypot(dx, dy) > 3) {
+      // out-handle follows mouse, in-handle is mirrored
+      p.cpOut = { x: p.x + dx, y: p.y + dy };
+      p.cpIn  = { x: p.x - dx, y: p.y - dy };
+    }
+  } else if (phase === 'drag-anchor') {
+    const { kind, index } = dragTarget;
+    const p = pts[index];
+    if (kind === 'anchor') {
+      const dx = mousePos.x - p.x, dy = mousePos.y - p.y;
+      p.x = mousePos.x; p.y = mousePos.y;
+      if (p.cpOut) { p.cpOut.x += dx; p.cpOut.y += dy; }
+      if (p.cpIn)  { p.cpIn.x  += dx; p.cpIn.y  += dy; }
+    } else if (kind === 'cpOut') {
+      p.cpOut = { x: mousePos.x, y: mousePos.y };
+      // mirror to in-handle for smooth node
+      p.cpIn = { x: 2*p.x - mousePos.x, y: 2*p.y - mousePos.y };
+    } else if (kind === 'cpIn') {
+      p.cpIn = { x: mousePos.x, y: mousePos.y };
+      p.cpOut = { x: 2*p.x - mousePos.x, y: 2*p.y - mousePos.y };
+    }
+  }
+  render();
+});
+
+canvas.addEventListener('mouseup', e => {
+  phase = 'idle';
+  dragTarget = null;
+  newHandleIndex = -1;
+  if (tool === 'pen' && !closed) {
+    hint.textContent = pts.length < 2
+      ? 'Click to place next anchor'
+      : 'Click to continue · Double-click first point to close · Click+drag for curves';
+  }
+});
+
+canvas.addEventListener('dblclick', e => {
+  if (tool === 'pen' && !closed && pts.length >= 2) {
+    // remove the last point that was added by the second click of dblclick
+    pts.pop();
+    closed = true;
+    phase = 'idle';
+    hint.textContent = 'Path closed · Switch to Select to move points/handles';
+    render();
+  }
+});
+
+/* ── Drawing ── */
+function buildCurve(c, pointList, close) {
+  if (pointList.length < 1) return;
+  c.beginPath();
+  c.moveTo(pointList[0].x, pointList[0].y);
+
+  const len = close ? pointList.length : pointList.length - 1;
+  for (let i = 0; i < len; i++) {
+    const a = pointList[i];
+    const b = pointList[(i + 1) % pointList.length];
+    const cp1 = a.cpOut || { x: a.x, y: a.y };  // fallback = anchor → straight
+    const cp2 = b.cpIn  || { x: b.x, y: b.y };
+    c.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, b.x, b.y);
+  }
+  if (close) c.closePath();
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // grid
+  ctx.save();
+  ctx.strokeStyle = '#F0F0F0';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < canvas.width; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+  for (let y = 0; y < canvas.height; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke(); }
+  ctx.restore();
+
+  if (pts.length === 0) return;
+
+  // ghost segment to mouse (preview next segment)
+  if (tool === 'pen' && !closed && pts.length >= 1 && phase !== 'drag-new-handle') {
+    const last = pts[pts.length - 1];
+    ctx.save();
+    ctx.strokeStyle = '#B0C8E8';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    const cp1 = last.cpOut || { x: last.x, y: last.y };
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.bezierCurveTo(cp1.x, cp1.y, mousePos.x, mousePos.y, mousePos.x, mousePos.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // main path
+  ctx.save();
+  buildCurve(ctx, pts, closed);
+  ctx.strokeStyle = '#378ADD';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  if (closed) {
+    ctx.fillStyle = 'rgba(55,138,221,0.12)';
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // handle lines + dots
+  pts.forEach((p, i) => {
+    if (p.cpOut) {
+      ctx.save();
+      ctx.strokeStyle = '#AAC4E0';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.cpOut.x, p.cpOut.y); ctx.stroke();
+      // handle dot
+      ctx.beginPath(); ctx.arc(p.cpOut.x, p.cpOut.y, HANDLE_R, 0, Math.PI*2);
+      ctx.fillStyle = 'white'; ctx.fill();
+      ctx.strokeStyle = '#378ADD'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+    }
+    if (p.cpIn) {
+      ctx.save();
+      ctx.strokeStyle = '#AAC4E0';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.cpIn.x, p.cpIn.y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.cpIn.x, p.cpIn.y, HANDLE_R, 0, Math.PI*2);
+      ctx.fillStyle = 'white'; ctx.fill();
+      ctx.strokeStyle = '#378ADD'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.restore();
+    }
+  });
+
+  // anchor points
+  pts.forEach((p, i) => {
+    ctx.save();
+    const isFirst = i === 0;
+    const isLast = i === pts.length - 1;
+    const isCorner = !p.cpOut && !p.cpIn;
+
+    ctx.beginPath();
+    if (isCorner) {
+      // diamond for corner anchors
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(Math.PI / 4);
+      ctx.rect(-ANCHOR_R + 1, -ANCHOR_R + 1, (ANCHOR_R - 1) * 2, (ANCHOR_R - 1) * 2);
+      ctx.restore();
+    } else {
+      ctx.rect(p.x - ANCHOR_R, p.y - ANCHOR_R, ANCHOR_R * 2, ANCHOR_R * 2);
+    }
+
+    ctx.fillStyle = isFirst && tool === 'pen' && !closed ? '#D9EAFF' : 'white';
+    ctx.fill();
+    ctx.strokeStyle = isFirst && tool === 'pen' && !closed ? '#1A60A8' : '#378ADD';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+/* ── Tool buttons ── */
+document.getElementById('btn-pen').addEventListener('click', () => {
+  tool = 'pen';
+  document.getElementById('btn-pen').classList.add('active');
+  document.getElementById('btn-select').classList.remove('active');
+  hint.textContent = pts.length === 0 ? 'Click to place anchor points' : 'Click to continue path';
+  canvas.style.cursor = 'crosshair';
+});
+document.getElementById('btn-select').addEventListener('click', () => {
+  tool = 'select';
+  document.getElementById('btn-select').classList.add('active');
+  document.getElementById('btn-pen').classList.remove('active');
+  hint.textContent = 'Drag anchors or handles to reshape · Handle lines mirror for smooth curves';
+  canvas.style.cursor = 'default';
+});
+document.getElementById('btn-clear').addEventListener('click', () => {
+  pts.length = 0; closed = false; phase = 'idle';
+  hint.textContent = 'Click to place anchor points';
+  render();
+});
+
+resize();
+</script>

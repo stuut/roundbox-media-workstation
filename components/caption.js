@@ -213,6 +213,8 @@ const handleBlur = async() =>{
         )
       );
   }
+
+  showSuccess('Caption Updated')
 }
 
 return(

@@ -42,10 +42,11 @@ return(
           <div className="card" onClick={(e) => e.stopPropagation()} style={{margin:0, height:'100%'}}>
             <div style={{display:'flex', height:'100%'}}>
               <div style={{flex:1, zIndex: 1}}>
-                <h4>MENU</h4>
                 {newFile&&
                   <button className='btn primary btn-outline' onClick={applyChanges}>Apply Changes</button>
                 }
+                <h4>MENU</h4>
+
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "crop"? 'active':''}`} onClick={() => setActiveTool('crop')}>Quick Crop </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "caption"? 'active':''}`}onClick={() => setActiveTool('caption')}> Caption </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "out paint"? 'active':''}`}onClick={() => setActiveTool('out paint')}> Out Paint </p>
@@ -147,7 +148,7 @@ const upscale = async () => {
       const fileinfo = await storeFileInfo({
         user_id: user.id,
         file_url: result.url,
-        file_type: 'image/jpeg',
+        file_type: image.file_type,
         file_name: result.fileName,
         file_description: image.file_description ?? null
       })
@@ -156,7 +157,7 @@ const upscale = async () => {
 
       setNewFile({
         created_at: fileinfo.created_at,
-        file_type: 'image/jpeg',
+        file_type: image.file_type,
         file_url: result.url,
         file_name: result.fileName,
         file_description: image.file_description??null,
@@ -242,7 +243,13 @@ const CropComponent = ({
       canvas.width, canvas.height
     );
 
-    return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+    if (image.file_type === 'image/jpeg'){
+      return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+    }else{
+      return new Promise((resolve) => canvas.toBlob(resolve));
+    }
+
+
   };
 
    const createCroppedImage = async () => {
@@ -273,7 +280,12 @@ const CropComponent = ({
 
        const formData = new FormData()
          formData.append('file', file)
-         formData.append('tag', '.jpg');
+
+         if (image.file_type === 'image/jpeg'){
+           formData.append('tag', '.jpg');
+         }else{
+           formData.append('tag', '.png');
+         }
 
        try{
          const res = await fetch('/api/upload', {
@@ -290,17 +302,19 @@ const CropComponent = ({
              file_url:result.url
            }
 
+           console.log('fileData', fileData)
+
            const fileinfo = await storeFileInfo({
              user_id:user.id,
              file_url: fileData.file_url,
-             file_type:'image/jpeg',
+             file_type:fileData.file_type,
              file_name:fileData.file_name,
              file_description:fileData.file_description??null
            })
 
            setNewFile({
              created_at: fileinfo.created_at,
-             file_type: 'image/jpeg',
+             file_type: fileData.file_type,
              file_url: fileData.file_url,
              file_name:fileData.file_name,
              file_description:fileData.file_description??null,
@@ -2189,6 +2203,9 @@ const NewCropper = ({
   const canvasRef = useRef(null);
 
 
+  console.log('image', image)
+
+
   const cropImage = async() => {
 
 
@@ -2209,17 +2226,31 @@ const NewCropper = ({
     ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
     ctx.drawImage(croppedCanvas, 0, 0);
 
+    let file
 
-    const file = await new Promise((resolve) => {
-      targetCanvas.toBlob(resolve, 'image/jpeg', 0.95);
-    });
+    if (image.file_type === 'image/jpeg'){
+      file = await new Promise((resolve) => {
+        targetCanvas.toBlob(resolve, 'image/jpeg', 0.95);
+      });
+    }else{
+      file = await new Promise((resolve) => {
+        targetCanvas.toBlob(resolve);
+      });
+    }
+
 
     const formData = new FormData()
 
-      console.log('file', file)
 
       formData.append('file', file)
-      formData.append('tag', '.jpg');
+
+
+      if (image.file_type === 'image/jpeg'){
+        formData.append('tag', '.jpg');
+      }else{
+        formData.append('tag', '.png');
+      }
+
 
       try{
         const res = await fetch('/api/upload', {
@@ -2236,17 +2267,19 @@ const NewCropper = ({
             file_url:result.url
           }
 
+          console.log('fileData', fileData)
+
           const fileinfo = await storeFileInfo({
             user_id:user.id,
             file_url: fileData.file_url,
-            file_type:'image/jpeg',
+            file_type:fileData.file_type,
             file_name:fileData.file_name,
             file_description:fileData.file_description??null
           })
 
           setNewFile({
             created_at: fileinfo.created_at,
-            file_type: 'image/jpeg',
+            file_type: fileData.file_type,
             file_url: fileData.file_url,
             file_name:fileData.file_name,
             file_description:fileData.file_description??null,
@@ -2387,9 +2420,9 @@ const NewCropper = ({
             //zoom={zoom}
             rotation={rotation} // Pass rotation state
             aspectRatio={ratio}
-          //  responsive={true}
+            responsive={true}
             //background={true}
-            autoCropArea={0.7}
+            autoCropArea={1}
             //minContainerWidth={0}
           //  minContainerHeight={0}
             guides={false}
@@ -2399,7 +2432,7 @@ const NewCropper = ({
               setTimeout(() => {
                 const cropper = cropperRef.current?.cropper;
                 // Zoom out to create space around the image
-                cropper.zoomTo(0.5);
+                //cropper.zoomTo(0.5);
               }, 50);
             }}
 

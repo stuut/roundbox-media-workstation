@@ -341,7 +341,7 @@ const copyFileUrl = (url) => {
           <div className='overlay' onClick={() => setShowFiles(false)}>
           </div>
         }
-          <div className='center-absolute' style={{width:'100%', maxWidth:'1100px', zIndex:'1000'}}>
+          <div className='center-absolute' style={{width:'100%', maxWidth:'1200px', height:'800px', zIndex:'1000'}}>
             <div className="card" onClick={(e) => e.stopPropagation()}>
               <div style={{display:'flex', padding:'15px'}}>
                 <div style={{flex:1, flexDirection:'column', display:'flex'}}>

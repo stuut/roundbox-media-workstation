@@ -1176,8 +1176,8 @@ const FeedsPanel = ({
                 id:item?.fields[selectedFeed.image]?.sys?.id,
                 file_url:'https:' + item?.fields[selectedFeed.image]?.fields?.file?.url,
                 file_description: item?.fields[selectedFeed.image]?.fields?.description,
-                file_name: nameWithoutExtension,
-                file_type: await getImageType('https:' + item?.fields[selectedFeed.image]?.fields?.file?.url),
+                file_name: item.fields[selectedFeed.image].fields.file?.fileName,
+                file_type: item.fields[selectedFeed.image].fields.file?.contentType,
                 source: 'external'
               }
             ],
@@ -1269,8 +1269,8 @@ const FeedsPanel = ({
                 id:!isCustomApi? item._embedded && item._embedded['wp:featuredmedia'][0].id : uuidv4(),
                 file_url:!isCustomApi? (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null : item[`${selectedFeed.query_image_field}`]??null,
                 file_description: (item._embedded && item._embedded['wp:featuredmedia'])? decodeEntities(item._embedded['wp:featuredmedia'][0].caption.rendered) : null,
-                file_name: nameWithoutExtension,
-                file_type: !isCustomApi? await getImageType(item._embedded['wp:featuredmedia'][0].source_url) : await getImageType(item[`${selectedFeed.query_image_field}`]),
+                file_name: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].title.rendered : null,
+                file_type: !isCustomApi? item?._embedded['wp:featuredmedia'][0]?.mime_type : await getImageType(item[`${selectedFeed.query_image_field}`]),
                 source: 'external'
               }
             ],
@@ -1486,7 +1486,7 @@ const checkInstagramImages = async (images) => {
   );
 
   const hasInstagramErrors = checkedImages.some(
-    image => image.instagram_image_error
+    image => image?.instagram_image_error
   );
 
   if (hasMediaChanges) {
@@ -1545,7 +1545,7 @@ const checkInstagramImages = async (images) => {
       })
 
       const hasPostTypeErrors = checkedImages.some(
-        image => image.post_type_error
+        image => image?.post_type_error
       );
 
 

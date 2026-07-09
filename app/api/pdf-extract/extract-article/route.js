@@ -6,6 +6,9 @@ import { v4 as uuidv4 } from 'uuid'
 // Wait for pdfjs NodePackages to initialize, then inject canvas
 const { getDocument } = pdfjsLib;
 import sharp from 'sharp';
+
+
+import { createCanvas } from 'canvas';
 //import fs from 'fs/promises';
 //import path from 'path';
 
@@ -75,6 +78,55 @@ async function extractTextFromItems(items, viewport, rect, page) {
   );
 }
 
+async function getImageBoxesFromPdf(page, scale, rect) {
+  const viewport = page.getViewport({ scale });
+  const ops = await page.getOperatorList();
+  const OPS = pdfjsLib.OPS;
+  const boxes = [];
+  let currentTransform = [1, 0, 0, 1, 0, 0];
+
+  for (let i = 0; i < ops.fnArray.length; i++) {
+    const fn = ops.fnArray[i];
+    const args = ops.argsArray[i];
+
+    if (fn === OPS.transform) {
+      currentTransform = args;
+    }
+
+    if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject) {
+      const [a, b, c, d, e, f] = currentTransform;
+
+      // PDF-space width/height/origin (unit square scaled by the CTM)
+      const pdfWidth = Math.hypot(a, b);
+      const pdfHeight = Math.hypot(c, d);
+      const pdfX = e;
+      const pdfTopY = f + d; // top edge in PDF space (y-up)
+
+      // Convert PDF-space point to viewport/canvas space (y-down, scaled)
+      // viewport.convertToViewportPoint handles scale + y-flip + any page rotation
+      const [vx, vy] = viewport.convertToViewportPoint(pdfX, pdfTopY);
+      const [vx2, vy2] = viewport.convertToViewportPoint(pdfX + pdfWidth, pdfTopY - pdfHeight);
+
+      const x = Math.min(vx, vx2)
+
+      const y = Math.min(vy, vy2)
+
+      if (x >= rect.startX*scale && x <= rect.endX*scale &&
+          y >= rect.startY*scale && y <= rect.endY*scale) {
+
+              boxes.push({
+                imgName: args[0],
+                x: x,
+                y: y,
+                width: Math.abs(vx2 - vx),
+                height: Math.abs(vy2 - vy),
+              });
+          }
+    }
+  }
+  return boxes;
+}
+
 function safeGet(obj, name) {
   try { return obj.get(name); } catch { return null; }
 }
@@ -95,6 +147,7 @@ async function extractImagesFromPdf(page, rect){
     const fn = ops.fnArray[i];
     const args = ops.argsArray[i];
 
+
     if (fn === OPS.transform) {
       currentTransform = args;
     }
@@ -105,6 +158,8 @@ async function extractImagesFromPdf(page, rect){
 
       if (x >= rect.startX && x <= rect.endX &&
           y >= rect.startY && y <= rect.endY) {
+
+            console.log('currentTransform', currentTransform)
 
         const imgName = args[0];
         const img = safeGet(objs, imgName) || safeGet(commonObjs, imgName);
@@ -139,6 +194,55 @@ async function extractImagesFromPdf(page, rect){
     }
   }
   return images
+}
+
+async function extractImageCanvas(box, page, scale, removeWhiteSpace=true){
+
+
+  const inset = 0
+
+  const viewport = page.getViewport({ scale });
+
+  const canvas = createCanvas(viewport.width, viewport.height);
+  const ctx = canvas.getContext('2d');
+
+  await page.render({
+    canvasContext: ctx,
+    viewport,
+  }).promise;
+
+
+  const croppedCanvas = createCanvas(box.width-(inset*2), box.height-(inset*2))
+  const croppedCtx = croppedCanvas.getContext('2d');
+
+    croppedCtx.drawImage(
+      canvas,
+      box.x+inset, box.y+inset, box.width-(inset*2), box.height-(inset*2),
+      0, 0, box.width-(inset*2), box.height-(inset*2)
+    );
+
+    const imageBuffer = croppedCanvas.toBuffer('image/png');
+
+
+    const trimmedFile =  await sharp(imageBuffer)
+    .trim({ threshold: 50, background: '#ffffff' })
+    .toBuffer();
+
+
+    const sharpenFile = await sharp(trimmedFile)
+      .sharpen() // Applies a fast, standard sharpen filter
+      .toBuffer();
+
+    return {
+      id: uuidv4(),
+      file_name: uuidv4()+'.png',
+      file_type: 'image/png',
+      width:box.width-(inset*2),
+      height:box.height-(inset*2),
+      file_url:`data:image/png;base64,${sharpenFile.toString('base64')}`
+    };
+
+
 }
 
 
@@ -191,7 +295,19 @@ export async function POST(req) {
     // IMAGE EXTRACTION
     // -------------------------
 
-    const images = await extractImagesFromPdf(page, rect)
+    //const images = await extractImagesFromPdf(page, rect)
+
+
+
+    const imageboxes = await getImageBoxesFromPdf(page, 3, rect)
+
+
+    let extractedImagesArray = []
+
+    for (const box of imageboxes) {
+      const extractedImage = await extractImageCanvas(box, page, 3, false)
+      extractedImagesArray.push(extractedImage)
+    }
 
 
     // -------------------------
@@ -202,7 +318,8 @@ export async function POST(req) {
       text_json: {
         blocks: textBlocks,
       },
-      images: images,
+      images: extractedImagesArray,
+      //extractedImages:extractedImagesArray
     },{status: 200});
   } catch (err) {
     console.error(err);
