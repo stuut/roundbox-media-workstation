@@ -6,13 +6,16 @@ import { ImageResultDisplay } from "@/components/image-result-display"
 import { showSuccess } from '@/lib/toast';
 import { showError } from '@/lib/toast';
 import { showInfo } from '@/lib/toast';
+import { useUserContext } from "@/context/user-context"
+
 export default function ImageGeneration() {
   const [image, setImage] = useState(null)
   const [generatedImage, setGeneratedImage] = useState(null)
   const [description, setDescription] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [history, setHistory] = useState([])
+  const [history, setHistory] = useState(null)
+  const { user } = useUserContext();
 
   const handleImageSelect = imageData => {
     console.log('imageData', imageData)
@@ -23,17 +26,14 @@ export default function ImageGeneration() {
     try {
       setLoading(true)
 
-      // If we have a generated image, use that for editing, otherwise use the uploaded image
-      const imageToEdit = generatedImage || image
-
       // Prepare the request data as JSON
       const requestData = {
         prompt,
-        image: imageToEdit,
-        history: history.length > 0 ? history : undefined
+        image: image?image:null,
+        previous_interaction_id:history?history:null
       }
 
-      const response = await fetch("/api/gemini", {
+      const response = await fetch("/api/gemini/nano-banana/text-and-image-to-image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -52,27 +52,8 @@ export default function ImageGeneration() {
         // Update the generated image and description
         setGeneratedImage(data.image)
         setDescription(data.description || null)
+        setHistory(data.interactionId)
 
-        // Update history locally - add user message
-        const userMessage = {
-          role: "user",
-          parts: [
-            { text: prompt },
-            ...(imageToEdit ? [{ image: imageToEdit }] : [])
-          ]
-        }
-
-        // Add AI response
-        const aiResponse = {
-          role: "model",
-          parts: [
-            ...(data.description ? [{ text: data.description }] : []),
-            ...(data.image ? [{ image: data.image }] : [])
-          ]
-        }
-
-        // Update history with both messages
-        setHistory(prevHistory => [...prevHistory, userMessage, aiResponse])
 
     } catch (error) {
       showError(error instanceof Error ? error.message : "An error occurred")
@@ -87,7 +68,6 @@ export default function ImageGeneration() {
     setGeneratedImage(null)
     setDescription(null)
     setLoading(false)
-    setHistory([])
   }
 
   // If we have a generated image, we want to edit it next time
@@ -103,10 +83,14 @@ export default function ImageGeneration() {
 
           {!displayImage && !loading ? (
             <>
+            <div className='properties-container' style={{marginBottom:'15px'}}>
+              <p className='label'><strong>Reference Image</strong></p>
               <ImageUpload
                 onImageSelect={handleImageSelect}
                 currentImage={currentImage}
+                user={user}
               />
+              </div>
               <ImagePromptInput
                 onSubmit={handlePromptSubmit}
                 isEditing={isEditing}
@@ -128,7 +112,6 @@ export default function ImageGeneration() {
                 imageUrl={displayImage || ""}
                 description={description}
                 onReset={handleReset}
-                conversationHistory={history}
               />
               <ImagePromptInput
                 onSubmit={handlePromptSubmit}

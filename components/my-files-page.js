@@ -345,11 +345,15 @@ const copyFileUrl = (url) => {
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Veo</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('X Z Image Turbo')} className={`${'btn'} ${filesDisplay ==='X Z Image Turbo'?'primary':'secondary'}`}>X Z Image Turbo</button>
                 </div>
-                <div style={{flex:3, padding:'15px', overflowY: 'hidden', height: '800px'}}>
+                <div style={{flex:3, padding:'15px', height: '800px'}}>
                   <div style={uploading? {display:'block'}:{display:'none'}} className={'loader_screen'}>
                       <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                   </div>
-                  <div>
+
+
+                  {(filesDisplay ==='My Files') &&
+                    <>
+                      <div>
                     <div style={{
                       display:'flex',
                       flexDirection:'row',
@@ -374,8 +378,6 @@ const copyFileUrl = (url) => {
                           )
                       })}
                     </div>
-
-
                     <div className="properties-container" style={{marginTop:'15px'}}>
                       <div style={{display:'flex', alignItems:'center'}}>
                           <input
@@ -492,8 +494,7 @@ const copyFileUrl = (url) => {
                       />
                       <button className='btn primary' onClick={getSearchData} disabled={imageSearch.length===0}>Search</button>
                     </div>
-                      </div>
-                  {(filesDisplay ==='My Files') &&
+                  </div>
                     <div style={{
                       overflowY: 'scroll',
                       height: 'calc(100% - 200px)'
@@ -524,21 +525,30 @@ const copyFileUrl = (url) => {
                         })}
                       </div>
                     </div>
-
+                  </>
                   }
 
                   {filesDisplay ==='Gemini'&&
-                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                    <div style={{
+                      overflowY: 'scroll',
+                      height: 'calc(100% - 200px)'
+                    }}>
                     <ImageGeneration/>
                   </div>
                   }
                   {filesDisplay ==='Video'&&
-                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                    <div style={{
+                      overflowY: 'scroll',
+                      height: 'calc(100% - 200px)'
+                    }}>
                     <VideoGeneration/>
                   </div>
                   }
                   {filesDisplay ==='X Z Image Turbo'&&
-                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                    <div style={{
+                      overflowY: 'scroll',
+                      height: 'calc(100% - 200px)'
+                    }}>
                       <ImageTurbo/>
                     </div>
                   }
@@ -561,7 +571,9 @@ export const ImageTurbo = ({
     const [loader, setLoader] = useState('')
 
 
-    const createImage = async () => {
+    const handleSubmit = async (e) => {
+      e.preventDefault(); // Blocks the full-page reload
+
 
       try{
         setLoader(true)
@@ -599,7 +611,7 @@ export const ImageTurbo = ({
 
 
   return(
-    <div style={{position:'relative', height:'100%'}}>
+    <div style={{position:'relative'}}>
       <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
           <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
       </div>
@@ -609,24 +621,28 @@ export const ImageTurbo = ({
           <button className="btn btn-sm primary"> Save </button>
         </>
       }
-      <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-        <input style={{
-          width:"100%",
-          margin:'15px 0px',
-        }}
-          id='guest-author'
-          type="text"
-          className="form-input"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Prompt..."
-        />
-        <button style={{
-          maxHeight: '35px',
-          verticalAlign: 'middle',
-          paddingTop: '7px'
-        }} onClick={createImage} className='btn btn-small primary'>Create</button>
-      </div>
+      <form onSubmit={handleSubmit}>
+        <p><strong>Describe the image you want to generate</strong></p>
+          <textarea style={{
+            width:"100%",
+            margin:'15px 0px',
+          }}
+            id='guest-author'
+            type="text"
+            className="form-input"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Prompt..."
+          />
+          <button
+            type="submit"
+              style={{
+              maxHeight: '35px',
+              verticalAlign: 'middle',
+              paddingTop: '7px'
+            }}
+          className='btn btn-small primary'>Create</button>
+      </form>
     </div>
   )
 }

@@ -171,12 +171,14 @@ const handleReferenceSubmit = async () => {
           </div>
         ) : (
           <>
-            <p className='label'><strong>Reference Image</strong></p>
-            <ImageUpload
-              onImageSelect={handleImageSelect}
-              currentImage={image}
-              user={user}
-            />
+            <div className='properties-container' style={{marginBottom:'15px'}}>
+              <p className='label'><strong>Reference Image</strong></p>
+              <ImageUpload
+                onImageSelect={handleImageSelect}
+                currentImage={image}
+                user={user}
+              />
+            </div>
             <div className="properties-container" style={{display:'flex', gap:'5px'}}>
               <div style={{flex:.7}}>
                 <p className='label'><strong>Number Of Videos</strong></p>
