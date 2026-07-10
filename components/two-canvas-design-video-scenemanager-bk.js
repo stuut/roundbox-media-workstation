@@ -2924,6 +2924,9 @@ const addImage = async (image) => {
     cy:lowerRef.current.height/2,
     imageSrc : image.file_url,
     type:'image',
+    mediaCaption:image.file_description??'',
+    mediaFileType:image.file_type,
+    mediaFileName:image.file_name
   })
 
   await newObj.drawImageInit(ctx)

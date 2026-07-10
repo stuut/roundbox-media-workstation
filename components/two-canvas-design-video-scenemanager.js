@@ -3314,7 +3314,10 @@ const applyTemplate = async(type, template) => {
     cy:lowerRef.current.height/2,
     imageSrc : activeScenePostInfo.image_url,
     type:'image',
-    mediaCaption:activeScenePostInfo.file_description??''
+    mediaDataBaseId:null,
+    mediaFileType:activeScenePostInfo.file_type??null,
+    mediaFileName:activeScenePostInfo.file_name??null,
+    mediaCaption:activeScenePostInfo.file_description??null
   })
 
   const newTextTitleObj =  new Element({
@@ -3572,9 +3575,6 @@ const loadPost = async (postData) => {
   const activeScene = sceneManagerRef.current.getActiveScene()
 
 
-  console.log('postData', postData)
-
-
   const imageId = generateUniqueId()
   const newImageObj =  new Element({
     id: imageId,
@@ -3582,6 +3582,7 @@ const loadPost = async (postData) => {
     cy:lowerRef.current.height/2,
     imageSrc : postData.image_url,
     type:'image',
+    mediaDataBaseId:null,
     mediaCaption:postData.file_description??'',
     mediaFileType:postData.file_type,
     mediaFileName:postData.file_name
@@ -3701,6 +3702,8 @@ const addImages = async (images) => {
 
 const addImage = async (image) => {
 
+  console.log('image', image)
+
   setCanvasLoader(true)
 
   const lower = lowerRef.current;
@@ -3713,7 +3716,7 @@ const addImage = async (image) => {
     cy:lowerRef.current.height/2,
     imageSrc : image.file_url,
     type:'image',
-    mediaCaption:image.file_description??'',
+    mediaCaption:image.file_description??null,
     mediaDataBaseId:image.id??null,
     mediaFileName:image.file_name??null,
     mediaFileType:image.file_type??null,
@@ -13075,8 +13078,6 @@ const MediaMenu = ({
   deleteCallback
 }) => {
   const [open, setOpen] = useState(false)
-
-console.log('file', file)
 
   const editImage = () => {
 

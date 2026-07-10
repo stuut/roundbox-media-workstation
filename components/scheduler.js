@@ -1154,9 +1154,7 @@ const FeedsPanel = ({
 
         for (const item of filterPosts) {
           const urlString = 'https:' + item?.fields[selectedFeed.image]?.fields?.file?.url;
-          const url = new URL(urlString);
-          const fileName = url.pathname.split('/').pop();
-          const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+
 
           posts.push({
             id: item.sys.id,
@@ -1231,12 +1229,13 @@ const FeedsPanel = ({
 
           const isCustomApi = selectedFeed.query_field
 
-
+          /*
           const urlString = !isCustomApi? (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null : item[`${selectedFeed.query_image_field}`]
 
           const url = new URL(urlString);
           const fileName = url.pathname.split('/').pop();
           const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+          */
 
           let scheduleDate
           let formattedDate
@@ -1266,11 +1265,11 @@ const FeedsPanel = ({
             type:selectedFeed.postType,
             media: [
               {
-                id:!isCustomApi? item._embedded && item._embedded['wp:featuredmedia'][0].id : uuidv4(),
+                id:!isCustomApi && item?._embedded['wp:featuredmedia']? item?._embedded['wp:featuredmedia'][0]?.id : uuidv4(),
                 file_url:!isCustomApi? (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].source_url : null : item[`${selectedFeed.query_image_field}`]??null,
                 file_description: (item._embedded && item._embedded['wp:featuredmedia'])? decodeEntities(item._embedded['wp:featuredmedia'][0].caption.rendered) : null,
                 file_name: (item._embedded && item._embedded['wp:featuredmedia'])? item._embedded['wp:featuredmedia'][0].title.rendered : null,
-                file_type: !isCustomApi? item?._embedded['wp:featuredmedia'][0]?.mime_type : await getImageType(item[`${selectedFeed.query_image_field}`]),
+                file_type: !isCustomApi && item?._embedded['wp:featuredmedia']? item?._embedded['wp:featuredmedia'][0]?.mime_type : await getImageType(item[`${selectedFeed.query_image_field}`]),
                 source: 'external'
               }
             ],
