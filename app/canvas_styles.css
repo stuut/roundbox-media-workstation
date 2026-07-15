@@ -618,6 +618,10 @@ input::file-selector-button {
   height: calc(100% - 230px);
 }
 
+.editor-background.print-editor{
+  height: 100%
+}
+
 
 
 .timeline{

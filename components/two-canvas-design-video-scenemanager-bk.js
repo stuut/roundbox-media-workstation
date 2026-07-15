@@ -5532,6 +5532,13 @@ function hitPolygon(px, py, polygon) {
   const handleMouseUp = async() => {
     //setDragging(null)
 
+    console.log('handleMouseUp')
+
+    phase.current = 'idle';
+
+    console.log('phase.current', phase.current)
+    newHandleIndex.current = -1;
+
     var obj
 
     if (selectedIndexRef.current !== null){

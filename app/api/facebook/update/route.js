@@ -42,9 +42,6 @@ export async function POST(req) {
 
     postData.access_token = accessToken
 
-    console.log('postData', postData)
-
-    console.log('endPoint', endPoint)
 
 
     const facebookResponse = await fetch(`https://graph.facebook.com/v24.0/${endPoint}`, {

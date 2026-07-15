@@ -109,6 +109,7 @@ canvas.addEventListener('mousedown', e => {
   pts.push({ x: pos.x, y: pos.y, cpOut: null, cpIn: null });
   newHandleIndex = pts.length - 1;
   phase = 'drag-new-handle';
+  console.log('phase', phase)
   hint.textContent = 'Drag to pull out handles · Release to place';
   render();
 });
@@ -197,8 +198,15 @@ function render() {
 
   if (pts.length === 0) return;
 
+   console.log('phase', phase)
+
   // ghost segment to mouse (preview next segment)
   if (tool === 'pen' && !closed && pts.length >= 1 && phase !== 'drag-new-handle') {
+
+    console.log('ghost segment', pts)
+
+
+
     const last = pts[pts.length - 1];
     ctx.save();
     ctx.strokeStyle = '#B0C8E8';

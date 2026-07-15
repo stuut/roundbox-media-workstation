@@ -13,10 +13,15 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_BILLING_API_KEY || ""
 })
 
+function getMimeType(dataUrl) {
+  // dataUrl format: "data:image/png;base64,iVBOR..."
+  return dataUrl.split(';')[0].split(':')[1];
+}
+
 
 export async function POST(request) {
 
-  const {image, aspectRatio, resolution, speed} = await request.json();
+  const {image, aspectRatio, resolution, speed, mimeType} = await request.json();
 
     try {
 
@@ -29,7 +34,7 @@ export async function POST(request) {
          //"landscape": "16:9"
 
 
-        const model = speed === 'fast'?'nano-banana-2':'gemini-3-pro-image-preview'
+        const model = speed === 'fast'?'gemini-3.1-flash-image':'gemini-3-pro-image'
 
         // ------------------------------
         // SYSTEM LAYER (your art director prompt)
@@ -74,46 +79,57 @@ export async function POST(request) {
         // ------------------------------
         // API CALL
         // ------------------------------
-        const result = await ai.models.generateContent({
-          model: "gemini-3-pro-image-preview",
 
-          contents: [
+
+
+    const interaction =  await ai.interactions.create({
+          model: model,
+
+          system_instruction: systemInstruction + "\n\n" + runtimeInstruction,
+
+          input: [
             {
-              role: "user",
-              parts: [
-                { text: userPrompt },
-                {
-                  inlineData: {
-                    data: Buffer.from(imageBuffer).toString("base64"),
-                    mimeType: "image/png",
-                  },
-                },
-              ],
+              type: "text",
+              text: userPrompt,
+            },
+            {
+              type: "image",
+              mime_type: mimeType,
+              data: Buffer.from(imageBuffer).toString("base64"),
             },
           ],
 
-          config: {
-            // These correspond to your ComfyUI primitives
-            systemInstruction: systemInstruction + "\n\n" + runtimeInstruction,
-
-            generationConfig: {
-              aspectRatio: aspectRatio,
-              outputResolution: resolution,
-            },
+          response_format: {
+            type: "image",
+            mime_type: 'image/jpeg',
+            aspect_ratio: aspectRatio,
+            image_size: resolution,
           },
         });
+
+
+
+
 
         // ------------------------------
         // OUTPUT
         // ------------------------------
-        const outputImageBase64 = result.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        const generatedImage = interaction.output_image;
 
-        console.log("Generated image received");
+       if (generatedImage) {
+            //const buffer = Buffer.from(generatedImage.data, "base64");
+            return Response.json({
+                image: `data:${mimeType};base64,${generatedImage.data}`,
+                interactionId: interaction.id
+              }, { status: 200 })
+          }else{
 
-        return Response.json({
-            image: outputImageBase64 ? `data:${mimeType};base64,${outputImageBase64}` : null,
-            description: description || null
-          }, { status: 200 })
+            return Response.json({
+               image : null,
+                message: 'no image'
+              }, { status: 500 })
+
+          }
 
     }catch (err){
 

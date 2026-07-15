@@ -228,7 +228,7 @@ export default function PdfTextExtractor({user, feeds}) {
   const [usedDates, setUsedDates] = useState([]);
   const [dummyState, setDummyState] = useState(0);
   const [mediaLoader, setMediaLoader]  = useState(false);
-
+  const [imageLoader, setImageLoader] = useState(false);
 
   function isInArray(value, array) {
     return array.indexOf(value) > -1;
@@ -2108,7 +2108,7 @@ const uploadImages = async () => {
   if (selectedFeedRef.current.CMSType === 'contentful'){
 
     try{
-
+      setImageLoader(true)
       const response = await fetch('/api/contentful/publish-asset', {
             method: 'POST',
             headers: {
@@ -2131,13 +2131,15 @@ const uploadImages = async () => {
 
     }catch(err){
       showError('Error uploading images')
+    }finally{
+      setImageLoader(false)
     }
 
 
   }else if (selectedFeedRef.current.CMSType === 'wordpress'){
 
     try{
-
+      setImageLoader(true)
       const response = await fetch('/api/wordpress/publish-asset', {
             method: 'POST',
             headers: {
@@ -2160,6 +2162,8 @@ const uploadImages = async () => {
 
     }catch(err){
       showError('Error uploading images')
+    }finally{
+      setImageLoader(false)
     }
 
   }
@@ -2259,6 +2263,9 @@ const changeScheduleDate = (date) => {
               </div>
               <div style={{flex:.5, padding:'10px', minWidth:'250px', maxWidth:'250px', height:'calc(100% - 71px)', overflowY: 'scroll', position:'relative'}}>
                 <div style={uploadLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                </div>
+                <div style={imageLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                  <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                 </div>
                 <Dropdown placeholder="Add Images">
                   <button className="btn btn-sm clear" onClick={() => {

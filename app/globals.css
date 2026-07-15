@@ -677,6 +677,21 @@ position: relative;
   align-items:center;
 }
 
+
+.dropdown-button{
+  padding:10px;
+  border-radius:var(--btn-border-radius);
+  margin: 0px;
+  font-size:.9em;
+}
+
+
+
+.dropdown-button:hover {
+    background-color: var(--md-sys-color-secondary-container);
+    cursor: pointer;
+}
+
 .tool-option{
   padding:10px;
   border-radius:var(--btn-border-radius);

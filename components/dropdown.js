@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+  import {ChevronDown} from "lucide-react";
 
 export default function Dropdown({placeholder = "Select...", children }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,9 +23,11 @@ export default function Dropdown({placeholder = "Select...", children }) {
       <button
         className="btn primary"
         onClick={() => setIsOpen(!isOpen)}
-        style={{ width: "100%", padding: "10px", textAlign: "left", cursor: "pointer" }}
+        style={{ display:'flex', alignItems: 'center', width: "100%", padding: "10px", textAlign: "left", cursor: "pointer" }}
       >
         {placeholder}
+         
+        <ChevronDown style={{ marginLeft: 'auto' }}/>
       </button>
 
       {isOpen && (

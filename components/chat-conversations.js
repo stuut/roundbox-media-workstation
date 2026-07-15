@@ -63,6 +63,7 @@ export const ChatConversations = forwardRef(({alert}, ref) =>{
 
     try {
       const conversations = await getAllConversationsforaUser(user.id)
+      console.log('conversations', conversations)
       setMyConversations(conversations)
 
     } catch (error) {

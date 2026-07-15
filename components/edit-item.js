@@ -18,32 +18,101 @@ import ColorPicker from 'react-pick-color';
 import { storeFileInfo } from "@/lib/supabase";
 import { Cropper as ReactCropper } from "react-cropper";
 import "cropperjs/dist/cropper.css";
+import { dataURLToFile } from '@/lib/utils'
+import { handleDownload } from '@/lib/utils'
+
+
 
 export default function EditFile() {
   const { user } = useUserContext();
   const { displayEditItem, setDisplayEditItem, item, setItem, activeTool, setActiveTool} = useEditItemContext();
-  const [newFile, setNewFile] = useState(null);
+  const [workingFile, setWorkingFile] = useState(item);
+  const [applyChanges, setApplyChanges] = useState(false);
+  const [loader, setLoader] = useState(false);
 
-  const applyChanges = () => {
-    setItem(newFile)
+
+
+  useEffect(() => {
+    setWorkingFile(item)
+  },[item])
+
+  const applyChangesFunction = () => {
+    setItem(workingFile)
     setDisplayEditItem(false)
-    setNewFile(null)
+    setWorkingFile(null)
   }
+
+
+
+
+
+    const saveFile = async (image_url, file_type, file_description) => {
+  
+      try{
+        setLoader(true)
+  
+        const fileName = `gemini-image-${Date.now()}.jpg`
+  
+        const file = dataURLToFile(image_url, fileName)
+  
+        const formData = new FormData()
+        formData.append("file", file)
+  
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        })
+  
+        const result = await res.json()
+  
+        if (res.ok) {
+  
+      
+          const fileinfo = await storeFileInfo({
+            user_id:user.id,
+            file_url: result.url,
+            file_type:file_type,
+            file_name:fileName,
+            file_description:file_description??null
+          })
+
+          setWorkingFile({
+             created_at: fileinfo.created_at,
+             file_type: fileinfo.file_type,
+             file_url: fileinfo.file_url,
+             file_name:fileinfo.file_name,
+             file_description:fileinfo.file_description??null,
+             id: fileinfo.id,
+             user_id: user.id
+           })
+
+            setApplyChanges(true);
+  
+        }else{
+          showError(result.error)
+        }
+  
+      }catch(error){
+        showError('File upload error: ' + error.message)
+      }finally{
+        setLoader(false)
+      }
+  
+    }
 
 return(
   <>
     {displayEditItem&&
       <div className='overlay' onClick={(e) => {
         setDisplayEditItem(false)
-        setNewFile(null)
-        setItem(null)
+        setWorkingFile(null)
       }}>
         <div className='center-absolute' style={{width:'100%', maxWidth:'1200px', height:'800px'}}>
           <div className="card" onClick={(e) => e.stopPropagation()} style={{margin:0, height:'100%'}}>
             <div style={{display:'flex', height:'100%'}}>
               <div style={{flex:1, zIndex: 1}}>
-                {newFile&&
-                  <button className='btn primary btn-outline' onClick={applyChanges}>Apply Changes</button>
+                {applyChanges&&
+                  <button className='btn primary btn-outline' onClick={applyChangesFunction}>Apply Changes</button>
                 }
                 <h4>MENU</h4>
 
@@ -52,58 +121,85 @@ return(
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "out paint"? 'active':''}`}onClick={() => setActiveTool('out paint')}> Out Paint </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "cropper"? 'active':''}`}onClick={() => setActiveTool('cropper')}> Cropper </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "upscale"? 'active':''}`}onClick={() => setActiveTool('upscale')}> Upscale </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "reframe"? 'active':''}`}onClick={() => setActiveTool('reframe')}> Recompose </p>
+
               </div>
               <div style={{flex:4, position:'relative'}}>
-                {activeTool === 'crop' &&
-                <CropComponent
-                user={user}
-                image={item}
-                newFile={newFile}
-                setNewFile={setNewFile}
-                />
+                 <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                    <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                </div>
+                {workingFile&&
+                <>
+                      {activeTool === 'crop' &&
+                      <CropComponent
+                      user={user}
+                      image={workingFile}
+                      setWorkingFile={setWorkingFile}  
+                      setApplyChanges={setApplyChanges}
+                      setLoader={setLoader}
+                      />
+                      }
+                      {activeTool === 'caption' &&
+
+                      <CaptionComponent
+                      user={user}
+                      image={workingFile}
+                      setWorkingFile={setWorkingFile}  
+                      setApplyChanges={setApplyChanges}
+                      setLoader={setLoader}
+                      />
+
+                      }
+                      {activeTool === 'out paint' &&
+
+                        <OutPaint
+                        user={user}
+                        image={workingFile}
+                        setWorkingFile={setWorkingFile}
+                        setApplyChanges={setApplyChanges}
+                        setLoader={setLoader}
+                      />
+
+                      }
+
+                      {activeTool === 'cropper' &&
+
+                        <NewCropper
+                          user={user}
+                          image={workingFile}
+                          setWorkingFile={setWorkingFile}  
+                          setApplyChanges={setApplyChanges}
+                          setLoader={setLoader}
+                      />
+
+                      }
+                      {activeTool === 'upscale' &&
+
+                        <Upscale
+                          user={user}
+                          image={workingFile}
+                          setWorkingFile={setWorkingFile}  
+                          setApplyChanges={setApplyChanges}
+                          setLoader={setLoader}
+                      />
+                      }
+                      {activeTool === 'reframe' &&
+
+                        <Recompose
+                          user={user}
+                          image={workingFile}
+                          setWorkingFile={setWorkingFile}  
+                          setApplyChanges={setApplyChanges}
+                          setLoader={setLoader}
+                          saveFile={saveFile}
+                      />
+                      }
+                
+                </>
+                
+        
                 }
-                {activeTool === 'caption' &&
 
-                <CaptionComponent
-                user={user}
-                image={item}
-                newFile={newFile}
-                setNewFile={setNewFile}
-                />
-
-                }
-                {activeTool === 'out paint' &&
-
-                  <OutPaint
-                  user={user}
-                  image={item}
-                  onCropChange={(data) => console.log(data)}
-                  newFile={newFile}
-                  setNewFile={setNewFile}
-                 />
-
-                }
-
-                {activeTool === 'cropper' &&
-
-                  <NewCropper
-                    user={user}
-                    image={item}
-                    onCropChange={(data) => console.log(data)}
-                    newFile={newFile}
-                    setNewFile={setNewFile}
-                 />
-
-                }
-                {activeTool === 'upscale' &&
-
-                  <Upscale
-                    user={user}
-                    image={item}
-                    newFile={newFile}
-                    setNewFile={setNewFile}
-                 />
-                }
               </div>
             </div>
           </div>
@@ -114,17 +210,126 @@ return(
 )
 }
 
+const Recompose = ({
+  user,
+  image,
+  setWorkingFile,
+  setApplyChanges,
+  setLoader,
+  saveFile
+
+}) => {
+
+  const [fileUrl, setFileUrl] = useState(image.file_url);
+  const [generatedImage, setGeneratedImage] = useState(null)
+  const [history, setHistory] = useState(null)
+  const [prompt, setPrompt] = useState('')
+  const [aspectRatio, setAspectRatio] = useState('9:16')
+
+
+  const reframe = async () => {
+    try {
+      setLoader(true)
+
+      const response = await fetch(`/api/gemini/recompose`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt,
+          image: image.file_url,
+          previous_interaction_id:history?history:null,
+          aspectRatio: aspectRatio,
+          resolution: "1K",
+          speed: 'fast',
+          mimeType: image.file_type === 'image/jpeg' ? 'image/jpeg' : 'image/png'
+        })
+      })
+
+      if (!response.ok) {
+        showError(`Reframe error: ${response.status}`)
+        return
+      }
+
+
+    const data = await response.json()  
+
+        setGeneratedImage(data.image)
+        setHistory(data.interactionId)
+
+
+
+
+    }catch(error){
+      showError('Reframe error: ' + error.message)
+    }finally{
+      setLoader(false)
+    }
+  }
+
+
+
+
+
+  return(
+    <div style={{
+      overflowY: 'scroll',
+      height: '100%'
+    }}>
+      <div style={{padding:'15px'}}>
+      <img src={fileUrl} style={{maxWidth:'600px'}} />
+      </div>
+      <div className='properties-container' style={{display:'flex', alignItems:'center', gap:'10px', marginTop:'10px'}}>
+        {/*}
+        <label>Prompt:</label>
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+        />*/}
+        <Square onClick={()=> setAspectRatio('1:1')} size={35} className={`cropped-image ${aspectRatio==='1:1'?'active':''}`} alt="crop ratio 1/1" />
+        <RectangleVertical onClick={()=> setAspectRatio('9:16')} size={35}  className={`cropped-image ${aspectRatio==='9:16'?'active':''}`} alt="crop ratio 9/16" />
+        <RectangleHorizontal onClick={()=> setAspectRatio('16:9')} size={35}  className={`cropped-image ${aspectRatio==='16:9'?'active':''}`}  alt="crop ratio 16/9" />
+
+      <button className='btn primary' onClick={reframe}>
+        Recompose
+      </button>
+       </div>
+      {generatedImage&&
+        <div style={{paddingTop:'10px'}}>
+          <img src={generatedImage} style={{maxWidth:'600px'}} />
+          <div style={{display:'flex', marginTop:'10px', gap:'5px'}}>
+            <button className='btn primary' onClick={() => saveFile(generatedImage, 'image/jpeg', image.file_description??null)}>
+              Save
+            </button>
+           <button style={{marginLeft:'10px'}} className="primary btn" onClick={() => handleDownload(generatedImage)}>
+            Download
+          </button>
+          </div>
+        </div>
+    }
+    </div>
+  )
+}
+
 const Upscale = ({
   user,
   image,
-  setNewFile,
-  newFile
+  setWorkingFile,
+  setApplyChanges,
+  setLoader
+
 })=>{
 
   const [fileUrl, setFileUrl] = useState(image.file_url)
 
 const upscale = async () => {
-  const response = await fetch(`/api/stability/upscale`, {
+
+
+  try {
+    setLoader(true)
+      const response = await fetch(`/api/stability/upscale`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -155,7 +360,7 @@ const upscale = async () => {
 
       setFileUrl(result.url)
 
-      setNewFile({
+      setWorkingFile({
         created_at: fileinfo.created_at,
         file_type: image.file_type,
         file_url: result.url,
@@ -164,16 +369,21 @@ const upscale = async () => {
         id: fileinfo.id,
         user_id: user.id
       })
+      setApplyChanges(true)
 
     }
-
+  }catch(error){
+    showError('Upscale error: ' + error.message)
+  }finally{
+    setLoader(false)
+  }
 }
 
 
 
   return(
     <div>
-      <img src={fileUrl} />
+      <img src={fileUrl} style={{maxWidth:'600px'}} />
       <button className='btn primary' onClick={upscale}>Up Scale</button>
     </div>
   )
@@ -183,8 +393,9 @@ const upscale = async () => {
 const CropComponent = ({
   user,
   image,
-  setNewFile,
-  newFile
+  setWorkingFile,
+  setApplyChanges,
+  setLoader
 }) => {
 
 
@@ -201,7 +412,6 @@ const CropComponent = ({
   const [showColourPicker, setShowColourPicker] = useState(false)
   const cropperRef = useRef(null);
   const canvasRef = useRef(null);
-  const [loader, setLoader] = useState(false)
 
   const colorPickerRef = useRef(null);
 
@@ -252,24 +462,11 @@ const CropComponent = ({
 
   };
 
-   const createCroppedImage = async () => {
-
-     try {
-       const croppedImage = await getCroppedImg(
-         image.image_url, // Your image source
-         croppedAreaPixels,
-         canvasRef.current
-       );
-       setCroppedImage(croppedImage)// This is the fina
-       return croppedImage
-     } catch (e) {
-       console.log(e)
-     }
-   }
-
 
 
    const cropImage = async () => {
+
+    try{
      setLoader(true)
 
        const file = await getCroppedImg(
@@ -278,7 +475,7 @@ const CropComponent = ({
          canvasRef.current
        );
 
-       const formData = new FormData()
+         const formData = new FormData()
          formData.append('file', file)
 
          if (image.file_type === 'image/jpeg'){
@@ -287,7 +484,7 @@ const CropComponent = ({
            formData.append('tag', '.png');
          }
 
-       try{
+       
          const res = await fetch('/api/upload', {
            method: 'POST',
            body: formData,
@@ -302,8 +499,6 @@ const CropComponent = ({
              file_url:result.url
            }
 
-           console.log('fileData', fileData)
-
            const fileinfo = await storeFileInfo({
              user_id:user.id,
              file_url: fileData.file_url,
@@ -312,7 +507,7 @@ const CropComponent = ({
              file_description:fileData.file_description??null
            })
 
-           setNewFile({
+           setWorkingFile({
              created_at: fileinfo.created_at,
              file_type: fileData.file_type,
              file_url: fileData.file_url,
@@ -322,16 +517,20 @@ const CropComponent = ({
              user_id: user.id
            })
 
+           setApplyChanges(true);
            //setFileUrl(fileData.file_url)
 
          } else {
            showError(result.error)
          }
        }catch(error){
-         console.log('file upload error', error)
+        
+         showError('Crop Image error: ' + error.message)
+       }finally{
+        setLoader(false)
        }
 
-      setLoader(false)
+      
    }
 
 
@@ -382,9 +581,6 @@ const CropComponent = ({
 
   return(
     <div>
-      <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-          <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
-      </div>
       <div style={{
         height: '600px',
         width: '100%',
@@ -507,20 +703,30 @@ const EyeDropperButton = ({setColor}) => {
 const CaptionComponent = ({
   user,
   image,
-  newFile,
-  setNewFile
+  setWorkingFile,
+  setApplyChanges,
+  setLoader
 }) => {
   const [fileDescription, setFileDescription] = useState(image?.file_description??'')
 
   const save = async() => {
-
+    try{
+      setLoader(true)
   await updateFileDescriptionValue(fileDescription, image.id)
 
     const file = {...image, file_description: fileDescription}
 
 
-    setNewFile(file)
+    setWorkingFile(file)
+    setApplyChanges(true)
     showSuccess('Image Caption Updated')
+
+    }catch(error){
+      showError('Update Caption error: ' + error.message)
+    }finally{
+      setLoader(false)
+    }
+
   }
 
 
@@ -546,10 +752,9 @@ const CaptionComponent = ({
 const OutPaint = ({
   user,
   image,
-  setItem,
-  setDisplayEditItem,
-  newFile,
-  setNewFile
+  setWorkingFile,
+  setApplyChanges,
+  setLoader
 }) => {
 
   const [fileUrl, setFileUrl] = useState(image.file_url);
@@ -1250,8 +1455,9 @@ const OutPaint = ({
 
 
   const submit = async () => {
-    const coOrdinates = getCoOrdinates()
 
+    try{
+          const coOrdinates = getCoOrdinates()
     const left = Math.abs(coOrdinates.left)
     const top = Math.abs(coOrdinates.top)
     const right = Math.abs(coOrdinates.right)
@@ -1264,7 +1470,7 @@ const OutPaint = ({
         },
         body: JSON.stringify({
           left:Math.round(left),
-          right:Math.round(top),
+          right:Math.round(right),
           up:Math.round(top),
           down:Math.round(bottom),
           imageUrl: image.file_url,
@@ -1294,7 +1500,7 @@ const OutPaint = ({
 
         setFileUrl(result.url)
 
-        setNewFile({
+        setWorkingFile({
           created_at: fileinfo.created_at,
           file_type: 'image/jpeg',
           file_url: result.url,
@@ -1304,7 +1510,15 @@ const OutPaint = ({
           user_id: user.id
         })
 
+        setApplyChanges(true)
+
       }
+
+    }catch(error){
+      showError('Out painting error: ' + error.message)
+    }finally{
+      setLoader(false)
+    }
 
   }
 
@@ -1412,6 +1626,7 @@ const OutPaint = ({
         overflow: "hidden",
       }}
     >
+
 
       {/* BACKGROUND BOX */}
       <div
@@ -2184,10 +2399,9 @@ const CustomCropper = ({
 const NewCropper = ({
   user,
   image,
-  setItem,
-  setDisplayEditItem,
-  newFile,
-  setNewFile
+  setWorkingFile,
+  setApplyChanges,
+  setLoader
 }) => {
   const [fileUrl, setFileUrl] = useState(image.file_url);
   const cropperRef = useRef(null)
@@ -2197,18 +2411,16 @@ const NewCropper = ({
   const [color, setColor] = useState('rgb(249 249 255)');
   const [showColourPicker, setShowColourPicker] = useState(false)
   const colorPickerRef = useRef(null);
-  const [loader, setLoader] = useState(false)
   const lastAngleRef = useRef(0);
   const backgroundRef = useRef(null);
   const canvasRef = useRef(null);
 
 
-  console.log('image', image)
 
 
   const cropImage = async() => {
 
-
+    try{
     setLoader(true)
 
     const cropper = cropperRef.current?.cropper
@@ -2252,7 +2464,7 @@ const NewCropper = ({
       }
 
 
-      try{
+      
         const res = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
@@ -2277,7 +2489,7 @@ const NewCropper = ({
             file_description:fileData.file_description??null
           })
 
-          setNewFile({
+          setWorkingFile({
             created_at: fileinfo.created_at,
             file_type: fileData.file_type,
             file_url: fileData.file_url,
@@ -2287,40 +2499,22 @@ const NewCropper = ({
             user_id: user.id
           })
 
+          setApplyChanges(true);
           //setFileUrl(fileData.file_url)
 
         } else {
           showError(result.error)
         }
       }catch(error){
-        console.log('file upload error', error)
+        
+        showError('Crop error: ' + error.message)
+      }finally{
+
+          setLoader(false)
       }
 
-  setLoader(false)
+ 
 
-
-    /*
-    const image = await new Promise((resolve) => {
-      targetCanvas.toBlob(resolve, 'image/jpeg', 0.95);
-    });
-    */
-
-    /*
-    const dataUrl = targetCanvas.toDataURL('image/png');
-
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = 'filename.png';
-    link.style.display = 'none';
-
-    // Append, programmatically click, and immediately remove the element
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    */
-
-    // Clear memory by revoking the object URL
-    //URL.revokeObjectURL(blobUrl);
 
 
   }
@@ -2394,9 +2588,6 @@ const NewCropper = ({
 
   return (
           <>
-            <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-                <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
-            </div>
           <div style={{
             height: '600px',
             width: '100%',

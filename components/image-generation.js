@@ -112,6 +112,7 @@ export default function ImageGeneration() {
                 imageUrl={displayImage || ""}
                 description={description}
                 onReset={handleReset}
+                fileType={'image/jpeg'}
               />
               <ImagePromptInput
                 onSubmit={handlePromptSubmit}

@@ -101,7 +101,9 @@ const setAlertFunction = (data) => {
             position:'absolute',
             transform: 'translate(-100%, -100%)',
             minWidth: '600px',
-            minHeight: '250px'
+            maxHeight: '90vh',
+            overflowY: 'scroll',
+            zIndex: 1000,
           }}>
           <ChatConversations ref={childRef} alert={setAlertFunction}/>
         </div>
