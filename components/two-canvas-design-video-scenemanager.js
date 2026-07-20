@@ -4708,7 +4708,7 @@ const pasteTextCallBack = useCallback((e) => {
 
       ctx.save();
 
-      if (object.type !== 'image'){
+      if (object.type !== 'image' && object.type !== "custom-shape"){
         ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
         ctx.rotate(animationProps.angle);    // apply rotation
         ctx.scale(animationProps.scale, animationProps.scale);
@@ -4738,6 +4738,34 @@ const pasteTextCallBack = useCallback((e) => {
         ctx.lineTo((-object.width/2) * scaleRef.current, (object.h / 2) * scaleRef.current);
         ctx.lineTo((object.width/2) * scaleRef.current, (object.h / 2) * scaleRef.current);
         // centered at (0,0)
+
+      } else if (object.type === "custom-shape"){
+
+
+          if (object.type === 'custom-shape' && !object.closed) {
+            // still drawing — points are absolute, render directly
+            ctx.save();
+            ctx.translate(offset.x + animationProps.cx * scaleRef.current, offset.y + animationProps.cy * scaleRef.current);
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
+            buildCurveArtboard(ctx, object.points, object.closed);
+            ctx.stroke();
+            //ctx.fillStyle = object.fill || "lightgray";
+            //ctx.fill();
+            ctx.restore();
+          } else {
+            // committed — points are relative to cx/cy
+            ctx.save();
+            ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
+            buildCurveArtboard(ctx, object.points, object.closed);
+            ctx.stroke();
+            ctx.fillStyle = object.fill || "lightgray";
+            ctx.fill();
+            ctx.restore();
+          }
+
 
       } else if (object.type === "text"){
 
@@ -4841,12 +4869,12 @@ const pasteTextCallBack = useCallback((e) => {
 
 
 
-      if (object.type !== "pen" && object.type !== "image"){
+      if (object.type !== "pen" && object.type !== "image" && object.type !== "custom-shape"){
         ctx.fillStyle = object.fill || "lightgray";
         ctx.fill();
       }
       // Then stroke (optional)
-      if (object.strokeColour && object.strokeWeight && object.type !== 'image'){
+      if (object.strokeColour && object.strokeWeight && object.type !== 'image' && object.type !== "custom-shape"){
 
         ctx.strokeStyle = object.strokeColour || "black";
         ctx.lineWidth = object.strokeWeight * scaleRef.current || 0
@@ -5361,6 +5389,29 @@ const checkActiveScene = (scene) => {
 
 }
 
+function buildCurveArtboard(c, pointList, close) {
+  if (pointList.length < 1) return;
+  c.beginPath();
+  c.moveTo(pointList[0].x * scaleRef.current, pointList[0].y * scaleRef.current);
+
+  const len = close ? pointList.length : pointList.length - 1;
+  for (let i = 0; i < len; i++) {
+    const a = pointList[i];
+    const b = pointList[(i + 1) % pointList.length];
+    const cp1 = a.cpOut || { x: a.x, y: a.y };  // fallback = anchor → straight
+    const cp2 = b.cpIn  || { x: b.x, y: b.y };
+    c.bezierCurveTo(
+      cp1.x * scaleRef.current, 
+      cp1.y * scaleRef.current, 
+      cp2.x * scaleRef.current, 
+      cp2.y * scaleRef.current, 
+      b.x * scaleRef.current, 
+      b.y * scaleRef.current
+    );
+  }
+  if (close) c.closePath();
+}
+
 function buildCurve(c, pointList, close) {
   if (pointList.length < 1) return;
   c.beginPath();
@@ -5478,9 +5529,9 @@ function buildCurve(c, pointList, close) {
           if (object.type === 'custom-shape' && !object.closed) {
             // still drawing — points are absolute, render directly
             ctx.save();
-            ctx.translate(object.cx, object.cy);
-            ctx.rotate(object.angle);
-            ctx.scale(object.scale, object.scale);
+            ctx.translate(animationProps.cx, animationProps.cy);
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
             buildCurve(ctx, object.points, object.closed);
             ctx.stroke();
             //ctx.fillStyle = object.fill || "lightgray";
@@ -5489,9 +5540,9 @@ function buildCurve(c, pointList, close) {
           } else {
             // committed — points are relative to cx/cy
             ctx.save();
-            ctx.translate(object.cx, object.cy);
-            ctx.rotate(object.angle);
-            ctx.scale(object.scale, object.scale);
+            ctx.translate(animationProps.cx, animationProps.cy);
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
             buildCurve(ctx, object.points, object.closed);
             ctx.stroke();
             ctx.fillStyle = object.fill || "lightgray";
@@ -10609,9 +10660,9 @@ useEffect(() => {
                              element.type}
                           </span>
                         }
-                        {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle') &&
+                        {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle' || element.type === 'custom-shape') &&
                           <span style={{color:'#ffffff',paddingLeft:'10px', fontSize:'.8em'}} >
-                            {element.type}
+                            {element.type.replace('-', ' ')}
                           </span>
                         }
 
