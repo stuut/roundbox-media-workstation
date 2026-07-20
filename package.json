@@ -1,13 +1,14 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001--experimental-https ",
+    "dev": "next dev -p 3001 --experimental-https ",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
     "@aws-sdk/client-s3": "^3.828.0",
+    "@codemirror/view": "^6.43.6",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@ffmpeg/ffmpeg": "^0.12.15",

@@ -17,7 +17,6 @@ return(
     <Link className={pagePath==="/schedule"?'active':null} style={{marginRight:'10px'}} href='/schedule'>Schedule</Link>
     <Link className={pagePath==="/qr-code"?'active':null} style={{marginRight:'10px'}} href='/qr-code'>QR Code</Link>
     <Link className={pagePath==="/extract-text"?'active':null} style={{marginRight:'10px'}} href='/extract-text'>Upload Post</Link>
-
   </div>
 )
 

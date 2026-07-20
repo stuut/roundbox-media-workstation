@@ -661,6 +661,16 @@ position: relative;
   border-radius: var(--btn-border-radius);
 }
 
+.w-md-editor .cm-content,
+.w-md-editor .cm-line {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+
+.w-md-editor .cm-scroller {
+  overflow-x: hidden !important;
+}
+
 .canvas-zoom-dropdown{
   border-radius:var(--btn-border-radius);
   background-color:var(--md-sys-color-surface);
@@ -683,6 +693,7 @@ position: relative;
   border-radius:var(--btn-border-radius);
   margin: 0px;
   font-size:.9em;
+  cursor:pointer;
 }
 
 

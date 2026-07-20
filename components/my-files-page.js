@@ -20,7 +20,7 @@ import JSZip from "jszip";
 import ReactPlayer from 'react-player'
 import { usePathname } from 'next/navigation';
 import { ThreeDotMenu } from "components/three-dot-menu"
-
+import Link from "next/link"
 
 const imageTypes = ['image/png', 'image/jpeg']
 const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
@@ -675,8 +675,10 @@ export const ImageComponent = ({
           <>
             <div style={{position:'absolute', right:'5px', top:'5px'}}>
               <ThreeDotMenu>
-                <button onClick={() => editMedia(file)} className='btn btn-sm clear'>Edit Image</button>
-                <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+                <button className='btn btn-sm dropdown-button' onClick={() => editMedia(file)}>Edit Image</button>
+                <button className='btn btn-sm dropdown-button' onClick={() => copyFileUrl(file.file_url)}>Copy File Url</button>
+                <Link className='btn btn-sm dropdown-button' href = {`${window.location.origin}/canvas-design-system?auto_load=true&auto_load_type=image&file_url=${file.file_url}`}>Open In Danva</Link>
+                
               </ThreeDotMenu>
             </div>
             <img

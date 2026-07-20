@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, useMemo } from "react";
-import { saveAsPng, saveAsjpg, exportWebm } from "@/lib/save-canvas"
+import { saveAsPng, saveAsjpg, exportWebm, savePngMyFiles, saveJpgMyFiles } from "@/lib/save-canvas"
 import { SketchPicker } from 'react-color'
 import { BufferedBrush } from "@/lib/buffered-brush"
 import '@/app/canvas_styles.css'
@@ -27,6 +27,8 @@ import { Caption } from '@/components/caption'
 import { getFilesSearch } from "@/lib/supabase";
 import { useEditItemContext } from "@/context/edit-item-context"
 import { formatR2Url } from "@/lib/format-rs-url"
+import { useSearchParams } from 'next/navigation'
+
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
   Film, Clock, Loader2, Trash2, Maximize2, Upload, Download, Music,
@@ -58,7 +60,8 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Tangent,
   StickyNote,
   RectangleHorizontal,
-  RectangleVertical
+  RectangleVertical,
+  PenTool
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
 import { updateFileDescriptionValue } from "@/lib/supabase";
@@ -85,6 +88,7 @@ import { FONTS } from '@/utils/fonts.config.js';
 import { FontDropdown } from  "@/components/font-dropdown"
 import  Dropdown  from  "@/components/dropdown"
 //const workflowJson = require('../outpainting_api_v2.json');
+
 
 
 /*
@@ -284,6 +288,8 @@ const heightPx = Math.round(heightMM * mmToInch * dpi); // 3508
 //const PAGE_WIDTH = 2480;
 //const PAGE_HEIGHT = 3508;
 const COLOUR = 'rgb(65 95 145)'
+const ANCHOR_COLOUR = 'rgb(65 95 145)'
+const BEZIER_ANCHOR_COLOUR = 'rgb(65 95 145)'
 const HILIGHTCOLOUR = 'rgb(210 224 255)'
 const CURSORCOLOUR = 'rgb(65 95 145)'
 
@@ -295,6 +301,8 @@ const CROP_COLOUR = 'rgb(196 134 200)'
 const HANDLE_FILL_COLOUR = '#ffffff'
 const TRANSFORM_WIDTH = 1
 const GUIDES_WIDTH = 1
+const ANCHOR_R = 6;
+const HANDLE_R = 4;
 
 
 
@@ -564,7 +572,10 @@ function calculateMinAnimationDuration({
 
 export const Danva = (({postData, user, feeds}, ref) => {
   const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
+  const searchParams = useSearchParams()
+  // URL: /dashboard?id=123&mode=dark
 
+ 
   const upperRef = useRef(null);
   const lowerRef = useRef(null);
   const overlayRef = useRef(null);
@@ -592,6 +603,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const objectsRef = useRef([]);
   const [activeTool, setActiveTool] = useState(null); // page -> screen scale
   const [shapeType, setShapeType] = useState(null); // page -> screen scale
+  const [customShapeType, setCustomShapeType] = useState(null); // page -> screen scale
   const [paintType, setPaintType] = useState(null); // page -> screen scale
   const [hardness, setHardness] = useState(5); // page -> screen scale
   const [scale, setScale] = useState(1); // page -> screen scale
@@ -733,11 +745,26 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
   const browserFFmpeg = process.env.NODE_ENV !== 'development'
 
-  //const browserFFmpeg = process.env.NODE_ENV === 'development'
+  const autoLoad = searchParams.get('auto_load') 
+  const fileUrl = searchParams.get('file_url')
+  const fileName = searchParams.get('file_name')
+  const fileType = searchParams.get('file_type')
+  const autoLoadType = searchParams.get('auto_load_type')
 
 
-  //console.log('browserFFmpeg', browserFFmpeg)
 
+  useEffect(()=>{
+    if (autoLoad){
+      if (autoLoadType === 'image' && fileUrl){
+
+
+            addImage({
+              file_url:fileUrl
+            })
+      }
+    }
+
+  },[])
 
 
   const processAIDesign = () =>{
@@ -1716,6 +1743,8 @@ const onSelectScene = (id) => {
 
 
   }
+
+
 
   init() {
     if (this.type === 'text'){
@@ -2980,7 +3009,7 @@ handleDelete() {
 
   hitObject(obj, mx, my) {
 
-    if (obj.type === eraser) return false
+    if (obj.type === 'eraser') return false
 
     const dx = mx - obj.cx;
     const dy = my - obj.cy;
@@ -3729,6 +3758,8 @@ const addImages = async (images) => {
 
 const addImage = async (image) => {
 
+  if (!image.file_url) return
+
   setCanvasLoader(true)
 
   const lower = lowerRef.current;
@@ -3752,7 +3783,9 @@ const addImage = async (image) => {
     await newObj.drawImageInit(ctx)
 
   }catch(err){
-    showError("corrs issue")
+    showError(`Image load error ${err}`)
+    
+  }finally{
     setCanvasLoader(false)
   }
 
@@ -4871,6 +4904,7 @@ const clearUpper = () => {
 
   // Draw upper canvas overlay
   const drawUpper = () => {
+    
     const upper = upperRef.current;
     if (!upper) return;
 
@@ -4889,27 +4923,142 @@ const clearUpper = () => {
 
       const offset = offsetRef.current;
 
-      console.log('object', object)
-
       if (object.type !== 'pen' && object.type !== 'air brush'){
 
-          if (object.type === 'custom'){
-                console.log('draw custom shape handles')
+          if (object.type === 'custom-shape' && customShapeType === 'pen' ||
+            object.type === 'custom-shape' && customShapeType === 'anchor-point-select' ||
+            object.type === 'custom-shape' && customShapeType === 'anchor-point-convert' ||
+            object.type === 'custom-shape' && customShapeType === 'anchor-point-add' ||
+            object.type === 'custom-shape' && customShapeType === 'anchor-point-remove'
+          ){
+
                 if (object.points.length === 0) return
 
-                const mousePos = mousePosRef.current
+                    if (object) {
 
-                console.log(object.strokeWeight)
-                console.log(object.points.length >= 1)
-                console.log(phase.current)
+            
+                       const animationProps = getAnimatedProps(object)
 
+                      ctx.save();
 
-                  if (!object.closed && object.points.length >= 1 && phase.current !== 'drag-new-handle') {
+                      // set up the full transform centered on cx/cy in screen space
+                      const screenCx = offset.x + animationProps.cx * scaleRef.current;
+                      const screenCy = offset.y + animationProps.cy * scaleRef.current;
+
+                      ctx.translate(screenCx, screenCy);
+                      ctx.rotate(animationProps.angle);
+                      ctx.scale(animationProps.scale, animationProps.scale);
+
+                      // toScreen now just converts relative points to screen pixels
+                      // rotation/scale handled by ctx transform above
+                      const toScreen = (x, y) => ({
+                        x: x * scaleRef.current,
+                        y: y * scaleRef.current,
+                      });
+
+                          if (customShapeType === 'pen' && !object.closed && object.points.length >= 1 && phase.current !== 'drag-new-handle') {
+                            const mousePos = mousePosRef.current;
+                            const animationProps = getAnimatedProps(object);
+
+                            // convert mouse from world space into object local space
+                            const dx = mousePos.x - animationProps.cx;
+                            const dy = mousePos.y - animationProps.cy;
+                            const cos = Math.cos(-animationProps.angle);
+                            const sin = Math.sin(-animationProps.angle);
+                            const localMouse = {
+                              x: (dx * cos - dy * sin) / animationProps.scale,
+                              y: (dx * sin + dy * cos) / animationProps.scale,
+                            };
+
+                            const last = object.points[object.points.length - 1];
+                            const cp1 = last.cpOut || { x: last.x, y: last.y };
+
+                            ctx.save();
+                            ctx.strokeStyle = object.strokeColour || 'black';
+                            ctx.lineWidth = 1 / animationProps.scale; // counteract scale so line stays thin
+                            ctx.setLineDash([4 / animationProps.scale, 3 / animationProps.scale]);
+                            ctx.beginPath();
+                            ctx.moveTo(last.x * scaleRef.current, last.y * scaleRef.current);
+                            ctx.bezierCurveTo(
+                              cp1.x * scaleRef.current,
+                              cp1.y * scaleRef.current,
+                              localMouse.x * scaleRef.current,
+                              localMouse.y * scaleRef.current,
+                              localMouse.x * scaleRef.current,
+                              localMouse.y * scaleRef.current,
+                            );
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            ctx.restore();
+                          }
+
+                      // handle lines + dots
+                      object.points.forEach((p) => {
+                        const anchor = toScreen(p.x, p.y);
+
+                        if (p.cpOut) {
+                          const handle = toScreen(p.cpOut.x, p.cpOut.y);
+                          ctx.save();
+                          ctx.strokeStyle = COLOUR;
+                          ctx.lineWidth = 1;
+                          ctx.beginPath();
+                          ctx.moveTo(anchor.x, anchor.y);
+                          ctx.lineTo(handle.x, handle.y);
+                          ctx.stroke();
+                          ctx.beginPath();
+                          ctx.arc(handle.x, handle.y, HANDLE_R, 0, Math.PI * 2);
+                          ctx.fillStyle = 'white'; ctx.fill();
+                          ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
+                          ctx.restore();
+                        }
+
+                        if (p.cpIn) {
+                          const handle = toScreen(p.cpIn.x, p.cpIn.y);
+                          ctx.save();
+                          ctx.strokeStyle = COLOUR;
+                          ctx.lineWidth = 1;
+                          ctx.beginPath();
+                          ctx.moveTo(anchor.x, anchor.y);
+                          ctx.lineTo(handle.x, handle.y);
+                          ctx.stroke();
+                          ctx.beginPath();
+                          ctx.arc(handle.x, handle.y, HANDLE_R, 0, Math.PI * 2);
+                          ctx.fillStyle = 'white'; ctx.fill();
+                          ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
+                          ctx.restore();
+                        }
+                      });
+
+                      // anchor points
+                      object.points.forEach((p) => {
+                        const screen = toScreen(p.x, p.y);
+                        const isCorner = !p.cpOut && !p.cpIn;
+                        ctx.save();
+                        ctx.beginPath();
+                        if (!isCorner) {
+                          ctx.translate(screen.x, screen.y);
+                          ctx.rotate(Math.PI / 4);
+                          ctx.rect(-(ANCHOR_R - 1), -(ANCHOR_R - 1), (ANCHOR_R - 1) * 2, (ANCHOR_R - 1) * 2);
+                        } else {
+                          ctx.rect(screen.x - ANCHOR_R, screen.y - ANCHOR_R, ANCHOR_R * 2, ANCHOR_R * 2);
+                        }
+                        ctx.fillStyle = 'white'; ctx.fill();
+                        ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
+                        ctx.restore();
+                      });
+
+                      ctx.restore();
+                      return;
+                    }else{
+
+                  const mousePos = mousePosRef.current
+
+                  if (customShapeType === 'pen' && !object.closed && object.points.length >= 1 && phase.current !== 'drag-new-handle') {
                     
                     const last = object.points[object.points.length - 1];
                     ctx.save();
                     ctx.strokeStyle = object.strokeColour || "black";
-                    ctx.lineWidth = .5
+                    ctx.lineWidth = 1
                     ctx.setLineDash([4, 3]);
                     const cp1 = last.cpOut || { x: last.x, y: last.y };
                     ctx.beginPath();
@@ -4971,9 +5120,9 @@ const clearUpper = () => {
                       ctx.stroke();
                       ctx.restore();
                     });
+                    return
+                  }
 
-
-                return
           }
 
       let {cx, cy, width, h, angle} = object
@@ -5031,6 +5180,10 @@ const clearUpper = () => {
           const gapY = screenH/3
           ctx.strokeRect(screenLeft, screenTop + gapY, screenW, screenH/3);
       }
+
+      console.log('screenW', screenW)
+
+      console.log('screenW', screenH)
       // Draw bounding box centered at (0,0)
       ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
       ctx.lineWidth = TRANSFORM_WIDTH;
@@ -5289,7 +5442,7 @@ function buildCurve(c, pointList, close) {
 
       ctx.save();
 
-      if (object.type !== 'image' && object.type !== "custom"){
+      if (object.type !== 'image' && object.type !== "custom-shape"){
         ctx.translate(animationProps.cx, animationProps.cy);
         ctx.rotate(animationProps.angle);
         ctx.scale(animationProps.scale, animationProps.scale);
@@ -5319,19 +5472,33 @@ function buildCurve(c, pointList, close) {
         ctx.lineTo(-object.width/2, object.h / 2);
         ctx.lineTo(object.width/2, object.h / 2);
 
-      } else if (object.type === "custom"){
+      } else if (object.type === "custom-shape"){
 
-         buildCurve(ctx, object.points, object.closed);
 
-          ctx.strokeStyle = object.strokeColour || "black";
-          ctx.lineWidth = object.strokeWeight || 0
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          ctx.stroke();
-          if (object.closed) {
-             ctx.fillStyle = object.fill || "lightgray";
-             ctx.fill();
-          }      
+          if (object.type === 'custom-shape' && !object.closed) {
+            // still drawing — points are absolute, render directly
+            ctx.save();
+            ctx.translate(object.cx, object.cy);
+            ctx.rotate(object.angle);
+            ctx.scale(object.scale, object.scale);
+            buildCurve(ctx, object.points, object.closed);
+            ctx.stroke();
+            //ctx.fillStyle = object.fill || "lightgray";
+            //ctx.fill();
+            ctx.restore();
+          } else {
+            // committed — points are relative to cx/cy
+            ctx.save();
+            ctx.translate(object.cx, object.cy);
+            ctx.rotate(object.angle);
+            ctx.scale(object.scale, object.scale);
+            buildCurve(ctx, object.points, object.closed);
+            ctx.stroke();
+            ctx.fillStyle = object.fill || "lightgray";
+            ctx.fill();
+            ctx.restore();
+          }
+
 
       }else if (object.type === "text"){
 
@@ -5427,13 +5594,13 @@ function buildCurve(c, pointList, close) {
 
       // Fill first
 
-      if (object.type !== "pen" && object.type !== "image" && object.type !== "custom"){
+      if (object.type !== "pen" && object.type !== "image" && object.type !== "custom-shape"){
         ctx.fillStyle = object.fill || "lightgray";
         ctx.fill();
       }
 
       // Then stroke (optional)
-      if (object.strokeColour && object.strokeWeight && object.type !== 'image' && object.type !== 'custom'){
+      if (object.strokeColour && object.strokeWeight && object.type !== 'image' && object.type !== 'custom-shape'){
 
         ctx.strokeStyle = object.strokeColour || "black";
         ctx.lineWidth = object.strokeWeight || 0
@@ -5776,20 +5943,161 @@ function hitPolygon(px, py, polygon) {
   return inside;
 }
 
-const ANCHOR_R = 5;
-const HANDLE_R = 4;
+function convertAnchorPointSimple(obj, index) {
+  const p = obj.points[index];
+
+  if (p.cpOut || p.cpIn) {
+    // smooth → corner, remove handles
+    p.cpOut = null;
+    p.cpIn  = null;
+  } else {
+    // corner → smooth, start with zero length handles
+    // exactly like a fresh pen point before dragging
+    //setCustomShapeType('anchor-point-select')
+    p.cpOut = { x: p.x, y: p.y };
+    p.cpIn  = { x: p.x, y: p.y };
+
+    // hand off to drag phase so user pulls them out
+    newHandleIndex.current = index;
+    phase.current = 'drag-new-handle';
+  }
+}
+
+function convertAnchorPoint(obj, index) {
+  const p = obj.points[index];
+  
+  if (p.cpOut || p.cpIn) {
+    // has handles → convert to corner, remove handles
+    p.cpOut = null;
+    p.cpIn = null;
+  } else {
+    // no handles → convert to smooth, pull handles out automatically
+    // use neighbouring points to calculate a sensible default direction
+    const prev = obj.points[index - 1] ?? obj.points[obj.points.length - 1];
+    const next = obj.points[index + 1] ?? obj.points[0];
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const len = Math.hypot(dx, dy);
+    const norm = len === 0 ? { x: 1, y: 0 } : { x: dx / len, y: dy / len };
+    const handleLen = len * 0.3; // how far out the handles extend
+    p.cpOut = { x: p.x + norm.x * handleLen, y: p.y + norm.y * handleLen };
+    p.cpIn  = { x: p.x - norm.x * handleLen, y: p.y - norm.y * handleLen };
+  }
+}
 
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
-function hitBezier(pos, pts) {
-  // check handles first (on top visually)
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    if (p.cpOut && dist(pos, p.cpOut) < HANDLE_R + 4) return { kind: 'cpOut', index: i };
-    if (p.cpIn  && dist(pos, p.cpIn)  < HANDLE_R + 4) return { kind: 'cpIn',  index: i };
+
+
+
+
+
+function hitBezierClosed(pos, obj, onlyAnchors = false) {
+  // undo cx/cy translation and rotation to get mouse in same space as points
+    const dx = pos.x - obj.cx;
+    const dy = pos.y - obj.cy;
+    const animatedProps = getAnimatedProps(obj);
+    const cos = Math.cos(-animatedProps.angle);
+    const sin = Math.sin(-animatedProps.angle);
+    const localPos = {
+      x: (dx * cos - dy * sin) / animatedProps.scale,
+      y: (dx * sin + dy * cos) / animatedProps.scale,
+    };
+
+  // points are already relative to cx/cy so compare directly
+  if (!onlyAnchors) {
+    for (let i = 0; i < obj.points.length; i++) {
+      const p = obj.points[i];
+      if (p.cpOut && dist(localPos, p.cpOut) < HANDLE_R + 4) return { kind: 'cpOut', index: i };
+      if (p.cpIn  && dist(localPos, p.cpIn)  < HANDLE_R + 4) return { kind: 'cpIn',  index: i };
+    }
   }
-  for (let i = 0; i < pts.length; i++) {
-    if (dist(pos, pts[i]) < ANCHOR_R + 4) return { kind: 'anchor', index: i };
+
+  for (let i = 0; i < obj.points.length; i++) {
+    if (dist(localPos, obj.points[i]) < ANCHOR_R + 4) return { kind: 'anchor', index: i };
+  }
+  return null;
+}
+
+function anchorHit(pos, obj, onlyAnchors = false) {
+  // undo cx/cy translation and rotation to get mouse in same space as points
+    const dx = pos.x - obj.cx;
+    const dy = pos.y - obj.cy;
+    const animatedProps = getAnimatedProps(obj);
+    const cos = Math.cos(-animatedProps.angle);
+    const sin = Math.sin(-animatedProps.angle);
+    const localPos = {
+      x: (dx * cos - dy * sin) / animatedProps.scale,
+      y: (dx * sin + dy * cos) / animatedProps.scale,
+    };
+
+  // points are already relative to cx/cy so compare directly
+  if (!onlyAnchors) {
+    for (let i = 0; i < obj.points.length; i++) {
+      const p = obj.points[i];
+      if (p.cpOut && dist(localPos, p.cpOut) < HANDLE_R + 4) return { kind: 'cpOut', index: i };
+      if (p.cpIn  && dist(localPos, p.cpIn)  < HANDLE_R + 4) return { kind: 'cpIn',  index: i };
+    }
+  }
+
+  for (let i = 0; i < obj.points.length; i++) {
+    if (dist(localPos, obj.points[i]) < ANCHOR_R + 4) return { kind: 'anchor', index: i };
+  }
+  return null;
+}
+
+function addAnchorHit (obj, x, y) {
+  if (obj.type !== 'custom-shape') return
+
+    const animatedProps = getAnimatedProps(obj)
+
+    const {localX, localY} = getLocalValues({x:x, y:y}, obj)
+
+    const flat = flattenCurve(obj.points, obj.closed);
+    const s = animatedProps.scale;
+    const localFlat = flat.map(p => ({
+      x: p.x,
+      y: p.y,
+    }));
+
+    const bounds = getBounds(localFlat);
+    const threshold = Math.max(6, (obj.strokeWeight ?? 1) / 2) / s;
+
+    if (
+      localX < bounds.minX - threshold || localX > bounds.maxX + threshold ||
+      localY < bounds.minY - threshold || localY > bounds.maxY + threshold
+    ) return false;
+
+    return distanceToFlatPath(localX, localY, localFlat) <= threshold;
+
+}
+
+
+
+function hitBezierOpen(pos, obj, onlyAnchors = false) {
+  // check handles first (on top visually)
+ const centroid = getCentroid(obj.points);
+  const cos = Math.cos(-obj.angle);
+  const sin = Math.sin(-obj.angle);
+  const dx = pos.x - centroid.x;
+  const dy = pos.y - centroid.y;
+  const localPos = {
+    x: dx * cos - dy * sin + centroid.x,
+    y: dx * sin + dy * cos + centroid.y,
+  };
+
+  // now compare localPos against stored points
+
+  if (!onlyAnchors){
+    for (let i = 0; i < obj.points.length; i++) {
+      const p = obj.points[i];
+      if (p.cpOut && dist(localPos, p.cpOut) < HANDLE_R + 4) return { kind: 'cpOut', index: i };
+      if (p.cpIn  && dist(localPos, p.cpIn)  < HANDLE_R + 4) return { kind: 'cpIn',  index: i };
+    }
+  }
+
+  for (let i = 0; i < obj.points.length; i++) {
+    if (dist(localPos, obj.points[i]) < ANCHOR_R + 4) return { kind: 'anchor', index: i };
   }
   return null;
 }
@@ -5803,6 +6111,39 @@ function hitBezier(pos, pts) {
     const dy = mouseY - circleY;
     return dx * dx + dy * dy <= radius * radius;
   };
+
+function findClosestSegment(localX, localY, obj) {
+  const steps = 16;
+  let minDist = Infinity;
+  let closestSegment = 0;
+  let closestT = 0;
+
+  const len = obj.closed ? obj.points.length : obj.points.length - 1;
+
+  for (let i = 0; i < len; i++) {
+    const a = obj.points[i];
+    const b = obj.points[(i + 1) % obj.points.length];
+    const cp1 = a.cpOut ?? { x: a.x, y: a.y };
+    const cp2 = b.cpIn  ?? { x: b.x, y: b.y };
+
+    for (let step = 0; step <= steps; step++) {
+      const t = step / steps;
+      const mt = 1 - t;
+      const px = mt**3*a.x + 3*mt**2*t*cp1.x + 3*mt*t**2*cp2.x + t**3*b.x;
+      const py = mt**3*a.y + 3*mt**2*t*cp1.y + 3*mt*t**2*cp2.y + t**3*b.y;
+      const d = Math.hypot(localX - px, localY - py);
+      if (d < minDist) {
+        minDist = d;
+        closestSegment = i;
+        closestT = t;
+      }
+    }
+  }
+
+  return { segment: closestSegment, t: closestT };
+}
+
+
 
 const hitObject = (obj, mx, my) => {
 
@@ -5822,38 +6163,36 @@ const hitObject = (obj, mx, my) => {
 
 
   // Pen/vector path — use flattened ray cast
-if (obj.type === 'custom' && obj.points?.length >= 2) {
-  const centroid = getCentroid(obj.points);
+  if (obj.type === 'custom-shape' && obj.points?.length >= 2) {
+    // points are relative to cx/cy, so just use obj.cx/cy as the origin
+    const dx = mx - obj.cx;
+    const dy = my - obj.cy;
+    const cos = Math.cos(-animatedProps.angle);
+    const sin = Math.sin(-animatedProps.angle);
+    const localX = (dx * cos - dy * sin) / animatedProps.scale;
+    const localY = (dx * sin + dy * cos) / animatedProps.scale;
 
-  const dx = mx - centroid.x;
-  const dy = my - centroid.y;
-  const cos = Math.cos(-animatedProps.angle);
-  const sin = Math.sin(-animatedProps.angle);
-  const localX = dx * cos - dy * sin;
-  const localY = dx * sin + dy * cos;
+    const flat = flattenCurve(obj.points, obj.closed);
+    const s = animatedProps.scale;
+    const localFlat = flat.map(p => ({
+      x: p.x,
+      y: p.y,
+    }));
 
-  const flat = flattenCurve(obj.points, obj.closed);
-  const s = animatedProps.scale;
-  const localFlat = flat.map(p => ({
-    x: (p.x - centroid.x) / s,
-    y: (p.y - centroid.y) / s,
-  }));
+    const bounds = getBounds(localFlat);
+    const threshold = Math.max(6, (obj.strokeWeight ?? 1) / 2) / s;
 
-  const bounds = getBounds(localFlat);
+    if (
+      localX < bounds.minX - threshold || localX > bounds.maxX + threshold ||
+      localY < bounds.minY - threshold || localY > bounds.maxY + threshold
+    ) return false;
 
-  // expand bounds by hit threshold for open paths
-  const threshold = Math.max(6, obj.strokeWeight??1 / 2) / s
-  if (
-    localX < bounds.minX - threshold || localX > bounds.maxX + threshold ||
-    localY < bounds.minY - threshold || localY > bounds.maxY + threshold
-  ) return false;
-
-  if (obj.closed) {
-    return pointInPolygon(localX, localY, localFlat);
-  } else {
-    return distanceToFlatPath(localX, localY, localFlat) <= threshold;
+      if (obj.closed) {
+        return pointInPolygon(localX, localY, localFlat);
+      } else {
+        return distanceToFlatPath(localX, localY, localFlat) <= threshold;
+      }
   }
-}
 
   // All other objects — your existing rectangle check
   let left, right, top, bottom;
@@ -5900,20 +6239,265 @@ function getCentroid(pts) {
   return { x, y };
 }
 
-function getDimensions(pts) {
+function scalePointsOpenSide(obj, scaleX, scaleY, oldCx, oldCy) {
+  if (obj.type !== 'custom-shape' || !obj.points) return;
+  
+  const angle = obj.angle ?? 0;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const cosInv = Math.cos(-angle);
+  const sinInv = Math.sin(-angle);
+
+  const transformPoint = (x, y) => {
+    // translate to old center
+    const dx = x - oldCx;
+    const dy = y - oldCy;
+    
+    // rotate into local space
+    const localX = dx * cosInv - dy * sinInv;
+    const localY = dx * sinInv + dy * cosInv;
+    
+    // scale in local space
+    const scaledX = localX * scaleX;
+    const scaledY = localY * scaleY;
+    
+    // rotate back to world space
+    const worldX = scaledX * cos - scaledY * sin;
+    const worldY = scaledX * sin + scaledY * cos;
+    
+    // translate to new center
+    return {
+      x: obj.cx + worldX,
+      y: obj.cy + worldY,
+    };
+  };
+
+  obj.points = obj.points.map(p => ({
+    ...p,
+    ...transformPoint(p.x, p.y),
+    cpOut: p.cpOut ? transformPoint(p.cpOut.x, p.cpOut.y) : null,
+    cpIn:  p.cpIn  ? transformPoint(p.cpIn.x,  p.cpIn.y)  : null,
+  }));
+}
+
+function scalePointsOpen(obj, scaleX, scaleY) {
+  if (obj.type !== 'custom-shape' || !obj.points) return;
+  obj.points = obj.points.map(p => ({
+    ...p,
+    // subtract cx/cy, scale, add back
+    x: obj.cx + (p.x - obj.cx) * scaleX,
+    y: obj.cy + (p.y - obj.cy) * scaleY,
+    cpOut: p.cpOut ? {
+      x: obj.cx + (p.cpOut.x - obj.cx) * scaleX,
+      y: obj.cy + (p.cpOut.y - obj.cy) * scaleY,
+    } : null,
+    cpIn: p.cpIn ? {
+      x: obj.cx + (p.cpIn.x - obj.cx) * scaleX,
+      y: obj.cy + (p.cpIn.y - obj.cy) * scaleY,
+    } : null,
+  }));
+}
+
+function scalePointsClosed(obj, scaleX, scaleY) {
+  if (obj.type !== 'custom-shape' || !obj.points) return;
+  obj.points = obj.points.map(p => ({
+    ...p,
+    x: p.x * scaleX,
+    y: p.y * scaleY,
+    cpOut: p.cpOut ? { x: p.cpOut.x * scaleX, y: p.cpOut.y * scaleY } : null,
+    cpIn:  p.cpIn  ? { x: p.cpIn.x  * scaleX, y: p.cpIn.y  * scaleY } : null,
+  }));
+}
+
+function updateDimensionsLocalSpace(obj) {
+  const animatedProps = getAnimatedProps(obj);
+  const flat = flattenCurve(obj.points, obj.closed);
+  const bounds = getBounds(flat);
+
+  const newRelCx = bounds.minX + (bounds.maxX - bounds.minX) / 2;
+  const newRelCy = bounds.minY + (bounds.maxY - bounds.minY) / 2;
+
+  // rotate delta back to world space
+  const rotate = animatedProps.rotate ?? 0;
+  const cos = Math.cos(animatedProps.angle);
+  const sin = Math.sin(animatedProps.angle);
+  const scale = animatedProps.scale ?? 1;
+  const worldDx = (newRelCx * cos - newRelCy * sin) * scale;
+  const worldDy = (newRelCx * sin + newRelCy * cos) * scale;
+
+  obj.cx += worldDx;
+  obj.cy += worldDy;
+  obj.x   = obj.cx - obj.width / 2;
+  obj.y   = obj.cy - obj.h / 2;
+
+  // re-center points
+  obj.points = obj.points.map(p => ({
+    ...p,
+    x: p.x - newRelCx,
+    y: p.y - newRelCy,
+    cpOut: p.cpOut ? { x: p.cpOut.x - newRelCx, y: p.cpOut.y - newRelCy } : null,
+    cpIn:  p.cpIn  ? { x: p.cpIn.x  - newRelCx, y: p.cpIn.y  - newRelCy } : null,
+  }));
+
+  obj.width  = bounds.maxX - bounds.minX;
+  obj.h = bounds.maxY - bounds.minY;
+}
+
+
+const convertToLocalSpace = () => {
+  const dx = worldX - obj.cx;
+  const dy = worldY - obj.cy;
+  const cos = Math.cos(-obj.angle);
+  const sin = Math.sin(-obj.angle);
+  const localX = (dx * cos - dy * sin) / obj.scale;
+  const localY = (dx * sin + dy * cos) / obj.scale;
+}
+
+
+
+
+function updateDimensionsClosed(obj) {
+  const animatedProps = getAnimatedProps(obj);
+  const flat = flattenCurve(obj.points, true);
+  const bounds = getBounds(flat);
+
+  // center shift in local (relative) space
+  const newRelCx = bounds.minX + (bounds.maxX - bounds.minX) / 2;
+  const newRelCy = bounds.minY + (bounds.maxY - bounds.minY) / 2;
+
+  // rotate delta back to world space
+  const rotate = animatedProps.rotate ?? 0;
+  const cos = Math.cos(animatedProps.angle);
+  const sin = Math.sin(animatedProps.angle);
+  const scale = animatedProps.scale ?? 1;
+  const worldDx = (newRelCx * cos - newRelCy * sin) * scale;
+  const worldDy = (newRelCx * sin + newRelCy * cos) * scale;
+
+  // shift cx/cy in world space by the rotated/scaled delta
+  obj.cx += worldDx;
+  obj.cy += worldDy;
+  obj.x   = obj.cx - obj.width / 2;
+  obj.y   = obj.cy - obj.h / 2;
+
+  // re-center points around new relative center (stays in local space)
+  obj.points = obj.points.map(p => ({
+    ...p,
+    x: p.x - newRelCx,
+    y: p.y - newRelCy,
+    cpOut: p.cpOut ? { x: p.cpOut.x - newRelCx, y: p.cpOut.y - newRelCy } : null,
+    cpIn:  p.cpIn  ? { x: p.cpIn.x  - newRelCx, y: p.cpIn.y  - newRelCy } : null,
+  }));
+
+  obj.width  = bounds.maxX - bounds.minX;
+  obj.h = bounds.maxY - bounds.minY;
+}
+
+function updateDimensionsOpen(obj) {
+  if (!obj.closed) {
+    // points are in world space, just recalculate bounds directly
+    const flat = flattenCurve(obj.points, false);
+    const bounds = getBounds(flat);
+    obj.width  = bounds.maxX - bounds.minX;
+    obj.h = bounds.maxY - bounds.minY;
+    obj.cx     = bounds.minX + obj.width / 2;
+    obj.cy     = bounds.minY + obj.height / 2;
+    obj.x      = obj.cx - obj.width / 2;
+    obj.y      = obj.cy - obj.height / 2;
+    return;
+  }
+
+  // closed — points are relative to cx/cy, need delta approach
+  const flat = flattenCurve(obj.points, true);
+  const bounds = getBounds(flat);
+
+  const newRelCx = bounds.minX + (bounds.maxX - bounds.minX) / 2;
+  const newRelCy = bounds.minY + (bounds.maxY - bounds.minY) / 2;
+
+  obj.cx += newRelCx;
+  obj.cy += newRelCy;
+  obj.x   = obj.cx - obj.width / 2;
+  obj.y   = obj.cy - obj.height / 2;
+
+  obj.points = obj.points.map(p => ({
+    ...p,
+    x: p.x - newRelCx,
+    y: p.y - newRelCy,
+    cpOut: p.cpOut ? { x: p.cpOut.x - newRelCx, y: p.cpOut.y - newRelCy } : null,
+    cpIn:  p.cpIn  ? { x: p.cpIn.x  - newRelCx, y: p.cpIn.y  - newRelCy } : null,
+  }));
+
+  obj.width  = bounds.maxX - bounds.minX;
+  obj.height = bounds.maxY - bounds.minY;
+}
+
+function getDimensionsClosed(obj) {
+  const animatedProps = getAnimatedProps(obj);
+
+
+  const flat = flattenCurve(obj.points, true);
+  const bounds = getBounds(flat);
+
+    // center shift in local (relative) space
+  const newRelCx = bounds.minX + (bounds.maxX - bounds.minX) / 2;
+  const newRelCy = bounds.minY + (bounds.maxY - bounds.minY) / 2;
+
+  const cos = Math.cos(animatedProps.angle);  // note: positive angle, inverse of hit testing
+  const sin = Math.sin(animatedProps.angle);
+  const worldDx = (newRelCx * cos - newRelCy * sin) * animatedProps.scale;
+  const worldDy = (newRelCx * sin + newRelCy * cos) * animatedProps.scale;
+
+  const cx = obj.cx += worldDx;
+  const cy = obj.cy += worldDy;
+  const x = cx - (bounds.maxX - bounds.minX)
+  const y = cy - (bounds.maxY - bounds.minY)
+
+  return {
+    width:  bounds.maxX - bounds.minX,
+    height: bounds.maxY - bounds.minY,
+    cx:  cx,
+    cy: cy,
+    x: x,
+    y: y, 
+    points: obj.points.map(p => ({
+      ...p,
+      x: p.x - newRelCx,
+      y: p.y - newRelCy,
+      cpOut: p.cpOut ? { x: p.cpOut.x - newRelCx, y: p.cpOut.y - newRelCy } : null,
+      cpIn:  p.cpIn  ? { x: p.cpIn.x  - newRelCx, y: p.cpIn.y  - newRelCy } : null,
+    }))
+  };
+}
+
+
+
+
+
+
+function getDimensionsOpen(pts) {
   const flat = flattenCurve(pts, true);
   const bounds = getBounds(flat);
+  const cx = bounds.minX + (bounds.maxX - bounds.minX) / 2;
+  const cy = bounds.minY + (bounds.maxY - bounds.minY) / 2;
   return {
-    width: bounds.maxX - bounds.minX,
+    width:  bounds.maxX - bounds.minX,
     height: bounds.maxY - bounds.minY,
-    cx: bounds.minX + (bounds.maxX - bounds.minX) / 2,
-    cy: bounds.minY + (bounds.maxY - bounds.minY) / 2,
+    cx,
+    cy,
+    x: cx - (bounds.maxX - bounds.minX),
+    y: cy - (bounds.maxY - bounds.minY), 
+    points: pts.map(p => ({
+      ...p,
+      x: p.x - cx,
+      y: p.y - cy,
+      cpOut: p.cpOut ? { x: p.cpOut.x - cx, y: p.cpOut.y - cy } : null,
+      cpIn:  p.cpIn  ? { x: p.cpIn.x  - cx, y: p.cpIn.y  - cy } : null,
+    }))
   };
 }
 
 function flattenCurve(pts, closed, steps = 16) {
 
-  console.log('flattenCurve', pts, closed, steps)
+ 
   const flat = [];
   const len = closed ? pts.length : pts.length - 1;
   for (let i = 0; i < len; i++) {
@@ -5985,6 +6569,8 @@ function pointInPolygon(x, y, pts) {
     const tool = activeToolRef.current
     if (!pos) return
 
+
+
     if (isTextEditingRef.current){
       //textHilightRef.current = true
       const object = getActiveElement()
@@ -6016,6 +6602,7 @@ function pointInPolygon(x, y, pts) {
       isPanning.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
     }else if (tool === 'size-position' || tool === 'cropping') {
+
       // resize handles corners
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         const handle = checkResizeHandleHit(objectsRef.current[i], pos.x, pos.y);
@@ -6055,11 +6642,12 @@ function pointInPolygon(x, y, pts) {
       // object selection (topmost first)
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
 
-        console.log('checking hit for object', hitObject(objectsRef.current[i], pos.x, pos.y))
 
         if (hitObject(objectsRef.current[i], pos.x, pos.y)) {
 
             if (isElementInScene(objectsRef.current[i])){
+
+
                 setActiveElement(objectsRef.current[i])
                 selectedIndexRef.current = i
                 setActiveElementId(i)
@@ -6078,7 +6666,8 @@ function pointInPolygon(x, y, pts) {
         setActiveElement(null)
 
       }
-    }else if (tool === 'shape' && shapeType !== 'custom') {
+    
+    }else if (tool === 'shape') {
       const pos = getMousePos(e); // function that gives {x,y} in world space
       const newObj =  new Element({
         id: generateUniqueId(),
@@ -6096,64 +6685,199 @@ function pointInPolygon(x, y, pts) {
     setActiveElementId(objectsRef.current.length - 1)
      draggingRef.current = { id: newObj.id, startX: pos.x, startY: pos.y }
 
-    } else if (tool === 'shape' && shapeType === 'custom') {
+    }else if (tool === 'custom-shape') {
+
+
       const pos = getMousePos(e); // function that gives {x,y} in world space
-      const points = objectsRef.current[selectedIndexRef.current]?.points || [];
-
+      
+    if (customShapeType === 'pen'){
         // path is open, check if we hit an existing point or handle
+        const points = objectsRef.current[selectedIndexRef.current]?.points || [];
+
       if (objectsRef.current[selectedIndexRef.current] && !objectsRef.current[selectedIndexRef.current]?.closed){
-
-        const h = hitBezier(pos, points);
-
+        const h = anchorHit(pos, objectsRef.current[selectedIndexRef.current]);
          // clicking the first point closes the path
         if (h && h.kind === 'anchor' && h.index === 0 && points.length >= 2) {
-          objectsRef.current[selectedIndexRef.current].closed = true;
+          objectsRef.current[selectedIndexRef.current].closed = true
           phase.current = 'idle';
-          console.log('closed', objectsRef.current[selectedIndexRef.current])          //hint.textContent = 'Path closed · Switch to Select to move points/handles';
-
         }
 
-          if (h) {
-            dragTarget.current = h;
-            phase.current = 'drag-anchor';
-            return;
-          }
-
+        if (h) {
+          dragTarget.current = h;
+          phase.current = 'drag-anchor';
+          return;
+        }
         // new anchor point — we'll drag out its handle if mouse moves 
+        const obj = getActiveElement();
 
-        objectsRef.current[selectedIndexRef.current].points.push({ x: pos.x, y: pos.y, cpOut: null, cpIn: null })
+        // convert to relative before pushing
+        obj.points.push({ 
+          x: pos.x - obj.cx, 
+          y: pos.y - obj.cy, 
+          cpOut: null, 
+          cpIn: null 
+        });
+
+        updateDimensionsLocalSpace(obj);
+
         newHandleIndex.current = objectsRef.current[selectedIndexRef.current].points.length - 1;
         phase.current = 'drag-new-handle';
-
           //update object width and height based on points
-        const dimensions = getDimensions(objectsRef.current[selectedIndexRef.current].points); 
+        }else{
+              // path is closed, start a new path
 
-        objectsRef.current[selectedIndexRef.current].width = dimensions.width;
-        objectsRef.current[selectedIndexRef.current].h = dimensions.height;
-        objectsRef.current[selectedIndexRef.current].cx = dimensions.cx;
-        objectsRef.current[selectedIndexRef.current].cy = dimensions.cy;
+            console.log('pos.x', pos.x)
+            console.log('pos.y', pos.y)
 
-        
-      }else{
+            const newObj =  new Element({
+              id: generateUniqueId(),
+              x:pos.x,
+              y:pos.y,
+              cx: pos.x,
+              cy: pos.y,
+              width: 0,
+              height: 0,
+              angle: 0,
+              scale: 1,
+              closed: false,
+              points: [{ x: 0, y: 0, cpOut: null, cpIn: null }],// first point is always 0,0 relative to cx/cy
+              type:'custom-shape',
+              fill:fillColour,
+              strokeColour:strokeColour,
+              closed: false
+            })
 
-         // path is closed, start a new path
-       const newObj =  new Element({
-        id: generateUniqueId(),
-        x:pos.x,
-        y:pos.y,
-        type:shapeType,
-        fill:fillColour,
-        strokeColour:strokeColour,
-        closed: false
-      })
+          //objectsRef.current.push(newObj);
+          addElement(newObj)
+          setActiveElement(newObj)
+          selectedIndexRef.current = objectsRef.current.length - 1
+          setActiveElementId(objectsRef.current.length - 1)
+          //objectsRef.current[selectedIndexRef.current].points.push({ x: pos.x, y: pos.y, cpOut: null, cpIn: null })
+            newHandleIndex.current = objectsRef.current[selectedIndexRef.current].points.length - 1;
+        }
+      }  else if   (customShapeType === 'anchor-point-select'){
+      for (let i = objectsRef.current.length - 1; i >= 0; i--) {
 
-     //objectsRef.current.push(newObj);
-     addElement(newObj)
-     setActiveElement(newObj)
-     selectedIndexRef.current = objectsRef.current.length - 1
-     setActiveElementId(objectsRef.current.length - 1)
-      objectsRef.current[selectedIndexRef.current].points.push({ x: pos.x, y: pos.y, cpOut: null, cpIn: null })
-      newHandleIndex.current = objectsRef.current[selectedIndexRef.current].points.length - 1;
+              if (isElementInScene(objectsRef.current[i])){
+
+                if (objectsRef.current[i].type === 'custom-shape' && activeElement?.id === objectsRef.current[i].id){
+
+                      const hit = anchorHit(pos, objectsRef.current[i]);
+                 
+                      if (hit) {
+                        dragTarget.current = hit;
+                        phase.current = 'drag-anchor'; 
+                        drawUpper()
+                        drawLower()
+                        drawArtboard()
+                        return;
+                      }
+                      //
+                }
+                  setActiveElement(objectsRef.current[i])
+                  selectedIndexRef.current = i
+                  setActiveElementId(i)
+                  draggingRef.current = { id: objectsRef.current[i].id, startX: pos.x, startY: pos.y }
+                  drawUpper()
+                  return;
+              }
+          
+        }
+      } else if (customShapeType === 'anchor-point-convert'){
+
+          for (let i = objectsRef.current.length - 1; i >= 0; i--) {
+
+              if (isElementInScene(objectsRef.current[i])){
+
+                if (objectsRef.current[i].type === 'custom-shape' && activeElement?.id === objectsRef.current[i].id){
+
+                        const hit = anchorHit(pos, objectsRef.current[i]);
+
+                        if (hit) {
+                          convertAnchorPointSimple(objectsRef.current[i], hit.index);
+                          drawUpper()
+                          drawLower()
+                          drawArtboard()
+                          return;
+                          //render();
+                        }
+                      //
+                }
+                
+              }
+          
+        }
+
+      } else if (customShapeType === 'anchor-point-add'){
+
+        for (let i = objectsRef.current.length - 1; i >= 0; i--) {
+            if (isElementInScene(objectsRef.current[i])){
+
+              if (objectsRef.current[i].type === 'custom-shape' && activeElement?.id === objectsRef.current[i].id){
+                  const hit = addAnchorHit(objectsRef.current[i], pos.x, pos.y)
+
+                  if (hit){
+
+                    const obj = getActiveElement()
+                    const {localX, localY} = getLocalValues({x:pos.x, y:pos.y}, obj)
+                    const { segment, t } = findClosestSegment(localX, localY, obj);
+                    // calculate the actual point position on the curve at t
+                      const a = obj.points[segment];
+                      const b = obj.points[(segment + 1) % obj.points.length];
+                      const cp1 = a.cpOut ?? { x: a.x, y: a.y };
+                      const cp2 = b.cpIn  ?? { x: b.x, y: b.y };
+
+                      const mt = 1 - t;
+                      const newX = mt**3*a.x + 3*mt**2*t*cp1.x + 3*mt*t**2*cp2.x + t**3*b.x;
+                      const newY = mt**3*a.y + 3*mt**2*t*cp1.y + 3*mt*t**2*cp2.y + t**3*b.y;
+
+                      // insert after segment index
+                      obj.points.splice(segment + 1, 0, {
+                        x: newX,
+                        y: newY,
+                        cpOut: null,
+                        cpIn: null,
+                      });
+
+                      updateDimensionsLocalSpace(obj);
+                      newHandleIndex.current = segment + 1
+                      phase.current = 'drag-new-handle';
+                      drawUpper()
+                      drawLower()
+                      drawArtboard()
+                      return;
+                  }
+              }
+            }
+        }
+      } else if (customShapeType === 'anchor-point-remove') {
+
+        for (let i = objectsRef.current.length - 1; i >= 0; i--) {
+             if (isElementInScene(objectsRef.current[i])){
+                  if (objectsRef.current[i].type === 'custom-shape' && activeElement?.id === objectsRef.current[i].id){
+                        const hit = anchorHit(pos, objectsRef.current[i]);
+
+                        if (hit){
+                          console.log('hit', hit)
+                          const obj = getActiveElement()
+                          hit.index
+
+                          obj.points.splice(hit.index, 1); 
+                                                drawUpper()
+                      drawLower()
+                      drawArtboard()
+                      return;
+
+
+                          
+                        }
+
+
+
+                  }
+
+             }
+        }
 
       }
 
@@ -6249,6 +6973,20 @@ function pointInPolygon(x, y, pts) {
     if (activeElement){
       setActiveElement(null)
     }*/
+  }
+
+  
+
+  function getLocalValues(pos, obj) {
+    const animatedProps = getAnimatedProps(obj);
+    const dx = pos.x - obj.cx;
+    const dy = pos.y - obj.cy;
+    const cos = Math.cos(-animatedProps.angle);
+    const sin = Math.sin(-animatedProps.angle);
+    return {
+      localX: (dx * cos - dy * sin) / animatedProps.scale,
+      localY: (dx * sin + dy * cos) / animatedProps.scale,
+    };
   }
 
 
@@ -6362,12 +7100,6 @@ function pointInPolygon(x, y, pts) {
 
         if (obj.clippingPath){
 
-          const oldCropW = obj.clippingPath.right - obj.clippingPath.left;
-          const oldCropH = obj.clippingPath.bottom - obj.clippingPath.top;
-
-          const cropHalfW = (obj.clippingPath.right - obj.clippingPath.left) / 2;
-          const cropHalfH = (obj.clippingPath.bottom - obj.clippingPath.top) / 2;
-
           // determine horizontal padding
           switch (corner) {
             case 0: // top-left
@@ -6413,6 +7145,18 @@ function pointInPolygon(x, y, pts) {
         obj.h = halfH * 2
 
 
+
+         if (obj.type === 'custom-shape') {
+            const scaleX = obj.width / oldWidth;
+            const scaleY = obj.h / oldHeight;
+            if (obj.closed) {
+              scalePointsClosed(obj, scaleX, scaleY);
+            } else {
+              scalePointsOpen(obj, scaleX, scaleY);
+            }
+          }
+
+
         if (obj.clippingPath){
             // left right top bottom are distances from cy and cx
           const scaleX = obj.width / oldWidth;
@@ -6424,10 +7168,6 @@ function pointInPolygon(x, y, pts) {
           obj.clippingPath.bottom *= scaleY;
           obj.clippingPath.cx *= scaleX;
           obj.clippingPath.cy *= scaleY;
-
-        //  const clipCx = (object.clippingPath.left + object.clippingPath.right)/2
-        //  const clipCy = (object.clippingPath.top + object.clippingPath.bottom)/2
-
 
         }
 
@@ -6451,6 +7191,10 @@ function pointInPolygon(x, y, pts) {
         const { index, side } = resizingSide; // side = 0: top, 1: right, 2: bottom, 3: left
         const obj = getActiveElement()
 
+          const oldWidth = obj.width;  // add these
+          const oldHeight = obj.h;
+          const oldCx = obj.cx;  // capture before any shift
+          const oldCy = obj.cy;
         const animated = getAnimatedProps(obj);
 
         // Transform mouse → local object space
@@ -6529,22 +7273,14 @@ function pointInPolygon(x, y, pts) {
           obj.cx += worldDx;
           obj.cy += worldDy;
 
-          const diffX = obj.width/2 - localX
-
-          //const scaleX = localX / oldClipW;
-          //const scaleY = localY / oldClipH;
 
           const scaleX = newClipW / oldClipW;
           const scaleY = newClipH / oldClipH;
 
 
-
           obj.width *= scaleX;
           obj.h     *= scaleY;
 
-
-           //obj.width = obj.width - oldClipW + newClipW
-           //obj.h     = obj.h - oldClipH + newClipH ;
 
           const {clipCx, clipCy, clipWidth, clipHeight} = getClippingValues(obj)
           obj.clippingPath.cx = clipCx
@@ -6555,6 +7291,8 @@ function pointInPolygon(x, y, pts) {
           obj.width = right - left;
           obj.h     = bottom - top;
 
+
+
           // Update center
           const localCx = (left + right) / 2;
           const localCy = (top + bottom) / 2;
@@ -6562,6 +7300,24 @@ function pointInPolygon(x, y, pts) {
           const worldDy = localCx * Math.sin(animated.angle) + localCy * Math.cos(animated.angle);
           obj.cx += worldDx;
           obj.cy += worldDy;
+
+
+          if (obj.type === 'custom-shape') {
+            const scaleX = obj.width / oldWidth;
+            const scaleY = obj.h / oldHeight;
+            if (obj.closed) {
+              scalePointsClosed(obj, scaleX, scaleY);
+            } else {
+              console.log('obj', obj)
+              scalePointsOpenSide(obj, scaleX, scaleY, oldCx, oldCy);
+              console.log('obj', obj)
+            }
+          }
+
+
+
+
+
         }
 
         // 4️⃣ Update object position (top-left)
@@ -6606,7 +7362,6 @@ function pointInPolygon(x, y, pts) {
     // dragging element
       if (dragging){
 
-        console.log('dragging', dragging)
 
         const dx = pos.x - dragging.startX;
         const dy = pos.y - dragging.startY;
@@ -6617,24 +7372,50 @@ function pointInPolygon(x, y, pts) {
           obj.x = obj.cx - obj.width/2
           obj.y = obj.cy - obj.h/2
 
-          if (obj.type === 'custom'){
-
-            obj.points.forEach(p => {
-              p.x += dx;
-              p.y += dy;
-              if (p.cpOut) { p.cpOut.x += dx; p.cpOut.y += dy; }
-              if (p.cpIn)  { p.cpIn.x  += dx; p.cpIn.y  += dy; }
-            });
-
-
-          }
-
         //  return
           drawLower();
           drawUpper();
           drawArtboard()
 
         draggingRef.current = { ...draggingRef.current, startX: pos.x, startY: pos.y }
+        return;
+      }
+
+       // dragging resize handles
+      if (phase.current === 'drag-anchor') {
+        const obj = getActiveElement()
+        if (!obj) return
+
+        if (obj.type !== 'custom-shape') return
+
+        const { kind, index } = dragTarget.current;
+
+        console.log('kind', kind)
+        const p = obj.points[index];
+        if (kind === 'anchor') {
+          const dx = pos.x - p.x, dy = pos.y - p.y;
+          p.x = pos.x; p.y = pos.y;
+          if (p.cpOut) { p.cpOut.x += dx; p.cpOut.y += dy; }
+          if (p.cpIn)  { p.cpIn.x  += dx; p.cpIn.y  += dy; }
+        } else if (kind === 'cpOut') {
+          p.cpOut = { x: pos.x, y: pos.y };
+          // mirror to in-handle for smooth node
+          p.cpIn = { x: 2*p.x - pos.x, y: 2*p.y - pos.y };
+        } else if (kind === 'cpIn') {
+          p.cpIn = { x: pos.x, y: pos.y };
+          p.cpOut = { x: 2*p.x - pos.x, y: 2*p.y - pos.y };
+        }
+        /*
+        const { width, height, cx, cy } = getDimensions(obj.points);
+        obj.width  = width;
+        obj.h = height;
+        obj.cx = cx;
+        obj.cy = cy;*/
+
+
+          drawLower();
+          drawUpper();
+          drawArtboard()
         return;
       }
 
@@ -6742,44 +7523,72 @@ function pointInPolygon(x, y, pts) {
         drawArtboard();
 
       }
-    }else if (activeToolRef.current === 'shape'){ 
-      if (shapeType === 'custom'){
+    }else if (activeToolRef.current === 'custom-shape'){ 
+      
         const obj = getActiveElement()
-        const pos = getMousePos(e);
-        //console.log('shapeType', shapeType)
-        //drawLower();
+        if (!obj) return
 
-        if (phase.current === 'drag-new-handle') {
-          const p = obj.points[newHandleIndex.current];
-          const dx = pos.x - p.x;
-          const dy = pos.y - p.y;
-          if (Math.hypot(dx, dy) > 3) {
-            p.cpOut = { x: p.x + dx, y: p.y + dy };
-            p.cpIn  = { x: p.x - dx, y: p.y - dy };
+
+        if (obj.type !== 'custom-shape')return
+        const pos = getMousePos(e);
+
+
+        if (customShapeType === "pen" || customShapeType === "anchor-point-convert" || customShapeType === "anchor-point-add") {
+          if (phase.current === 'drag-new-handle') {
+            const obj = getActiveElement();
+            const {localX, localY} = getLocalValues(pos, obj); // open path still absolute
+            const p = obj.points[newHandleIndex.current];
+            const dx = localX - p.x;
+            const dy = localY - p.y;
+            if (Math.hypot(dx, dy) > 3) {
+              p.cpOut = { x: p.x + dx, y: p.y + dy };
+              p.cpIn  = { x: p.x - dx, y: p.y - dy };
+            }
           }
-        } else if (phase.current === 'drag-anchor') {
-        const { kind, index } = dragTarget.current;
-        const p = obj.points[index];
-        if (kind === 'anchor') {
-          const dx = pos.x - p.x, dy = pos.y - p.y;
-          p.x = pos.x; p.y = pos.y;
-          if (p.cpOut) { p.cpOut.x += dx; p.cpOut.y += dy; }
-          if (p.cpIn)  { p.cpIn.x  += dx; p.cpIn.y  += dy; }
-        } else if (kind === 'cpOut') {
-          p.cpOut = { x: pos.x, y: pos.y };
-          // mirror to in-handle for smooth node
-          p.cpIn = { x: 2*p.x - pos.x, y: 2*p.y - pos.y };
-        } else if (kind === 'cpIn') {
-          p.cpIn = { x: pos.x, y: pos.y };
-          p.cpOut = { x: 2*p.x - pos.x, y: 2*p.y - pos.y };
+        } else if (customShapeType === "anchor-point-select") {
+          if (phase.current === 'drag-anchor') {
+            const obj = getActiveElement();
+            if (!obj || obj.type !== 'custom-shape') return;
+
+            const {localX, localY} = getLocalValues(pos, obj);
+            const { kind, index } = dragTarget.current;
+            const p = obj.points[index];
+
+            if (kind === 'anchor') {
+              const dx = localX - p.x;
+              const dy = localY - p.y;
+              p.x = localX;
+              p.y = localY;
+              if (p.cpOut) { p.cpOut.x += dx; p.cpOut.y += dy; }
+              if (p.cpIn)  { p.cpIn.x  += dx; p.cpIn.y  += dy; }
+            } else if (kind === 'cpOut') {
+              p.cpOut = { x: localX , y: localY };
+              p.cpIn  = { x: 2*p.x - localX , y: 2*p.y - localY };
+            } else if (kind === 'cpIn') {
+              p.cpIn  = { x: localX , y: localY };
+              p.cpOut = { x: 2*p.x - localX , y: 2*p.y - localY };
+            }
+
+
+              /*
+              const { width, height, cx, cy } = getDimensions(obj.points);
+              obj.width  = width;
+              obj.h = height;
+              obj.cx = cx;
+              obj.cy = cy;
+              */
+
+              console.log('obj.width', obj.width)
+          }
         }
-      }
+
+
 
 
         drawLower();
         drawUpper();
         drawArtboard();
-      }
+      
     }else if (activeToolRef.current === 'paint'){
       const pos = getMousePos(e);
       const index = selectedIndexRef.current;
@@ -7186,14 +7995,29 @@ const getClippingValues = (obj) => {
   const handleMouseUp = async() => {
     //setDragging(null)
 
-        console.log('handleMouseUp')
+    obj = getActiveElement()
 
-    if (activeToolRef.current === 'shape' && shapeType === 'custom'){    
 
+    if (obj && obj.type === 'custom-shape'){ 
+      
       phase.current = 'idle';
 
-      console.log('phase.current', phase.current)
       newHandleIndex.current = -1;
+
+
+      
+
+      if (customShapeType === "anchor-point-select"){
+                console.log('updateDimensionsClosed')
+               updateDimensionsLocalSpace(obj);
+
+
+       
+      }
+
+    
+
+
     }
 
     var obj
@@ -7687,9 +8511,26 @@ function drawSoftStrokePreview(stroke) {
 
   }
 
+
+  useEffect(()=>{
+
+   
+        drawUpper()
+    
+
+  },[customShapeType])
+
   const toolCallback = (tool, active) =>{
 
-
+    if(activeToolRef.current === 'custom-shape' && tool !== 'custom-shape'){
+      setCustomShapeType(null)
+      const obj = getActiveElement()
+      //obj.points.pop();
+      phase.current = 'idle';
+     
+      
+    }
+   //
 
     if (tool !== 'edit text' && isTextEditingRef.current){
 
@@ -8866,8 +9707,10 @@ const activateEditText = () => {
 
 const handleDoubleClick = (e) => {
 
-    setActiveTool('edit text')
-    activeToolRef.current = 'edit text'
+    //setActiveTool('edit text')
+    //activeToolRef.current = 'edit text'
+
+    console.log('handle double click')
 
     const pos = getMousePos(e);
     if (!pos) return
@@ -8885,6 +9728,53 @@ const handleDoubleClick = (e) => {
         return;
       }
     }
+
+    const obj = getActiveElement()
+
+   
+
+
+    if (!obj) return
+
+    if (obj.type==='custom-shape'){
+
+
+      if (!obj.closed && obj.points.length >= 2){
+
+    
+          obj.points.pop();
+          obj.closed = true;
+          phase.current = 'idle';
+
+          updateDimensionsClosed(obj);
+
+
+
+          /*
+          const { width, height, cx, cy, x, y, points } = getDimensionsClosed(obj);
+            obj.width  = width;
+            obj.h = height;
+            obj.cx     = cx;
+            obj.cy     = cy;
+            obj.points = points; // now relative to cx/cy
+            obj.closed = true;
+            */
+
+          //objectsRef.current[selectedIndexRef.current].closed = true;
+         
+          console.log('obj double click', obj)
+          
+
+          drawLower()
+          drawUpper()
+          drawArtboard()
+      }
+      
+    }
+ 
+
+
+
 }
 
 const postScheduled = (postInfo) => {
@@ -9334,6 +10224,30 @@ useEffect(() => {
           activeTool={activeTool}
           canvasEditorHeight={canvasEditorHeight}
         />
+       <ToolSVG
+          icon={Tangent}
+          callBack={toolCallback}
+          tool='custom-shape'
+          label='Custom Shape'
+          position={'left'}
+          activeTool={activeTool}
+          canvasEditorHeight={canvasEditorHeight}
+        >
+        <div onClick={() => setCustomShapeType('pen')} className={`tool-option ${customShapeType === 'pen'? 'active':''}`}><PenTool style={{marginRight:'5px'}} size={15} />Pen</div>
+        
+        {activeElement && activeElement.type==='custom-shape' &&
+          <>
+            <div onClick={() => setCustomShapeType('anchor-point-select')} className={`tool-option ${customShapeType === 'anchor-point-select'? 'active':''}`}><MousePointer2 style={{marginRight:'5px'}} size={15} />Select Anchor Point</div>
+            <div onClick={() => setCustomShapeType('anchor-point-convert')} className={`tool-option ${customShapeType === 'anchor-point-convert'? 'active':''}`}><ChevronDown style={{marginRight:'5px', transform: 'rotate(45deg)'}} size={15} />Convert Anchor Point</div>
+            <div onClick={() => setCustomShapeType('anchor-point-add')} className={`tool-option ${customShapeType === 'anchor-point-add'? 'active':''}`}><img src={'/pen-tool-add.svg'} style={{marginRight:'5px', width:'15px'}} />Add Anchor Point</div>
+             <div onClick={() => setCustomShapeType('anchor-point-remove')} className={`tool-option ${customShapeType === 'anchor-point-remove'? 'active':''}`}><img src={'/pen-tool-remove.svg'} style={{marginRight:'5px', width:'15px'}} />Remove Anchor Point</div>
+          </>
+        }
+      
+        
+        
+        </ToolSVG>
+
         <ToolSVG
           icon={Square}
           callBack={toolCallback}
@@ -9346,7 +10260,6 @@ useEffect(() => {
             <div onClick={() => setShapeType('rectangle')} className={`tool-option ${shapeType === 'rectangle'? 'active':''}`}><img src='rectangle.svg' style={{marginRight:'5px', width:'15px'}}/>Rectangle</div>
             <div onClick={() => setShapeType('ellipse')} className={`tool-option ${shapeType === 'ellipse'? 'active':''}`}><img src='circle.svg' style={{marginRight:'5px', width:'15px'}}/>Ellipse</div>
             <div onClick={() => setShapeType('triangle')} className={`tool-option ${shapeType === 'triangle'? 'active':''}`}><img src='triangle.svg' style={{marginRight:'5px', width:'15px'}}/>Triangle</div>
-            <div onClick={() => setShapeType('custom')} className={`tool-option ${shapeType === 'custom'? 'active':''}`}><Tangent size={15} style={{marginRight:'5px'}}/>Custom</div>
 
           </ToolSVG>
         <ToolSVG
@@ -9917,9 +10830,7 @@ useEffect(() => {
                   })}
 
               </Dropdown>
-              
               </div>   
-
             {scalePercentage &&
               <Percentage
                 scalePercentage={scalePercentage}
@@ -9945,16 +10856,65 @@ useEffect(() => {
               Load File
             </label>
           </div>
-          <DownloadDropDown
-            exportVideo={exportVideo}
-            canvas={lowerRef.current}
-            projectTitle={projectTitle}
-            showShare={setShowShare}
-            postInfo={postInfo}
-            exportVideoFrames={exportVideoFrames}
-            saveAsTemplate={saveAsTemplate}
+          <Dropdown
+          placeholder="Export"
+          icon={SquareArrowUpRight}
+          style="primary"
+          width={200}
+          >
+          <p><strong>Export to my files</strong></p>  
+          <p className="dropdown-button" onClick={async() => { 
+            try{
+              setCanvasLoader(true)
+              await saveJpgMyFiles(projectTitle, lowerRef.current, 300, user)
+            }catch(err){
+              showError(`File saving ${err}`)
+            }finally{
+             showSuccess('File saved') 
+             setCanvasLoader(false)
+            }
 
-          />
+          }}>Save as JPEG</p>
+          <p className="dropdown-button" onClick={async() => { 
+      
+            try{
+              setCanvasLoader(true)
+              await savePngMyFiles(projectTitle, lowerRef.current, 300, user)
+            }catch(err){
+              showError(`File saving ${err}`)
+            }finally{
+             showSuccess('File saved') 
+             setCanvasLoader(false)
+            }
+
+          }}>Save as PNG</p>
+
+          <p><strong>Export locally</strong></p> 
+          <p className="dropdown-button" onClick={() => {
+            saveAsPng(projectTitle, lowerRef.current, 300)
+          }}>Save as PNG</p>
+          <p className="dropdown-button" onClick={() => {
+            saveAsjpg(projectTitle, lowerRef.current, 300)
+          }}>Save as JPEG</p>
+          <p className="dropdown-button" onClick={() => {
+            saveAsTemplate()
+
+          }}>Save as Template</p>
+          <p className="dropdown-button" onClick={() => {
+            exportVideoFrames(true, true)
+      
+          }}>Export Video</p>
+
+          <p><strong>Export Social</strong></p> 
+            <button
+              onClick={() => {
+                showShare(true)
+              }} style={{flex: 2, marginBottom:0}} className='btn secondary icon-button'>
+              <CalendarDays className='button-icon'/>
+              Share Social
+            </button>
+
+          </Dropdown>
         </div>
         <ThemeSwitcher />
         </div>
@@ -11779,7 +12739,7 @@ const TemplatePanel = ({
       )}
 
     {templates.length>0&&
-        <p className='font-label'>Saved Templates</p>
+        <p className='font-label'><strong>Saved Templates</strong></p>
     }
     {templates.map((template, index) => {
       return(
@@ -11942,11 +12902,7 @@ const FeedsPanel = ({
         const isCustomApi = selectedFeed.query_field
 
 
-
-
-
         const posts = response?.data.map((item)=>{
-          console.log('item', item)
 
             return {
               id : item.id.toString(),

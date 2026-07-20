@@ -20,6 +20,7 @@ import { Cropper as ReactCropper } from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import { dataURLToFile } from '@/lib/utils'
 import { handleDownload } from '@/lib/utils'
+import { uploadFile } from '@/lib/upload-file'
 
 
 
@@ -2415,96 +2416,46 @@ const NewCropper = ({
   const backgroundRef = useRef(null);
   const canvasRef = useRef(null);
 
-
-
-
   const cropImage = async() => {
 
     try{
-    setLoader(true)
+        setLoader(true)
 
-    const cropper = cropperRef.current?.cropper
-    const croppedCanvas = cropper.getCroppedCanvas();
+        const cropper = cropperRef.current?.cropper
+        const croppedCanvas = cropper.getCroppedCanvas();
 
-    const targetCanvas = canvasRef.current;
-    const ctx = targetCanvas.getContext('2d');
+        const targetCanvas = canvasRef.current;
+        const ctx = targetCanvas.getContext('2d');
 
-    // Match target canvas dimensions to the cropped image
-    targetCanvas.width = croppedCanvas.width;
-    targetCanvas.height = croppedCanvas.height;
-
-
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
-    ctx.drawImage(croppedCanvas, 0, 0);
-
-    let file
-
-    if (image.file_type === 'image/jpeg'){
-      file = await new Promise((resolve) => {
-        targetCanvas.toBlob(resolve, 'image/jpeg', 0.95);
-      });
-    }else{
-      file = await new Promise((resolve) => {
-        targetCanvas.toBlob(resolve);
-      });
-    }
+        // Match target canvas dimensions to the cropped image
+        targetCanvas.width = croppedCanvas.width;
+        targetCanvas.height = croppedCanvas.height;
 
 
-    const formData = new FormData()
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+        ctx.drawImage(croppedCanvas, 0, 0);
 
+        let blob
 
-      formData.append('file', file)
-
-
-      if (image.file_type === 'image/jpeg'){
-        formData.append('tag', '.jpg');
-      }else{
-        formData.append('tag', '.png');
-      }
-
-
-      
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        })
-
-        const result = await res.json()
-
-        if (res.ok) {
-
-          const fileData={
-            ...image,
-            file_url:result.url
-          }
-
-          console.log('fileData', fileData)
-
-          const fileinfo = await storeFileInfo({
-            user_id:user.id,
-            file_url: fileData.file_url,
-            file_type:fileData.file_type,
-            file_name:fileData.file_name,
-            file_description:fileData.file_description??null
-          })
-
-          setWorkingFile({
-            created_at: fileinfo.created_at,
-            file_type: fileData.file_type,
-            file_url: fileData.file_url,
-            file_name:fileData.file_name,
-            file_description:fileData.file_description??null,
-            id: fileinfo.id,
-            user_id: user.id
-          })
-
-          setApplyChanges(true);
-          //setFileUrl(fileData.file_url)
-
-        } else {
-          showError(result.error)
+        if (image.file_type === 'image/jpeg'){
+          blob = await new Promise((resolve) => {
+            targetCanvas.toBlob(resolve, 'image/jpeg', 0.95);
+          });
+        }else{
+          blob = await new Promise((resolve) => {
+            targetCanvas.toBlob(resolve);
+          });
         }
+
+        const file = new File([blob],  `${image.file_name}${image.file_type === 'image/jpeg'?'.jpg':'.png'}`, { type: blob.type });
+
+        const uploadedFile = await uploadFile(file, null, null, user)
+        
+        setWorkingFile(uploadedFile)
+
+        setApplyChanges(true);
+
       }catch(error){
         
         showError('Crop error: ' + error.message)

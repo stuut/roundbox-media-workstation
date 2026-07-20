@@ -777,11 +777,25 @@ function removeDoubleSpaces(string) {
     return string.replace(/ {2,}/g, ' ');
 }
 
+function removeMarkdownImages(markdownText) {
+  // 1. Matches [![alt](url)](url) or [![alt](url)]
+  const imageRegex = /!\[.*?\]\([^)]+\)|!\[.*?\]\[[^\]]+\]/g;
+  
+  return markdownText.replace(imageRegex, '').trim();
+}
+
 
 
 const addContentfulArticle = (paragraphs, images) => {
 
-  let previousContent = mdValueRef.current
+
+  
+
+  let text = mdValueRef.current
+
+  let previousContent = removeMarkdownImages(text)
+
+  // remove images
 
   let combinedContent
 

@@ -2060,8 +2060,11 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
 
     case 'link':
     case 'carousel':
+
+      const postCaption = publication? publication.caption : caption
+
       return {
-        message: publication? publication.caption + '\n\n' + `Full story here: ${postLink}` : caption,
+        message:`${postCaption} ${addCaptionLink? `\n\n Full story here: ${postLink}` : ''}`,
         link: postLink,
       }
 
@@ -2152,7 +2155,10 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
         let description = publication?.caption?publication?.caption:caption
 
         if (postLink){
-          description = publication.caption + '\n\n' + `Full story here: ${postLink}`
+
+          const postCaption = publication? publication.caption : caption
+
+          description = `${postCaption} ${addCaptionLink? `\n\n Full story here: ${postLink}` : ''}`
         }
 
       return {
@@ -2937,6 +2943,8 @@ const addNewFiles = async(selectedFiles) => {
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
+                          addCaptionLink={addCaptionLink}
+                          setAddCaptionLink={setAddCaptionLink}
                           status={status}
 
                         />
@@ -2964,6 +2972,8 @@ const addNewFiles = async(selectedFiles) => {
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
+                          addCaptionLink={addCaptionLink}
+                          setAddCaptionLink={setAddCaptionLink}
                           status={status}
                         />
                       </>
@@ -2979,6 +2989,8 @@ const addNewFiles = async(selectedFiles) => {
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
+                          addCaptionLink={addCaptionLink}
+                          setAddCaptionLink={setAddCaptionLink}
                           status={status}
                         />
                       </>
@@ -2995,6 +3007,8 @@ const addNewFiles = async(selectedFiles) => {
                           selectedSocialPages={selectedSocialPages}
                           addComment={addComment}
                           setAddComment={setAddComment}
+                          addCaptionLink={addCaptionLink}
+                          setAddCaptionLink={setAddCaptionLink}
                           status={status}
                         />
                       </>
@@ -3019,6 +3033,8 @@ const FacebookLinkPreview = ({
   selectedSocialPages,
   addComment,
   setAddComment,
+  addCaptionLink,
+  setAddCaptionLink,
   status
 }) => {
   const [openGraph, setOpenGraph] = useState(null)
@@ -3186,6 +3202,7 @@ return(
               }
               {status === 'unpublished'&&
                 <>
+                <div>
                     <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
                     <Checkbox
                       id={'add-comment'}
@@ -3202,6 +3219,25 @@ return(
                     />
                     Add Link in Comment
                   </label>
+                  </div>
+                   <div style={{marginTop:'10px'}}>
+                  <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
+                  <Checkbox
+                    id={'add-comment'}
+                    className="form-check-input"
+                    type="checkbox"
+                    onChange={() => setAddCaptionLink(prev => !prev)}
+                    checked={addCaptionLink}
+                    sx={{
+                      color: 'var(--md-sys-color-secondary)',
+                      '&.Mui-checked': {
+                        color: 'var(--md-sys-color-primary)',
+                      },
+                    }}
+                  />
+                  Add Link in Caption
+                </label>
+                </div>
                 </>
               }
             </ThreeDotMenu>
@@ -3468,10 +3504,6 @@ const MediaList = ({
 
     const removeImage = async (index) => {
 
-      console.log('removeImage')
-
-      //.setFiles(prev => prev.filter((_, i) => i !== index));
-
 
       setMedia(prev => prev.filter((_, i) => i !== index));
 
@@ -3509,7 +3541,8 @@ const MediaList = ({
             );
         }
 
-      //setFiles(prev => prev.filter((_, i) => i !== index));
+
+
     }
 
 
@@ -3680,49 +3713,12 @@ const MediaList = ({
   )
 }
 
-const InstagramImage = ({
-  image,
-  channelPreviews,
-  setInstagramError
-}) => {
-
-
-  const [error, setError] = useState(false)
-  const hasInstagram = channelPreviews.some(channel => channel.includes('instagram'));
-
-  const checkImage = async() => {
-
-    if (hasInstagram ){
-        const imageCheck = await checkImageSize(image.file_url)
-        if (imageCheck){
-          setError(true)
-          setInstagramError(true)
-        }
-    }
-
-  }
-useEffect(()=>{
-  checkImage()
-},[channelPreviews, image])
-
-  return(
-    <img style={{
-    width:50,
-    height:50,
-    objectFit:'cover',
-    borderRadius:'5px',
-    border: `${!image?.instagram_image_error?'5px solid var(--md-sys-color-surface-container)':'5px solid var(--md-sys-color-error)'}`
-  }}
-  src={image.file_url}/>
-  )
-}
 
 const FacebookPhotosPreview = ({
   media,
   caption,
   customCaptions,
   customCaptionsToggle,
-  selectedSocialPages,
   addComment,
   setAddComment,
   status
@@ -3756,22 +3752,45 @@ const FacebookPhotosPreview = ({
           <ThreeDotMenu>
             {status === 'unpublished'&&
               <>
+              
+                <div>
+                    <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
+                    <Checkbox
+                      id={'add-comment'}
+                      className="form-check-input"
+                      type="checkbox"
+                      onChange={() => setAddComment(prev => !prev)}
+                      checked={addComment}
+                      sx={{
+                        color: 'var(--md-sys-color-secondary)',
+                        '&.Mui-checked': {
+                          color: 'var(--md-sys-color-primary)',
+                        },
+                      }}
+                    />
+                    Add Link in Comment
+                  </label>
+                </div>
+           
+                {/*}
+                <div style={{marginTop:'10px'}}>
                   <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
-                  <Checkbox
-                    id={'add-comment'}
-                    className="form-check-input"
-                    type="checkbox"
-                    onChange={() => setAddComment(prev => !prev)}
-                    checked={addComment}
-                    sx={{
-                      color: 'var(--md-sys-color-secondary)',
-                      '&.Mui-checked': {
-                        color: 'var(--md-sys-color-primary)',
-                      },
-                    }}
-                  />
-                  Add Link in Comment
-                </label>
+                    <Checkbox
+                      id={'add-comment'}
+                      className="form-check-input"
+                      type="checkbox"
+                      onChange={() => setAddCaptionLink(prev => !prev)}
+                      checked={addCaptionLink}
+                      sx={{
+                        color: 'var(--md-sys-color-secondary)',
+                        '&.Mui-checked': {
+                          color: 'var(--md-sys-color-primary)',
+                        },
+                      }}
+                    />
+                    Add Link in Caption
+                  </label>
+                </div>*/}
               </>
             }
           </ThreeDotMenu>
@@ -3818,10 +3837,6 @@ const InstagramPhotosPreview = ({
   caption,
   customCaptions,
   customCaptionsToggle,
-  selectedSocialPages,
-  addComment,
-  setAddComment,
-  status
 }) => {
     const [currentSlide, setCurrentSlide] = useState(0)
     const [captionText, setCaptionText] = useState(caption)

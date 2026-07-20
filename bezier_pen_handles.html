@@ -36,7 +36,7 @@ function resize() {
 }
 new ResizeObserver(resize).observe(area);
 
-const ANCHOR_R = 5;
+const ANCHOR_R = 6;
 const HANDLE_R = 4;
 
 /* ── State ── */
@@ -64,6 +64,9 @@ function hitTest(pos) {
   // check handles first (on top visually)
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
+
+    console.log('p.cpOut && dist(pos, p.cpOut)', p.cpOut && dist(pos, p.cpOut))
+
     if (p.cpOut && dist(pos, p.cpOut) < HANDLE_R + 4) return { kind: 'cpOut', index: i };
     if (p.cpIn  && dist(pos, p.cpIn)  < HANDLE_R + 4) return { kind: 'cpIn',  index: i };
   }
@@ -198,13 +201,9 @@ function render() {
 
   if (pts.length === 0) return;
 
-   console.log('phase', phase)
 
   // ghost segment to mouse (preview next segment)
   if (tool === 'pen' && !closed && pts.length >= 1 && phase !== 'drag-new-handle') {
-
-    console.log('ghost segment', pts)
-
 
 
     const last = pts[pts.length - 1];
