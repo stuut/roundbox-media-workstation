@@ -1560,11 +1560,6 @@ const getEditorContent = () => {
 
 const updateCaption = (value, id) => {
 
-  console.log('value', value)
-  console.log('id', id)
-
-  console.log('images', images)
-
   setImages(prev =>
     prev.map(image =>
       image.id === id
@@ -1572,6 +1567,22 @@ const updateCaption = (value, id) => {
         : image
     )
   );
+
+
+
+  const updatedItems = images.map(image =>
+      image.id === id
+        ? { ...image, file_description: value }
+        : image
+    )
+    reflowImages(updatedItems)
+
+
+    
+
+
+
+
 };
 
 const editMedia = (media, index, tool) => {

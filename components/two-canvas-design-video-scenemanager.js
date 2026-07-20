@@ -28,6 +28,7 @@ import { getFilesSearch } from "@/lib/supabase";
 import { useEditItemContext } from "@/context/edit-item-context"
 import { formatR2Url } from "@/lib/format-rs-url"
 import { useSearchParams } from 'next/navigation'
+import { ReactSortable } from "react-sortablejs";
 
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
@@ -1375,6 +1376,34 @@ const handleWorkerMessage = (e) => {
 
 }
 
+const changeSortableState = (newItemsArray) => {
+
+    const activeScene = sceneManagerRef.current.getActiveScene()
+    if (!activeScene) return
+
+    activeScene.elements = newItemsArray
+    handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
+    objectsRef.current=newItemsArray
+
+
+
+    /*
+
+    const activeElement = getActiveElement()
+    if (!activeElement){
+        
+      const index = objectsRef.current.findIndex(o => o.id === activeElement.id);
+
+        selectedIndexRef.current = index
+    }*/
+
+
+
+    drawLower()
+
+}
+
+
 const moveBackwards = () => {
 
   const activeElement = getActiveElement()
@@ -1532,6 +1561,7 @@ objectsRef.current=newItemsArray
 
 // Update scene
 activeScene.elements = newItemsArray
+//only for UI
 handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
 
 
@@ -4291,6 +4321,9 @@ const addScene = (scene) =>{
 
 
 const addElement = (newObj) => {
+
+    console.log('addElement')
+
     objectsRef.current.push(newObj);
 
     const activeScene = sceneManagerRef.current.getActiveScene()
@@ -4337,6 +4370,14 @@ const handleUpdateSceneState = (sceneId, updates) => {
       setActiveSceneState(prev => prev.update(updates));
   }
 }
+
+
+
+useEffect(()=>{
+
+  console.log('activeSceneState update')
+
+},[activeSceneState])
 
 
 
@@ -5209,9 +5250,7 @@ const clearUpper = () => {
           ctx.strokeRect(screenLeft, screenTop + gapY, screenW, screenH/3);
       }
 
-      console.log('screenW', screenW)
 
-      console.log('screenW', screenH)
       // Draw bounding box centered at (0,0)
       ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
       ctx.lineWidth = TRANSFORM_WIDTH;
@@ -6041,35 +6080,6 @@ function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
 
 
-
-
-function hitBezierClosed(pos, obj, onlyAnchors = false) {
-  // undo cx/cy translation and rotation to get mouse in same space as points
-    const dx = pos.x - obj.cx;
-    const dy = pos.y - obj.cy;
-    const animatedProps = getAnimatedProps(obj);
-    const cos = Math.cos(-animatedProps.angle);
-    const sin = Math.sin(-animatedProps.angle);
-    const localPos = {
-      x: (dx * cos - dy * sin) / animatedProps.scale,
-      y: (dx * sin + dy * cos) / animatedProps.scale,
-    };
-
-  // points are already relative to cx/cy so compare directly
-  if (!onlyAnchors) {
-    for (let i = 0; i < obj.points.length; i++) {
-      const p = obj.points[i];
-      if (p.cpOut && dist(localPos, p.cpOut) < HANDLE_R + 4) return { kind: 'cpOut', index: i };
-      if (p.cpIn  && dist(localPos, p.cpIn)  < HANDLE_R + 4) return { kind: 'cpIn',  index: i };
-    }
-  }
-
-  for (let i = 0; i < obj.points.length; i++) {
-    if (dist(localPos, obj.points[i]) < ANCHOR_R + 4) return { kind: 'anchor', index: i };
-  }
-  return null;
-}
-
 function anchorHit(pos, obj, onlyAnchors = false) {
   // undo cx/cy translation and rotation to get mouse in same space as points
     const dx = pos.x - obj.cx;
@@ -6719,6 +6729,10 @@ function pointInPolygon(x, y, pts) {
       }
     
     }else if (tool === 'shape') {
+
+      if (!shapeType) return
+
+
       const pos = getMousePos(e); // function that gives {x,y} in world space
       const newObj =  new Element({
         id: generateUniqueId(),
@@ -6733,7 +6747,7 @@ function pointInPolygon(x, y, pts) {
      addElement(newObj)
      setActiveElement(newObj)
      selectedIndexRef.current = objectsRef.current.length - 1
-    setActiveElementId(objectsRef.current.length - 1)
+      setActiveElementId(objectsRef.current.length - 1)
      draggingRef.current = { id: newObj.id, startX: pos.x, startY: pos.y }
 
     }else if (tool === 'custom-shape') {
@@ -10191,6 +10205,41 @@ useEffect(() => {
   }
 }, [displayEditItem, item]);
 
+
+const handleElementsDrop = (e, id) => {
+
+  e.preventDefault();
+
+  const draggedId = e.dataTransfer.getData('id');
+
+  if (id && draggedId !== id) {
+
+    const activeScene = sceneManagerRef.current.getActiveScene()
+    const draggedItemIndex = activeScene.elements.findIndex(item => item.id === draggedId);
+    const targetItemIndex = activeScene.elements.findIndex(item => item.id === id);
+    const items = activeScene.elements
+    const [draggedItem] = items.splice(draggedItemIndex, 1);
+    items.splice(targetItemIndex, 0, draggedItem);
+
+  }
+
+}
+
+const handleElementsDragOver = (e) => {
+  e.preventDefault();
+
+}
+
+const handleElementsDragLeave = (e) => {
+  e.preventDefault();
+}
+
+const handleElementDragStart = (e, id) => {
+  e.stopPropagation(); // Prevents parent drag event from triggering
+
+  e.dataTransfer.setData('id', id);
+};
+
   return (
     <>
     <div style={canvasLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
@@ -10598,80 +10647,90 @@ useEffect(() => {
               {activeSceneState.elements.length > 0 &&
                 <p className='font-label'>Elements</p>
               }
-              {[...activeSceneState.elements].reverse().map((element, index)=>{
-                const isWhite = element?.fill === 'rgba(255,255,255,1)'
-                const isImage = element?.type === 'image'
+              <div
+              onDragOver={handleElementsDragOver}
+              onDragLeave={handleElementsDragLeave}
+              //onDrop={(e) => handleElementsDrop(e, null)}
+              >
+                    {[...activeSceneState.elements].reverse().map((element, index)=>{
+                      const isWhite = element?.fill === 'rgba(255,255,255,1)'
+                      const isImage = element?.type === 'image'
 
-                var colour
-                var borderColour
+                      var colour
+                      var borderColour
 
-                if (element?.fill){
-                  colour = element?.fill
-                  borderColour = lightenRgba(element?.fill, .5)
-                }else{
-                  colour = 'var(--md-sys-color-secondary-container)'
-                  borderColour = 'var(--md-sys-color-secondary-container)'
-                }
+                      if (element?.fill){
+                        colour = element?.fill
+                        borderColour = lightenRgba(element?.fill, .5)
+                      }else{
+                        colour = 'var(--md-sys-color-secondary-container)'
+                        borderColour = 'var(--md-sys-color-secondary-container)'
+                      }
 
-                if (!element || element.type==='eraser') return null
+                      if (!element || element.type==='eraser') return null
 
-                return(
-                    <div key={index} className='no-highlight timeline-bar'
-                      style={{
-                        height:'35px',
-                        marginTop: '5px',
-                        width: '100%',
-                        //backgroundImage: 'url("/transparent-background.jpg")',
-                        background: activeElement?.id === element.id
-                                ? isImage? 'url("/transparent-background.jpg")' : 'var(--md-sys-color-primary)'
-                                : isWhite ? 'var(--md-sys-color-surface)' : colour,
-                        borderRadius:'var(--input-border-radius)',
-                        borderColor: activeElement?.id === element.id
-                                ? 'var(--md-sys-color-secondary-container)'
-                                : isWhite ? 'var(--md-sys-color-surface-container)' : borderColour,
+                      return(
+                          <div
+                          key={index}
+                          draggable
+                          onDrop={(e) => handleElementsDrop(e, element.id)}
+                          onDragStart={(e) => handleElementDragStart(e, element.id)}
+                          //onDragOver={handleElementsDragOver}
 
-                        alignItems: 'center',
-                        borderWidth:'3px',
-                        borderStyle: 'solid',
-                        boxSizing: 'border-box',
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                      onClick={(e) => {
-                        onSelectElement(element.id);
-                      }}>
-                        {element.type === 'video'&&
-                          <VideoTimelineBar videoElement={element} />
-                        }
-                        {element.type === 'image'&&
-                          <div style={{width: '100%' }} className='repeater-timeline-bar'>
-                            {Array(Math.round(activeSceneState.duration)).fill(0).map((_, index) => (
-                              <img
-                                key={index}
-                                src={element.imageSrc} // Replace with your image source
-                                alt="Repeated image"
-                              />
-                            ))}
-                          </div>
-                        }
-                        {element.type === 'text'&&
-                          <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
-                            {element.type === 'text' ? `"${element.text?.slice(0, 20) || 'Text'}..."` :
-                             element.type}
-                          </span>
-                        }
-                        {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle' || element.type === 'custom-shape') &&
-                          <span style={{color:'#ffffff',paddingLeft:'10px', fontSize:'.8em'}} >
-                            {element.type.replace('-', ' ')}
-                          </span>
-                        }
+                          className='no-highlight timeline-bar'
+                            style={{
+                              height:'35px',
+                              marginTop: '5px',
+                              width: '100%',
+                              //backgroundImage: 'url("/transparent-background.jpg")',
+                              background: activeElement?.id === element.id
+                                      ? isImage? 'url("/transparent-background.jpg")' : 'var(--md-sys-color-primary)'
+                                      : isWhite ? 'var(--md-sys-color-surface)' : colour,
+                              borderRadius:'var(--input-border-radius)',
+                              borderColor: activeElement?.id === element.id
+                                      ? 'var(--md-sys-color-secondary-container)'
+                                      : isWhite ? 'var(--md-sys-color-surface-container)' : borderColour,
 
-                  </div>
-                )
-              })
+                              alignItems: 'center',
+                              borderWidth:'3px',
+                              borderStyle: 'solid',
+                              boxSizing: 'border-box',
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}
+                            onClick={(e) => {
+                              onSelectElement(element.id);
+                            }}>
+                              {element.type === 'video'&&
+                                <VideoTimelineBar videoElement={element} />
+                              }
+                              {element.type === 'image'&&
+                                <div style={{width: '100%' }} className='repeater-timeline-bar'>
+                                  {Array(Math.round(activeSceneState.duration)).fill(0).map((_, index) => (
+                                    <img
+                                      key={index}
+                                      src={element.imageSrc} // Replace with your image source
+                                      alt="Repeated image"
+                                    />
+                                  ))}
+                                </div>
+                              }
+                              {element.type === 'text'&&
+                                <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
+                                  {element.type === 'text' ? `"${element.text?.slice(0, 20) || 'Text'}..."` :
+                                  element.type}
+                                </span>
+                              }
+                              {(element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle' || element.type === 'custom-shape') &&
+                                <span style={{color:'#ffffff',paddingLeft:'10px', fontSize:'.8em'}} >
+                                  {element.type.replace('-', ' ')}
+                                </span>
+                              }
 
-              }
-
+                        </div>
+                      )
+                    })}     
+                </div>
               <div className='col-2 column-gap-2'>
                 <button onClick={() => duplicateScene(activeSceneState)} style={{flex: 4, marginBottom:0}} className='btn secondary icon-button'>
                   <Copy className='button-icon'/>
@@ -13459,13 +13518,14 @@ const PropertiesPanel = ({
               <button className="btn secondary icon-button btn-sm" onClick={bringToFront} style={{flex:1, marginBottom:0}}><BringToFront className='button-icon'/>To Front</button>
               <button className="btn secondary icon-button btn-sm" onClick={sendToBack} style={{flex:1, marginBottom:0}}><SendToBack className='button-icon'/>To Back</button>
             </div>
+            {/*}
             <div className='col-2' style={{columnGap : '2%'}}>
               <button className="btn secondary icon-button btn-sm" onClick={moveBackwards} style={{flex:1}}><BringToFront className='button-icon'/>Backward</button>
               <button className="btn secondary icon-button btn-sm" onClick={moveForward} style={{flex:1}}><SendToBack className='button-icon'/>Forward</button>
-            </div>
+            </div>*/}
           </div>
           {(element.type !== 'text') &&
-            <div style={{margin: '0px 0px 0px px'}}>
+            <div style={{margin: '10px 0px 0px px'}}>
               <p className='font-label'>Stroke Weight</p>
               <input
                 id='stroke-weight'
