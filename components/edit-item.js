@@ -41,6 +41,7 @@ export default function EditFile() {
     setItem(workingFile)
     setDisplayEditItem(false)
     setWorkingFile(null)
+    setApplyChanges(false)
   }
 
 
