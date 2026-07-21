@@ -4470,6 +4470,9 @@ function hitPolygon(px, py, polygon) {
     if (handMode.current) {
       isPanning.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
+    } else if (tool ===  'size-position' && tool !== 'cropping') {
+        selectionRef.current = { startX: pos.x, startY: pos.y }
+        drawUpper()
     }else if (tool === 'size-position' || tool === 'cropping') {
       // resize handles
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
@@ -4506,8 +4509,6 @@ function hitPolygon(px, py, polygon) {
       }
       // object selection (topmost first)
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
-
-
         if (hitObject(objectsRef.current[i], pos.x, pos.y)) {
             if (!isElementInScene(objectsRef.current[i])) return
             setActiveElement(objectsRef.current[i])
@@ -4519,13 +4520,14 @@ function hitPolygon(px, py, polygon) {
       }
 
       selectedIndexRef.current = null
-        setActiveElementId(null)
+      setActiveElementId(null)
       if (selectedIndexRef.current === null){
         drawUpper()
         drawArtboard()
         setActiveElement(null)
-
       }
+
+
     }else if (tool === 'shape') {
       const pos = getMousePos(e); // function that gives {x,y} in world space
       const newObj =  new Element({

@@ -1350,7 +1350,7 @@ const FeedsPanel = ({
         </div>
         {noPosts &&
           <div className='alert alert-danger'>
-            No Posts For You
+            That's a bummer, man
           </div>
         }
         {posts.map((post, index)=>{

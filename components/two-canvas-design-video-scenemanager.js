@@ -624,6 +624,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const selectedIndexRef = useRef(null)
   const selectedIndexsRef = useRef(null)
   const draggingRef = useRef(null);
+  const selectionRef = useRef(null);
   const handMode = useRef(false); // spacebar toggles this
   const isPanning = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
@@ -4971,6 +4972,111 @@ const clearUpper = () => {
 
 }
 
+function boundsOverlap(selRect, objMinX, objMaxX, objMinY, objMaxY) {
+  return !(
+    selRect.maxX < objMinX ||
+    selRect.minX > objMaxX ||
+    selRect.maxY < objMinY ||
+    selRect.minY > objMaxY
+  );
+}
+
+function objectInSelection(obj, selRect) {
+  const animatedProps = getAnimatedProps(obj);
+
+  // get object bounds in world space for quick reject
+  const halfW = obj.width / 2 * animatedProps.scale;
+  const halfH = obj.h / 2 * animatedProps.scale;
+  if (!boundsOverlap(selRect, obj.cx - halfW, obj.cx + halfW, obj.cy - halfH, obj.cy + halfH)) {
+    return false;
+  }
+
+  // convert selection rect corners to object local space
+  const corners = [
+    { x: selRect.minX, y: selRect.minY },
+    { x: selRect.maxX, y: selRect.minY },
+    { x: selRect.maxX, y: selRect.maxY },
+    { x: selRect.minX, y: selRect.maxY },
+  ];
+
+  const localCorners = corners.map(c => {
+    const dx = c.x - obj.cx;
+    const dy = c.y - obj.cy;
+    const cos = Math.cos(-animatedProps.angle);
+    const sin = Math.sin(-animatedProps.angle);
+    return {
+      x: (dx * cos - dy * sin) / animatedProps.scale,
+      y: (dx * sin + dy * cos) / animatedProps.scale,
+    };
+  });
+
+  // check if any selection corner is inside object
+  const left   = -(obj.width / 2);
+  const right  =  (obj.width / 2);
+  const top    = -(obj.h / 2);
+  const bottom =  (obj.h / 2);
+
+  if (localCorners.some(c => c.x >= left && c.x <= right && c.y >= top && c.y <= bottom)) {
+    return true;
+  }
+
+  // check if object center is inside selection (handles case where object is smaller than selection)
+  if (obj.cx >= selRect.minX && obj.cx <= selRect.maxX &&
+      obj.cy >= selRect.minY && obj.cy <= selRect.maxY) {
+    return true;
+  }
+
+  return false;
+}
+
+function customShapeInSelection(obj, selRect) {
+  const animatedProps = getAnimatedProps(obj);
+  const flat = obj._flat ?? flattenCurve(obj.points, obj.closed);
+
+  // convert flat points from local to world space
+  const cos = Math.cos(animatedProps.angle);
+  const sin = Math.sin(animatedProps.angle);
+  const worldFlat = flat.map(p => ({
+    x: obj.cx + (p.x * cos - p.y * sin) * animatedProps.scale,
+    y: obj.cy + (p.x * sin + p.y * cos) * animatedProps.scale,
+  }));
+
+  // quick bounds check
+  const bounds = getBounds(worldFlat);
+  if (!boundsOverlap(selRect, bounds.minX, bounds.maxX, bounds.minY, bounds.maxY)) {
+    return false;
+  }
+
+  // any shape point inside selection rect
+  if (worldFlat.some(p =>
+    p.x >= selRect.minX && p.x <= selRect.maxX &&
+    p.y >= selRect.minY && p.y <= selRect.maxY
+  )) return true;
+
+  // any selection corner inside shape (handles selection rect inside shape)
+  const corners = [
+    { x: selRect.minX, y: selRect.minY },
+    { x: selRect.maxX, y: selRect.minY },
+    { x: selRect.maxX, y: selRect.maxY },
+    { x: selRect.minX, y: selRect.maxY },
+  ];
+
+  if (corners.some(c => {
+    // convert corner to local space for pointInPolygon
+    const dx = c.x - obj.cx;
+    const dy = c.y - obj.cy;
+    const cosInv = Math.cos(-animatedProps.angle);
+    const sinInv = Math.sin(-animatedProps.angle);
+    const localC = {
+      x: (dx * cosInv - dy * sinInv) / animatedProps.scale,
+      y: (dx * sinInv + dy * cosInv) / animatedProps.scale,
+    };
+    return pointInPolygon(localC.x, localC.y, flat);
+  })) return true;
+
+  return false;
+}
+
   // Draw upper canvas overlay
   const drawUpper = () => {
     
@@ -4984,6 +5090,40 @@ const clearUpper = () => {
 
     ctx.clearRect(0, 0, upper.width, upper.height);
     ctx.save();
+
+    const selection = selectionRef.current;
+
+      if (selection) {
+        ctx.save();
+
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = COLOUR;
+        ctx.fillRect(
+          selection.startX * scaleRef.current + offsetRef.current.x,
+          selection.startY * scaleRef.current + offsetRef.current.y,
+          (selection.endX * scaleRef.current + offsetRef.current.x) - (selection.startX * scaleRef.current + offsetRef.current.x),
+          (selection.endY * scaleRef.current + offsetRef.current.y) - (selection.startY * scaleRef.current + offsetRef.current.y)
+        );
+
+
+
+
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = COLOUR;
+        ctx.lineWidth = 1;
+
+         ctx.strokeRect(
+          selection.startX * scaleRef.current + offsetRef.current.x,
+          selection.startY * scaleRef.current + offsetRef.current.y,
+          (selection.endX * scaleRef.current + offsetRef.current.x) - (selection.startX * scaleRef.current + offsetRef.current.x),
+          (selection.endY * scaleRef.current + offsetRef.current.y) - (selection.startY * scaleRef.current + offsetRef.current.y)
+        )
+
+       
+        ctx.restore();
+      }
+
+
 
     if (selectedIndex != null) {
 
@@ -6610,6 +6750,20 @@ function pointInPolygon(x, y, pts) {
     return -1;
   };
 
+ const getSelectionMousePos = e => {
+
+    if (offsetRef.current === null) return
+
+    const rect = upperRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+ 
+
+    //setLeft((mouseX - offset.x) / scale)
+    return { x: mouseX, y: mouseY};
+  };
+
+
   const getMousePos = e => {
 
     if (offsetRef.current === null) return
@@ -6662,6 +6816,14 @@ function pointInPolygon(x, y, pts) {
     if (handMode.current) {
       isPanning.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
+    } else if (tool ===  'size-position' && tool !== 'cropping') {
+        const selectionPos = getSelectionMousePos(e)
+
+       // selectionRef.current = { startX: selectionPos.x, startY: selectionPos.y }
+
+        selectionRef.current = { startX: pos.x, startY: pos.y }
+       
+        drawUpper()
     }else if (tool === 'size-position' || tool === 'cropping') {
 
       // resize handles corners
@@ -6702,13 +6864,9 @@ function pointInPolygon(x, y, pts) {
       }
       // object selection (topmost first)
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
-
-
         if (hitObject(objectsRef.current[i], pos.x, pos.y)) {
 
             if (isElementInScene(objectsRef.current[i])){
-
-
                 setActiveElement(objectsRef.current[i])
                 selectedIndexRef.current = i
                 setActiveElementId(i)
@@ -6754,8 +6912,17 @@ function pointInPolygon(x, y, pts) {
 
 
       const pos = getMousePos(e); // function that gives {x,y} in world space
+
+      console.log('customShapeType', customShapeType)
       
     if (customShapeType === 'pen'){
+        if (objectsRef.current[selectedIndexRef.current].type !== 'custom-shape'){
+          selectedIndexRef.current = null
+          setActiveElementId(null)
+          setActiveElement(null)
+        }
+
+
         // path is open, check if we hit an existing point or handle
         const points = objectsRef.current[selectedIndexRef.current]?.points || [];
 
@@ -6789,11 +6956,9 @@ function pointInPolygon(x, y, pts) {
         phase.current = 'drag-new-handle';
           //update object width and height based on points
         }else{
-              // path is closed, start a new path
 
-            console.log('pos.x', pos.x)
-            console.log('pos.y', pos.y)
-
+          console.log('add new path')
+              // path is closed, start a new pat
             const newObj =  new Element({
               id: generateUniqueId(),
               x:pos.x,
@@ -6817,11 +6982,13 @@ function pointInPolygon(x, y, pts) {
           setActiveElement(newObj)
           selectedIndexRef.current = objectsRef.current.length - 1
           setActiveElementId(objectsRef.current.length - 1)
-          //objectsRef.current[selectedIndexRef.current].points.push({ x: pos.x, y: pos.y, cpOut: null, cpIn: null })
-            newHandleIndex.current = objectsRef.current[selectedIndexRef.current].points.length - 1;
+          newHandleIndex.current = objectsRef.current[selectedIndexRef.current].points.length - 1;
+          //drawUpper()
+          //drawLower()
+          //drawArtboard()
         }
       }  else if   (customShapeType === 'anchor-point-select'){
-      for (let i = objectsRef.current.length - 1; i >= 0; i--) {
+        for (let i = objectsRef.current.length - 1; i >= 0; i--) {
 
               if (isElementInScene(objectsRef.current[i])){
 
@@ -6928,7 +7095,7 @@ function pointInPolygon(x, y, pts) {
                           hit.index
 
                           obj.points.splice(hit.index, 1); 
-                                                drawUpper()
+                      drawUpper()
                       drawLower()
                       drawArtboard()
                       return;
@@ -7065,7 +7232,7 @@ function pointInPolygon(x, y, pts) {
     const resizingSide = resizingSideRef.current
     const textEditing = isTextEditingRef.current
     mousePosRef.current = pos
-
+    const selecting = selectionRef.current
     const rotating = rotatingRef.current
     const panning = isPanning.current
     const dragging = draggingRef.current; // snapshot so it doesn’t change mid-execution
@@ -7073,7 +7240,6 @@ function pointInPolygon(x, y, pts) {
 
     if (textEditing){
       const object = getActiveElement()
-
       if (hitObject(object, pos.x, pos.y) && lastPointRef.current) {
 
         const distance = Math.sqrt((pos.x - lastPointRef.current.x) ** 2 + (pos.y - lastPointRef.current.y) ** 2);
@@ -7094,10 +7260,7 @@ function pointInPolygon(x, y, pts) {
           drawLower()
           drawTextCursor()
         }
-
       }
-
-
     }else if (panning) {
          const dx = e.clientX - lastPos.current.x;
          const dy = e.clientY - lastPos.current.y;
@@ -7126,6 +7289,55 @@ function pointInPolygon(x, y, pts) {
         drawArtboard()
 
     }else if (activeToolRef.current === 'size-position'){
+
+      if (selecting){
+        const selectionPos = getSelectionMousePos(e)
+        /*
+
+        selecting.width = Math.abs(selectionPos.x - selecting.startX);
+        selecting.height = Math.abs(selectionPos.y - selecting.startX);
+
+        selecting.endX = selectionPos.x
+        selecting.endY = selectionPos.y
+        */
+
+        selecting.width = Math.abs(pos.x - selecting.startX);
+        selecting.height = Math.abs(pos.y - selecting.startY);
+
+        selecting.endX = pos.x
+        selecting.endY = pos.y
+
+
+        const selectionRect = {
+          minX: Math.min(selecting.startX, selecting.endX),
+          maxX: Math.max(selecting.startX, selecting.endX),
+          minY: Math.min(selecting.startY, selecting.endY),
+          maxY: Math.max(selecting.startY, selecting.endY),
+        };
+
+        for (let i = objectsRef.current.length - 1; i >= 0; i--) {
+            if (isElementInScene(objectsRef.current[i])){
+                const obj = objectsRef.current[i]
+
+               if (obj.type === 'custom-shape') {
+                  customShapeInSelection(obj, selectionRect);
+
+                  console.log(customShapeInSelection(obj, selectionRect))
+               }else{
+                  objectInSelection(obj, selectionRect);
+                  console.log(objectInSelection(obj, selectionRect))
+               }
+
+                
+
+            }
+        }
+
+
+
+
+        drawUpper();
+      }
 
       // resizing element from corner proportional
       if (resizing) {
@@ -8064,25 +8276,13 @@ const getClippingValues = (obj) => {
 
 
     if (obj && obj.type === 'custom-shape'){ 
-      
       phase.current = 'idle';
-
       newHandleIndex.current = -1;
-
-
-      
 
       if (customShapeType === "anchor-point-select"){
                 console.log('updateDimensionsClosed')
                updateDimensionsLocalSpace(obj);
-
-
-       
       }
-
-    
-
-
     }
 
     var obj
@@ -8090,7 +8290,6 @@ const getClippingValues = (obj) => {
     if (selectedIndexRef.current !== null){
       obj = getActiveElement()
     }
-
 
     if (activeToolRef.current === 'cropping'){
 
@@ -8168,6 +8367,7 @@ const getClippingValues = (obj) => {
     isPaintingRef.current = false;
     isErasingRef.current = false;
     isErasingObjectRef.current = null
+   
 
     if (selectedIndexRef.current !== null){
       const index = selectedIndexRef.current;
@@ -8182,6 +8382,12 @@ const getClippingValues = (obj) => {
       //
     }
 
+    if (selectionRef.current && activeToolRef.current === 'size-position'){
+         selectionRef.current = null
+         drawUpper()
+    }
+
+    
     drawLower()
 
   };
@@ -13081,7 +13287,7 @@ const FeedsPanel = ({
         </div>
         {noPosts &&
           <div className='alert alert-danger'>
-            No Posts
+            That's a bummer, man
           </div>
         }
         {posts.map((post, index)=>{
