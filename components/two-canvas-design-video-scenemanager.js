@@ -619,7 +619,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const containerRef = useRef(null)
   const resizingRef = useRef(null)
   const resizingSideRef = useRef(null)
-  const rotatingRef = useRef(false)
+  const rotatingRef = useRef(null)
   const offsetRef = useRef(null)
   const selectedIndexRef = useRef(null)
   const selectedIndexesRef = useRef([])
@@ -753,6 +753,8 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const fileName = searchParams.get('file_name')
   const fileType = searchParams.get('file_type')
   const autoLoadType = searchParams.get('auto_load_type')
+
+  const rotateStartAngleRef = useRef(null)
 
 
 
@@ -4751,7 +4753,7 @@ const pasteTextCallBack = useCallback((e) => {
 
       ctx.save();
 
-      if (object.type !== 'image' && object.type !== "custom-shape"){
+      if (object.type !== 'image'){
         ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
         ctx.rotate(animationProps.angle);    // apply rotation
         ctx.scale(animationProps.scale, animationProps.scale);
@@ -4787,26 +4789,26 @@ const pasteTextCallBack = useCallback((e) => {
 
           if (object.type === 'custom-shape' && !object.closed) {
             // still drawing — points are absolute, render directly
-            ctx.save();
-            ctx.translate(offset.x + animationProps.cx * scaleRef.current, offset.y + animationProps.cy * scaleRef.current);
-            ctx.rotate(animationProps.angle);
-            ctx.scale(animationProps.scale, animationProps.scale);
+            //ctx.save();
+            //ctx.translate(offset.x + animationProps.cx * scaleRef.current, offset.y + animationProps.cy * scaleRef.current);
+            //ctx.rotate(animationProps.angle);
+            //ctx.scale(animationProps.scale, animationProps.scale);
             buildCurveArtboard(ctx, object.points, object.closed);
             ctx.stroke();
             //ctx.fillStyle = object.fill || "lightgray";
             //ctx.fill();
-            ctx.restore();
+           // ctx.restore();
           } else {
             // committed — points are relative to cx/cy
-            ctx.save();
-            ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
-            ctx.rotate(animationProps.angle);
-            ctx.scale(animationProps.scale, animationProps.scale);
+           // ctx.save();
+           // ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
+           // ctx.rotate(animationProps.angle);
+           // ctx.scale(animationProps.scale, animationProps.scale);
             buildCurveArtboard(ctx, object.points, object.closed);
             ctx.stroke();
             ctx.fillStyle = object.fill || "lightgray";
             ctx.fill();
-            ctx.restore();
+            //ctx.restore();
           }
 
 
@@ -5230,7 +5232,7 @@ const drawUpper = () => {
   ctx.clearRect(0, 0, upper.width, upper.height);
 
   // Draw marquee selection
-  if (selection ) {
+  if (selection) {
     ctx.save();
 
     ctx.globalAlpha = 0.1;
@@ -5398,14 +5400,23 @@ const drawUpper = () => {
   // Multiple selection
   if (multipleSelections.length > 0) {
 
-    multipleSelections.forEach((i, index) => {
+    // draw frame
 
-      const object = objectsRef.current[i]
+    if (selectionBoundsRef.current){
+      drawElementControls(ctx, selectionBoundsRef.current);
+    }
+
     
+
+    /*
+    multipleSelections.forEach((i, index) => {
+      const object = objectsRef.current[i]
       if (object && (object.type !== 'pen' && object.type !== 'air brush')) {
         drawElementControls(ctx, object);
       }
     });
+    */
+
   }
 };
 
@@ -5559,7 +5570,6 @@ function buildCurve(c, pointList, close) {
 
       const editingAnimatedText = activeToolRef.current === 'edit text' && object.animations.length > 0 && object.type === 'text' && !isPlaying && !isTrackingRef.current
 
-
       if (editingAnimatedText){
           animationProps = {
             cx: object.cx,
@@ -5575,14 +5585,46 @@ function buildCurve(c, pointList, close) {
 
       ctx.save();
 
-      if (object.type !== 'image' && object.type !== "custom-shape"){
-        ctx.translate(animationProps.cx, animationProps.cy);
-        ctx.rotate(animationProps.angle);
-        ctx.scale(animationProps.scale, animationProps.scale);
-      }
+        if (object.type !== 'image'){
 
+          const groupTransform = selectionBoundsRef.current
 
+           const screenCx = animationProps.cx
+            const screenCy = animationProps.cy
+            ctx.translate(screenCx, screenCy);
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
 
+            /*
+
+          if (groupTransform) {
+            // step 1 — translate to group center in screen space
+            const groupScreenCx = groupTransform.cx
+            const groupScreenCy = groupTransform.cy
+            ctx.translate(groupScreenCx, groupScreenCy);
+
+            // step 2 — rotate the whole group
+            ctx.rotate(groupTransform.angle);
+
+            // step 3 — translate to object center relative to group center
+            const relCx = (object.cx - groupTransform.cx)
+            const relCy = (object.cy - groupTransform.cy)
+            ctx.translate(relCx, relCy);
+
+            // step 4 — apply object's OWN rotation and scale on top
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
+
+          } else {
+            const screenCx = animationProps.cx
+            const screenCy = animationProps.cy
+            ctx.translate(screenCx, screenCy);
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
+          }*/
+
+        }
+     
       ctx.globalAlpha = animationProps.opacity;
       ctx.beginPath(); // 🟢 Always begin a new path for each object
 
@@ -5591,7 +5633,6 @@ function buildCurve(c, pointList, close) {
           applyEffect(ctx, effect)
         })
       }
-
 
       if (object.type === "rectangle") {
 
@@ -5609,27 +5650,17 @@ function buildCurve(c, pointList, close) {
 
 
           if (object.type === 'custom-shape' && !object.closed) {
-            // still drawing — points are absolute, render directly
-            ctx.save();
-            ctx.translate(animationProps.cx, animationProps.cy);
-            ctx.rotate(animationProps.angle);
-            ctx.scale(animationProps.scale, animationProps.scale);
+           
             buildCurve(ctx, object.points, object.closed);
             ctx.stroke();
-            //ctx.fillStyle = object.fill || "lightgray";
-            //ctx.fill();
-            ctx.restore();
+ 
           } else {
-            // committed — points are relative to cx/cy
-            ctx.save();
-            ctx.translate(animationProps.cx, animationProps.cy);
-            ctx.rotate(animationProps.angle);
-            ctx.scale(animationProps.scale, animationProps.scale);
+           
             buildCurve(ctx, object.points, object.closed);
             ctx.stroke();
             ctx.fillStyle = object.fill || "lightgray";
             ctx.fill();
-            ctx.restore();
+          
           }
 
 
@@ -5792,6 +5823,9 @@ useEffect(() => {
   }
 
   const checkRotateHandleHit = (object, mouseX, mouseY) => {
+
+    if (!object) return
+
     const animatedProps = getAnimatedProps(object)
     const x = object.x;
     const y = object.y;
@@ -5842,7 +5876,7 @@ useEffect(() => {
 };
 
 const getHandlePolygons = (object) => {
-  const { x, y, cx, cy, angle } = object;
+  const { cx, cy } = object;
   const animatedProps = getAnimatedProps(object)
 
   if (!animatedProps)return
@@ -5970,6 +6004,8 @@ const getSideHandlePolygons = (object) => {
 };
 
 const checkResizeHandleHit = (object, mouseX, mouseY) => {
+  if (!object) return;
+
   const polygons = getHandlePolygons(object);
 
   for (let i = 0; i < polygons.length; i++) {
@@ -5982,6 +6018,8 @@ const checkResizeHandleHit = (object, mouseX, mouseY) => {
 };
 
 const checkResizeSideHandleHit = (object, mouseX, mouseY) => {
+
+  if (!object) return;
 
   const polygons = getSideHandlePolygons(object);
 
@@ -6667,21 +6705,21 @@ function pointInPolygon(x, y, pts) {
   };
 
   function getWorldCorners(obj) {
-  const animatedProps = getAnimatedProps(obj);
-  const cos = Math.cos(animatedProps.angle);
-  const sin = Math.sin(animatedProps.angle);
-  const hw = (obj.width / 2) * animatedProps.scale;
-  const hh = (obj.h / 2) * animatedProps.scale;
+    const animatedProps = getAnimatedProps(obj);
+    const cos = Math.cos(animatedProps.angle);
+    const sin = Math.sin(animatedProps.angle);
+    const hw = (obj.width / 2) * animatedProps.scale;
+    const hh = (obj.h / 2) * animatedProps.scale;
 
-  return [
-    { x: -hw, y: -hh },
-    { x:  hw, y: -hh },
-    { x:  hw, y:  hh },
-    { x: -hw, y:  hh },
-  ].map(c => ({
-    x: obj.cx + c.x * cos - c.y * sin,
-    y: obj.cy + c.x * sin + c.y * cos,
-  }));
+    return [
+      { x: -hw, y: -hh },
+      { x:  hw, y: -hh },
+      { x:  hw, y:  hh },
+      { x: -hw, y:  hh },
+    ].map(c => ({
+      x: obj.cx + c.x * cos - c.y * sin,
+      y: obj.cy + c.x * sin + c.y * cos,
+    }));
 }
 
 function getSelectionBounds(selectedObjects) {
@@ -6712,9 +6750,11 @@ function getSelectionBounds(selectedObjects) {
 
   // synthetic object that hitObject can test against
   return {
-    cx,
-    cy,
-    width,
+    cx:cx,
+    cy:cy,
+    x: cx - (width/2),
+    y: cy - (height/2),
+    width: width,
     h: height,
     angle: 0,   // always axis-aligned — no rotation on the group box
     scale: 1,
@@ -6776,9 +6816,18 @@ function getSelectionBounds(selectedObjects) {
     }else if (tool === 'size-position' || tool === 'cropping') {
 
       if (tool !== 'cropping'){
-        const hit = hitObject(selectionBoundsRef.current, pos.x, pos.y);
+
+        const resizeHandle = checkResizeHandleHit(selectionBoundsRef.current, pos.x, pos.y);
+
+        const resizeSideHandle = checkResizeSideHandleHit(selectionBoundsRef.current, pos.x, pos.y);
+
+        const rotateHandle = checkRotateHandleHit(selectionBoundsRef.current, pos.x, pos.y)
+
+        console.log('rotateHandle', rotateHandle)
+
+        const moveHit = hitObject(selectionBoundsRef.current, pos.x, pos.y);
   
-        if (!hit){
+        if (!moveHit && !resizeHandle && !resizeSideHandle && !rotateHandle){
           // no hit start another selection
           selectedIndexesRef.current = []
           selectionBoundsRef.current = null
@@ -6787,7 +6836,30 @@ function getSelectionBounds(selectedObjects) {
         
         }else{
           // modify a group selection exit early
-          draggingRef.current = { id: null, startX: pos.x, startY: pos.y }
+          if (moveHit){
+            draggingRef.current = { id: null, startX: pos.x, startY: pos.y }
+          }
+
+          // check if corner handle hit
+          if (rotateHandle){
+              rotatingRef.current = {
+                offset: selectionBoundsRef.current.angle - Math.atan2(
+                  pos.y - selectionBoundsRef.current.cy, 
+                  pos.x - selectionBoundsRef.current.cx
+                ),
+                groupCx: selectionBoundsRef.current.cx,
+                groupCy: selectionBoundsRef.current.cy,
+                objects: selectedIndexesRef.current.map(i => ({
+                  cx: objectsRef.current[i].cx,
+                  cy: objectsRef.current[i].cy,
+                  angle: objectsRef.current[i].angle ?? 0,
+                }))
+              };
+             // rotateStartAngleRef.current = selectionBoundsRef.current.angle ?? 0;
+
+          }
+         
+
           //exit early
           return
       
@@ -6822,7 +6894,6 @@ function getSelectionBounds(selectedObjects) {
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
           if (checkRotateHandleHit(objectsRef.current[i], pos.x, pos.y)) {
             if (isElementInScene(objectsRef.current[i])){
-              const startAngle = Math.atan2(pos.y - objectsRef.current[i].y, pos.x - objectsRef.current[i].x );
               rotatingRef.current = {offset:objectsRef.current[i].angle - Math.atan2(pos.y - objectsRef.current[i].cy, pos.x - objectsRef.current[i].cx)}
               selectedIndexRef.current = i
                 setActiveElementId(i)
@@ -6836,6 +6907,8 @@ function getSelectionBounds(selectedObjects) {
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         if (hitObject(objectsRef.current[i], pos.x, pos.y)) {
             if (isElementInScene(objectsRef.current[i])){
+
+                console.log('objectsRef.current[i]', objectsRef.current[i])
                 setActiveElement(objectsRef.current[i])
                 selectedIndexRef.current = i
                 setActiveElementId(i)
@@ -7523,8 +7596,35 @@ function getSelectionBounds(selectedObjects) {
       if (rotating){
         hideToolBar()
 
-        const index = selectedIndexRef.current
-        const obj = getActiveElement()
+        //group selection
+        if (selectedIndexesRef.current.length > 0) {
+          const { offset, groupCx, groupCy, objects } = rotatingRef.current;
+
+          const dx = pos.x - groupCx;
+          const dy = pos.y - groupCy;
+          const totalAngle = Math.atan2(dy, dx) + offset;
+
+          const cos = Math.cos(totalAngle);
+          const sin = Math.sin(totalAngle);
+
+          selectedIndexesRef.current.forEach((objIndex, i) => {
+            const origin = objects[i];
+            const obj = objectsRef.current[objIndex];
+
+            // rotate original cx/cy around group center by total angle
+            const odx = origin.cx - groupCx;
+            const ody = origin.cy - groupCy;
+            obj.cx = groupCx + odx * cos - ody * sin;
+            obj.cy = groupCy + odx * sin + ody * cos;
+
+            // apply total angle on top of original angle
+            obj.angle = origin.angle + totalAngle;
+          });
+
+          selectionBoundsRef.current.angle = totalAngle;
+        }else{
+
+         const obj = getActiveElement()
 
         // Use the center coordinates
          const cx = obj.cx;
@@ -7535,7 +7635,11 @@ function getSelectionBounds(selectedObjects) {
           const dy = pos.y - cy;
           const currentAngle = Math.atan2(dy, dx);
 
-        obj.angle = currentAngle + rotating.offset;
+          obj.angle = currentAngle + rotating.offset;
+
+        }
+
+
 
         drawLower();
         drawUpper();
@@ -7550,15 +7654,23 @@ function getSelectionBounds(selectedObjects) {
         const dy = pos.y - dragging.startY;
 
         if (selectedIndexesRef.current.length>0){
-           selectedIndexesRef.current.forEach((i, index) => {
 
+            if (selectionBoundsRef.current){
+
+              selectionBoundsRef.current.cx = selectionBoundsRef.current.cx + dx
+              selectionBoundsRef.current.cy = selectionBoundsRef.current.cy + dy
+              selectionBoundsRef.current.x = selectionBoundsRef.current.cx - selectionBoundsRef.current.width/2
+              selectionBoundsRef.current.y = selectionBoundsRef.current.cy - selectionBoundsRef.current.h/2
+
+            }
+
+           selectedIndexesRef.current.forEach((i, index) => {
               objectsRef.current[i].cx = objectsRef.current[i].cx + dx
               objectsRef.current[i].cy = objectsRef.current[i].cy + dy
               objectsRef.current[i].x = objectsRef.current[i].cx - objectsRef.current[i].width/2
               objectsRef.current[i].y = objectsRef.current[i].cy - objectsRef.current[i].h/2
               
             });
-
 
         }else{
 
@@ -7621,8 +7733,6 @@ function getSelectionBounds(selectedObjects) {
 
       if (selecting){
 
-        console.log('selecting')
-   
         selecting.width = Math.abs(pos.x - selecting.startX);
         selecting.height = Math.abs(pos.y - selecting.startY);
 
@@ -8248,42 +8358,47 @@ const getClippingValues = (obj) => {
 
   const handleMouseUp = async() => {
 
+    if (selectionRef.current){
 
-    if (selectedIndexesRef.current.length > 0){
+        if (selectedIndexesRef.current.length > 0){
 
-        //only single selection
-      if (selectedIndexesRef.current.length === 1){
-          const i = selectedIndexesRef.current[0]
-          setActiveElement(objectsRef.current[i])
-           selectedIndexRef.current = i
-           setActiveElementId(i)
+            //only single selection
+          if (selectedIndexesRef.current.length === 1){
+              const i = selectedIndexesRef.current[0]
+              setActiveElement(objectsRef.current[i])
+              selectedIndexRef.current = i
+              setActiveElementId(i)
 
-      }else{
-        if (selectedIndexRef.current !== null){
-          //there is alre
-          deselectActiveElement()
+          }else{
+            if (selectedIndexRef.current !== null){
+              //there is alre
+              deselectActiveElement()
+            }
+          }
+
+          const selectedObjects = []
+          selectedIndexesRef.current.forEach((i, index) => {
+            selectedObjects.push(objectsRef.current[i])
+          });
+          const selectionBounds = getSelectionBounds(selectedObjects);
+
+          selectionBoundsRef.current = selectionBounds;
+            
         }
       }
 
 
+if (rotatingRef.current && selectionBoundsRef.current) {
+  selectionBoundsRef.current = getSelectionBounds(
+    selectedIndexesRef.current.map(i => objectsRef.current[i])
+  );
+  selectionBoundsRef.current.angle = 0;
+  rotatingRef.current = null;
+}
       
 
 
-
-
-
-      const selectedObjects = []
-      selectedIndexesRef.current.forEach((i, index) => {
-        selectedObjects.push(objectsRef.current[i])
-      });
-      const selectionBounds = getSelectionBounds(selectedObjects);
-      // store it so you can draw it and hit test against it
-      selectionBoundsRef.current = selectionBounds;
-
-
-      //drawUpper()
-    }
-    //setDragging(null)
+  
 
     obj = getActiveElement()
 
@@ -8375,7 +8490,7 @@ const getClippingValues = (obj) => {
     draggingRef.current = null
     resizingRef.current = null
     resizingSideRef.current = null
-    rotatingRef.current = false
+    rotatingRef.current = null
     lastPointRef.current = null
     isPaintingRef.current = false;
     isErasingRef.current = false;
@@ -8383,7 +8498,7 @@ const getClippingValues = (obj) => {
    
 
     if (selectedIndexRef.current !== null){
-      const index = selectedIndexRef.current;
+      
       const obj = getActiveElement()
       if (!obj) return
       // Update state with new copy
