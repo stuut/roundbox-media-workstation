@@ -622,7 +622,8 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const rotatingRef = useRef(false)
   const offsetRef = useRef(null)
   const selectedIndexRef = useRef(null)
-  const selectedIndexsRef = useRef(null)
+  const selectedIndexesRef = useRef([])
+  const selectionBoundsRef = useRef(null)
   const draggingRef = useRef(null);
   const selectionRef = useRef(null);
   const handMode = useRef(false); // spacebar toggles this
@@ -4981,59 +4982,41 @@ function boundsOverlap(selRect, objMinX, objMaxX, objMinY, objMaxY) {
   );
 }
 
-function objectInSelection(obj, selRect) {
+function objectInSelection(obj, selRect, containOnly = false) {
   const animatedProps = getAnimatedProps(obj);
 
-  // get object bounds in world space for quick reject
-  const halfW = obj.width / 2 * animatedProps.scale;
-  const halfH = obj.h / 2 * animatedProps.scale;
-  if (!boundsOverlap(selRect, obj.cx - halfW, obj.cx + halfW, obj.cy - halfH, obj.cy + halfH)) {
-    return false;
+  if (containOnly) {
+    // all four corners of the object must be inside the selection
+    const cos = Math.cos(animatedProps.angle);
+    const sin = Math.sin(animatedProps.angle);
+    const hw = (obj.width / 2) * animatedProps.scale;
+    const hh = (obj.h / 2) * animatedProps.scale;
+
+    // get object corners in world space
+    const corners = [
+      { x: -hw, y: -hh },
+      { x:  hw, y: -hh },
+      { x:  hw, y:  hh },
+      { x: -hw, y:  hh },
+    ].map(c => ({
+      x: obj.cx + c.x * cos - c.y * sin,
+      y: obj.cy + c.x * sin + c.y * cos,
+    }));
+
+    return corners.every(c =>
+      c.x >= selRect.minX && c.x <= selRect.maxX &&
+      c.y >= selRect.minY && c.y <= selRect.maxY
+    );
   }
 
-  // convert selection rect corners to object local space
-  const corners = [
-    { x: selRect.minX, y: selRect.minY },
-    { x: selRect.maxX, y: selRect.minY },
-    { x: selRect.maxX, y: selRect.maxY },
-    { x: selRect.minX, y: selRect.maxY },
-  ];
-
-  const localCorners = corners.map(c => {
-    const dx = c.x - obj.cx;
-    const dy = c.y - obj.cy;
-    const cos = Math.cos(-animatedProps.angle);
-    const sin = Math.sin(-animatedProps.angle);
-    return {
-      x: (dx * cos - dy * sin) / animatedProps.scale,
-      y: (dx * sin + dy * cos) / animatedProps.scale,
-    };
-  });
-
-  // check if any selection corner is inside object
-  const left   = -(obj.width / 2);
-  const right  =  (obj.width / 2);
-  const top    = -(obj.h / 2);
-  const bottom =  (obj.h / 2);
-
-  if (localCorners.some(c => c.x >= left && c.x <= right && c.y >= top && c.y <= bottom)) {
-    return true;
-  }
-
-  // check if object center is inside selection (handles case where object is smaller than selection)
-  if (obj.cx >= selRect.minX && obj.cx <= selRect.maxX &&
-      obj.cy >= selRect.minY && obj.cy <= selRect.maxY) {
-    return true;
-  }
-
-  return false;
+  // intersect mode — your existing logic
+  // ...
 }
 
-function customShapeInSelection(obj, selRect) {
+function customShapeInSelection(obj, selRect, containOnly = false) {
   const animatedProps = getAnimatedProps(obj);
   const flat = obj._flat ?? flattenCurve(obj.points, obj.closed);
 
-  // convert flat points from local to world space
   const cos = Math.cos(animatedProps.angle);
   const sin = Math.sin(animatedProps.angle);
   const worldFlat = flat.map(p => ({
@@ -5041,470 +5024,390 @@ function customShapeInSelection(obj, selRect) {
     y: obj.cy + (p.x * sin + p.y * cos) * animatedProps.scale,
   }));
 
-  // quick bounds check
-  const bounds = getBounds(worldFlat);
-  if (!boundsOverlap(selRect, bounds.minX, bounds.maxX, bounds.minY, bounds.maxY)) {
-    return false;
+  if (containOnly) {
+    // every point of the shape must be inside the selection
+    return worldFlat.every(p =>
+      p.x >= selRect.minX && p.x <= selRect.maxX &&
+      p.y >= selRect.minY && p.y <= selRect.maxY
+    );
   }
 
-  // any shape point inside selection rect
-  if (worldFlat.some(p =>
-    p.x >= selRect.minX && p.x <= selRect.maxX &&
-    p.y >= selRect.minY && p.y <= selRect.maxY
-  )) return true;
-
-  // any selection corner inside shape (handles selection rect inside shape)
-  const corners = [
-    { x: selRect.minX, y: selRect.minY },
-    { x: selRect.maxX, y: selRect.minY },
-    { x: selRect.maxX, y: selRect.maxY },
-    { x: selRect.minX, y: selRect.maxY },
-  ];
-
-  if (corners.some(c => {
-    // convert corner to local space for pointInPolygon
-    const dx = c.x - obj.cx;
-    const dy = c.y - obj.cy;
-    const cosInv = Math.cos(-animatedProps.angle);
-    const sinInv = Math.sin(-animatedProps.angle);
-    const localC = {
-      x: (dx * cosInv - dy * sinInv) / animatedProps.scale,
-      y: (dx * sinInv + dy * cosInv) / animatedProps.scale,
-    };
-    return pointInPolygon(localC.x, localC.y, flat);
-  })) return true;
-
-  return false;
+  // intersect mode — your existing logic
+  // ...
 }
 
-  // Draw upper canvas overlay
-  const drawUpper = () => {
+
+const drawElementControls = (ctx, object) => {
+
+  if (!object) return;
     
-    const upper = upperRef.current;
-    if (!upper) return;
+  ctx.save();
 
-    const selectedIndex = selectedIndexRef.current;
+      try {
 
-    const ctx = upper.getContext("2d");
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+            const offset = offsetRef.current;
+            let {cx, cy, width, h, angle} = object
+            let left, right, top, bottom;
+            if (object.clippingPath) {
 
-    ctx.clearRect(0, 0, upper.width, upper.height);
+              const clip = object.clippingPath;
+
+              const clipW = clip.right - clip.left;
+              const clipH = clip.bottom - clip.top;
+
+              left   = -clipW / 2;
+              right  =  clipW / 2;
+              top    = -clipH / 2;
+              bottom =  clipH / 2;
+
+            } else {
+              left   = -object.width / 2;
+              right  =  object.width / 2;
+              top    = -object.h / 2;
+              bottom =  object.h / 2;
+            }
+            const animationProps = getAnimatedProps(object)
+
+            if (!animationProps) return
+            // Apply global pan + zoom
+            let screenCx, screenCy
+
+            if (object.clippingPath){
+              ctx.translate(
+                offset.x + (object.clippingPath.cx + animationProps.cx) * scaleRef.current,
+                offset.y + (object.clippingPath.cy + animationProps.cy) * scaleRef.current
+              );
+            }else{
+              ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
+
+            }
+            const screenLeft   = left * scaleRef.current;
+            const screenRight  = right * scaleRef.current;
+            const screenTop    = top * scaleRef.current;
+            const screenBottom = bottom * scaleRef.current;
+            const screenW = screenRight - screenLeft;
+            const screenH = screenBottom - screenTop;
+            //ctx.translate(screenCx, screenCy);
+            ctx.rotate(animationProps.angle);
+            ctx.scale(animationProps.scale, animationProps.scale);
+
+            // Draw lines
+            if (object.type === 'image' && activeToolRef.current === 'cropping'){
+                ctx.strokeStyle = "white";
+
+                const gapX = screenW/3
+                ctx.strokeRect(screenLeft+gapX, screenTop, screenW/3, screenH);
+
+                const gapY = screenH/3
+                ctx.strokeRect(screenLeft, screenTop + gapY, screenW, screenH/3);
+            }
+
+            // Draw bounding box centered at (0,0)
+            ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
+            ctx.lineWidth = TRANSFORM_WIDTH;
+            ctx.strokeRect(
+              screenLeft,
+              screenTop,
+              screenW,
+              screenH
+            );
+            const corners = [
+              { x: screenLeft,  y: screenTop, type:'corner' }, // top-left
+              { x: screenRight, y: screenTop, type:'corner' }, // top-right
+              { x: screenLeft, y:  screenBottom, type:'corner' }, // bottom-left
+              { x: screenRight, y:  screenBottom, type:'corner' }, // bottom-right
+              { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left' }, // left
+              { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
+              { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
+              { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
+            ];
+            corners.forEach((c, index) => {
+              ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
+
+              if (c.type === 'corner'){
+
+                ctx.fillRect(
+                  c.x  - HANDLE_SIZE,
+                  c.y - HANDLE_SIZE,
+                  HANDLE_SIZE * 2,
+                  HANDLE_SIZE * 2
+                );
+                ctx.strokeRect(
+                  c.x - HANDLE_SIZE,
+                  c.y - HANDLE_SIZE,
+                  HANDLE_SIZE * 2,
+                  HANDLE_SIZE * 2
+                );
+
+              }else if ((c.type === 'side-right' && activeToolRef.current !== 'cropping') || (c.type === 'side-left' && activeToolRef.current !== 'cropping')){
+                ctx.fillRect(
+                  c.x - HANDLE_SIZE,
+                  c.y - HANDLE_SIZE * 4,
+                  HANDLE_SIZE * 2,
+                  HANDLE_SIZE * 8
+                );
+                ctx.strokeRect(
+                  c.x - HANDLE_SIZE,
+                  c.y - HANDLE_SIZE * 4,
+                  HANDLE_SIZE * 2,
+                  HANDLE_SIZE * 8
+                );
+              }else if ((c.type === 'side-top' && activeToolRef.current !== 'cropping') || (c.type === 'side-bottom' && activeToolRef.current !== 'cropping')){
+                ctx.fillRect(
+                  c.x - HANDLE_SIZE * 4,
+                  c.y - HANDLE_SIZE,
+                  HANDLE_SIZE * 8,
+                  HANDLE_SIZE * 2
+                );
+                ctx.strokeRect(
+                  c.x - HANDLE_SIZE * 4,
+                  c.y - HANDLE_SIZE,
+                  HANDLE_SIZE * 8,
+                  HANDLE_SIZE * 2
+                );
+              }
+            });
+            // Draw rotate handle: top-center + distance
+            ctx.beginPath();
+            ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE * 2, 0, 2 * Math.PI);
+            ctx.closePath();
+            ctx.stroke();
+            // Curved arrow
+            ctx.beginPath();
+            ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE / 1.2, Math.PI * 0.10, Math.PI * 1.7);
+            ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
+            ctx.lineWidth = TRANSFORM_WIDTH;
+            ctx.stroke();
+            // Arrowhead
+            const r = HANDLE_SIZE / 1.2;
+            //Pick the angle where the arrowhead sits
+            const endAngle = Math.PI * 1.6;
+            const arrowLength = 6;
+            const arrowShort = 5.5;
+            const spread = 0.7; // controls arrow openness
+            const arrowx = screenLeft+(screenW/2)
+            const arrowy = screenBottom + ROTATE_DISTANCE;
+            const ax = (arrowx + Math.cos(endAngle) * r) + 3.5;
+            const ay = (arrowy + Math.sin(endAngle) * r) + 1.5
+            const arrowAngle = endAngle + Math.PI / 2; // tangent direction
+            ctx.beginPath();
+            // Left wing
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(
+              ax - Math.cos(arrowAngle - spread) * arrowShort,
+              ay - Math.sin(arrowAngle - spread) * arrowShort
+            );
+            // Right wing
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(
+              ax - Math.cos(arrowAngle + spread) * arrowLength,
+              ay - Math.sin(arrowAngle + spread) * arrowLength
+            );
+            ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
+            ctx.lineWidth = TRANSFORM_WIDTH;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            //ctx.restore();
+
+          } finally {
+            ctx.restore();
+          }    
+            
+  
+}
+
+const drawUpper = () => {
+  const upper = upperRef.current;
+  if (!upper) return;
+
+  const selectedIndex = selectedIndexRef.current;
+  const multipleSelections = selectedIndexesRef.current;
+  const selection = selectionRef.current;
+
+  const ctx = upper.getContext("2d");
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, upper.width, upper.height);
+
+  // Draw marquee selection
+  if (selection ) {
     ctx.save();
 
-    const selection = selectionRef.current;
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = COLOUR;
 
-      if (selection) {
-        ctx.save();
+    const scale = scaleRef.current;
+    const offset = offsetRef.current;
 
-        ctx.globalAlpha = 0.1;
-        ctx.fillStyle = COLOUR;
-        ctx.fillRect(
-          selection.startX * scaleRef.current + offsetRef.current.x,
-          selection.startY * scaleRef.current + offsetRef.current.y,
-          (selection.endX * scaleRef.current + offsetRef.current.x) - (selection.startX * scaleRef.current + offsetRef.current.x),
-          (selection.endY * scaleRef.current + offsetRef.current.y) - (selection.startY * scaleRef.current + offsetRef.current.y)
-        );
+    const x = selection.startX * scale + offset.x;
+    const y = selection.startY * scale + offset.y;
+    const width = (selection.endX - selection.startX) * scale;
+    const height = (selection.endY - selection.startY) * scale;
 
+    ctx.fillRect(x, y, width, height);
 
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = COLOUR;
+    ctx.lineWidth = 1;
 
+    ctx.strokeRect(x, y, width, height);
 
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = COLOUR;
-        ctx.lineWidth = 1;
+    ctx.restore();
+  }
 
-         ctx.strokeRect(
-          selection.startX * scaleRef.current + offsetRef.current.x,
-          selection.startY * scaleRef.current + offsetRef.current.y,
-          (selection.endX * scaleRef.current + offsetRef.current.x) - (selection.startX * scaleRef.current + offsetRef.current.x),
-          (selection.endY * scaleRef.current + offsetRef.current.y) - (selection.startY * scaleRef.current + offsetRef.current.y)
-        )
+  const object = objectsRef.current[selectedIndex];
 
-       
-        ctx.restore();
-      }
+  const isCustomShapeEditMode =
+  object?.type === 'custom-shape' &&
+  [
+    'pen',
+    'anchor-point-select',
+    'anchor-point-convert',
+    'anchor-point-add',
+    'anchor-point-remove'
+  ].includes(customShapeType);
 
+  if (isCustomShapeEditMode){
 
-
-    if (selectedIndex != null) {
-
-      const object = objectsRef.current[selectedIndex];
-      if (!object) return
-
-      const offset = offsetRef.current;
-
-      if (object.type !== 'pen' && object.type !== 'air brush'){
-
-          if (object.type === 'custom-shape' && customShapeType === 'pen' ||
-            object.type === 'custom-shape' && customShapeType === 'anchor-point-select' ||
-            object.type === 'custom-shape' && customShapeType === 'anchor-point-convert' ||
-            object.type === 'custom-shape' && customShapeType === 'anchor-point-add' ||
-            object.type === 'custom-shape' && customShapeType === 'anchor-point-remove'
-          ){
-
-                if (object.points.length === 0) return
-
-                    if (object) {
-
-            
-                       const animationProps = getAnimatedProps(object)
-
-                      ctx.save();
-
-                      // set up the full transform centered on cx/cy in screen space
-                      const screenCx = offset.x + animationProps.cx * scaleRef.current;
-                      const screenCy = offset.y + animationProps.cy * scaleRef.current;
-
-                      ctx.translate(screenCx, screenCy);
-                      ctx.rotate(animationProps.angle);
-                      ctx.scale(animationProps.scale, animationProps.scale);
-
-                      // toScreen now just converts relative points to screen pixels
-                      // rotation/scale handled by ctx transform above
-                      const toScreen = (x, y) => ({
-                        x: x * scaleRef.current,
-                        y: y * scaleRef.current,
-                      });
-
-                          if (customShapeType === 'pen' && !object.closed && object.points.length >= 1 && phase.current !== 'drag-new-handle') {
-                            const mousePos = mousePosRef.current;
-                            const animationProps = getAnimatedProps(object);
-
-                            // convert mouse from world space into object local space
-                            const dx = mousePos.x - animationProps.cx;
-                            const dy = mousePos.y - animationProps.cy;
-                            const cos = Math.cos(-animationProps.angle);
-                            const sin = Math.sin(-animationProps.angle);
-                            const localMouse = {
-                              x: (dx * cos - dy * sin) / animationProps.scale,
-                              y: (dx * sin + dy * cos) / animationProps.scale,
-                            };
-
-                            const last = object.points[object.points.length - 1];
-                            const cp1 = last.cpOut || { x: last.x, y: last.y };
-
-                            ctx.save();
-                            ctx.strokeStyle = object.strokeColour || 'black';
-                            ctx.lineWidth = 1 / animationProps.scale; // counteract scale so line stays thin
-                            ctx.setLineDash([4 / animationProps.scale, 3 / animationProps.scale]);
-                            ctx.beginPath();
-                            ctx.moveTo(last.x * scaleRef.current, last.y * scaleRef.current);
-                            ctx.bezierCurveTo(
-                              cp1.x * scaleRef.current,
-                              cp1.y * scaleRef.current,
-                              localMouse.x * scaleRef.current,
-                              localMouse.y * scaleRef.current,
-                              localMouse.x * scaleRef.current,
-                              localMouse.y * scaleRef.current,
-                            );
-                            ctx.stroke();
-                            ctx.setLineDash([]);
-                            ctx.restore();
-                          }
-
-                      // handle lines + dots
-                      object.points.forEach((p) => {
-                        const anchor = toScreen(p.x, p.y);
-
-                        if (p.cpOut) {
-                          const handle = toScreen(p.cpOut.x, p.cpOut.y);
-                          ctx.save();
-                          ctx.strokeStyle = COLOUR;
-                          ctx.lineWidth = 1;
-                          ctx.beginPath();
-                          ctx.moveTo(anchor.x, anchor.y);
-                          ctx.lineTo(handle.x, handle.y);
-                          ctx.stroke();
-                          ctx.beginPath();
-                          ctx.arc(handle.x, handle.y, HANDLE_R, 0, Math.PI * 2);
-                          ctx.fillStyle = 'white'; ctx.fill();
-                          ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
-                          ctx.restore();
-                        }
-
-                        if (p.cpIn) {
-                          const handle = toScreen(p.cpIn.x, p.cpIn.y);
-                          ctx.save();
-                          ctx.strokeStyle = COLOUR;
-                          ctx.lineWidth = 1;
-                          ctx.beginPath();
-                          ctx.moveTo(anchor.x, anchor.y);
-                          ctx.lineTo(handle.x, handle.y);
-                          ctx.stroke();
-                          ctx.beginPath();
-                          ctx.arc(handle.x, handle.y, HANDLE_R, 0, Math.PI * 2);
-                          ctx.fillStyle = 'white'; ctx.fill();
-                          ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
-                          ctx.restore();
-                        }
-                      });
-
-                      // anchor points
-                      object.points.forEach((p) => {
-                        const screen = toScreen(p.x, p.y);
-                        const isCorner = !p.cpOut && !p.cpIn;
-                        ctx.save();
-                        ctx.beginPath();
-                        if (!isCorner) {
-                          ctx.translate(screen.x, screen.y);
-                          ctx.rotate(Math.PI / 4);
-                          ctx.rect(-(ANCHOR_R - 1), -(ANCHOR_R - 1), (ANCHOR_R - 1) * 2, (ANCHOR_R - 1) * 2);
-                        } else {
-                          ctx.rect(screen.x - ANCHOR_R, screen.y - ANCHOR_R, ANCHOR_R * 2, ANCHOR_R * 2);
-                        }
-                        ctx.fillStyle = 'white'; ctx.fill();
-                        ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
-                        ctx.restore();
-                      });
-
-                      ctx.restore();
-                      return;
-                    }else{
-
-                  const mousePos = mousePosRef.current
-
-                  if (customShapeType === 'pen' && !object.closed && object.points.length >= 1 && phase.current !== 'drag-new-handle') {
-                    
-                    const last = object.points[object.points.length - 1];
-                    ctx.save();
-                    ctx.strokeStyle = object.strokeColour || "black";
-                    ctx.lineWidth = 1
-                    ctx.setLineDash([4, 3]);
-                    const cp1 = last.cpOut || { x: last.x, y: last.y };
-                    ctx.beginPath();
-                    ctx.moveTo(offset.x + last.x * scaleRef.current, offset.y + last.y * scaleRef.current);
-                    ctx.bezierCurveTo(offset.x + cp1.x * scaleRef.current, offset.y + cp1.y * scaleRef.current, offset.x + mousePos.x * scaleRef.current, offset.y + mousePos.y * scaleRef.current, offset.x + mousePos.x * scaleRef.current, offset.y + mousePos.y * scaleRef.current);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                    ctx.restore();
-                  }
-
-                   // handle lines + dots
-                    object.points.forEach((p, i) => {
-                      if (p.cpOut) {
-                        ctx.save();
-                        ctx.strokeStyle = COLOUR;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath(); ctx.moveTo(offset.x + p.x * scaleRef.current, offset.y + p.y * scaleRef.current); ctx.lineTo(offset.x + p.cpOut.x * scaleRef.current, offset.y + p.cpOut.y * scaleRef.current); ctx.stroke();
-                        // handle dot
-                        ctx.beginPath(); ctx.arc(offset.x + p.cpOut.x * scaleRef.current, offset.y + p.cpOut.y * scaleRef.current, HANDLE_R, 0, Math.PI*2);
-                        ctx.fillStyle = 'white'; ctx.fill();
-                        ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
-                        ctx.restore();
-                      }
-                      if (p.cpIn) {
-                        ctx.save();
-                        ctx.strokeStyle = COLOUR;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath(); ctx.moveTo(offset.x + p.x * scaleRef.current, offset.y + p.y * scaleRef.current); ctx.lineTo(offset.x + p.cpIn.x * scaleRef.current, offset.y + p.cpIn.y * scaleRef.current); ctx.stroke();
-                        ctx.beginPath(); ctx.arc(offset.x + p.cpIn.x * scaleRef.current, offset.y + p.cpIn.y * scaleRef.current, HANDLE_R, 0, Math.PI*2);
-                        ctx.fillStyle = 'white'; ctx.fill();
-                        ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
-                        ctx.restore();
-                      }
-                    });
-
-                      // anchor points
-                    object.points.forEach((p, i) => {
-                      ctx.save();
-                      const isFirst = i === 0;
-                      const isLast = i === object.points.length - 1;
-                      const isCorner = !p.cpOut && !p.cpIn;
-
-                      ctx.beginPath();
-                      if (isCorner) {
-                        // diamond for corner anchors
-                        ctx.save();
-                        ctx.translate(offset.x + p.x * scaleRef.current, offset.y + p.y * scaleRef.current);
-                        ctx.rotate(Math.PI / 4);
-                        ctx.rect(-ANCHOR_R + 1, -ANCHOR_R + 1, (ANCHOR_R - 1) * 2, (ANCHOR_R - 1) * 2);
-                        ctx.restore();
-                      } else {
-                        ctx.rect(offset.x + p.x * scaleRef.current - ANCHOR_R, offset.y + p.y * scaleRef.current - ANCHOR_R, ANCHOR_R * 2, ANCHOR_R * 2);
-                      }
-
-                      ctx.fillStyle = isFirst && !object.closed ? COLOUR : 'white';
-                      ctx.fill();
-                      ctx.strokeStyle = isFirst && !object.closed ? COLOUR : COLOUR;
-                      ctx.lineWidth = 1.5;
-                      ctx.stroke();
-                      ctx.restore();
-                    });
-                    return
-                  }
-
-          }
-
-      let {cx, cy, width, h, angle} = object
-      let left, right, top, bottom;
-      if (object.clippingPath) {
-
-        const clip = object.clippingPath;
-
-        const clipW = clip.right - clip.left;
-        const clipH = clip.bottom - clip.top;
-
-        left   = -clipW / 2;
-        right  =  clipW / 2;
-        top    = -clipH / 2;
-        bottom =  clipH / 2;
-
-      } else {
-        left   = -object.width / 2;
-        right  =  object.width / 2;
-        top    = -object.h / 2;
-        bottom =  object.h / 2;
-      }
+      if (object.points.length === 0) return
+          
       const animationProps = getAnimatedProps(object)
+      ctx.save();
+      // set up the full transform centered on cx/cy in screen space
+      const screenCx = offset.x + animationProps.cx * scaleRef.current;
+      const screenCy = offset.y + animationProps.cy * scaleRef.current;
 
-      if (!animationProps) return
-      // Apply global pan + zoom
-      let screenCx, screenCy
-
-      if (object.clippingPath){
-        ctx.translate(
-           offset.x + (object.clippingPath.cx + animationProps.cx) * scaleRef.current,
-           offset.y + (object.clippingPath.cy + animationProps.cy) * scaleRef.current
-         );
-      }else{
-        ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
-
-      }
-      const screenLeft   = left * scaleRef.current;
-      const screenRight  = right * scaleRef.current;
-      const screenTop    = top * scaleRef.current;
-      const screenBottom = bottom * scaleRef.current;
-      const screenW = screenRight - screenLeft;
-      const screenH = screenBottom - screenTop;
-      //ctx.translate(screenCx, screenCy);
+      ctx.translate(screenCx, screenCy);
       ctx.rotate(animationProps.angle);
       ctx.scale(animationProps.scale, animationProps.scale);
 
-      // Draw lines
-      if (object.type === 'image' && activeToolRef.current === 'cropping'){
-          ctx.strokeStyle = "white";
+      // toScreen now just converts relative points to screen pixels
+      // rotation/scale handled by ctx transform above
+      const toScreen = (x, y) => ({
+        x: x * scaleRef.current,
+        y: y * scaleRef.current,
+      });
 
-          const gapX = screenW/3
-          ctx.strokeRect(screenLeft+gapX, screenTop, screenW/3, screenH);
+      if (customShapeType === 'pen' && !object.closed && object.points.length >= 1 && phase.current !== 'drag-new-handle') {
+            const mousePos = mousePosRef.current;
+            const animationProps = getAnimatedProps(object);
 
-          const gapY = screenH/3
-          ctx.strokeRect(screenLeft, screenTop + gapY, screenW, screenH/3);
+            // convert mouse from world space into object local space
+            const dx = mousePos.x - animationProps.cx;
+            const dy = mousePos.y - animationProps.cy;
+            const cos = Math.cos(-animationProps.angle);
+            const sin = Math.sin(-animationProps.angle);
+            const localMouse = {
+              x: (dx * cos - dy * sin) / animationProps.scale,
+              y: (dx * sin + dy * cos) / animationProps.scale,
+            };
+
+            const last = object.points[object.points.length - 1];
+            const cp1 = last.cpOut || { x: last.x, y: last.y };
+
+            ctx.save();
+            ctx.strokeStyle = object.strokeColour || 'black';
+            ctx.lineWidth = 1 / animationProps.scale; // counteract scale so line stays thin
+            ctx.setLineDash([4 / animationProps.scale, 3 / animationProps.scale]);
+            ctx.beginPath();
+            ctx.moveTo(last.x * scaleRef.current, last.y * scaleRef.current);
+            ctx.bezierCurveTo(
+              cp1.x * scaleRef.current,
+              cp1.y * scaleRef.current,
+              localMouse.x * scaleRef.current,
+              localMouse.y * scaleRef.current,
+              localMouse.x * scaleRef.current,
+              localMouse.y * scaleRef.current,
+            );
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
       }
 
+      // handle lines + dots
+      object.points.forEach((p) => {
+        const anchor = toScreen(p.x, p.y);
 
-      // Draw bounding box centered at (0,0)
-      ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-      ctx.lineWidth = TRANSFORM_WIDTH;
-      ctx.strokeRect(
-        screenLeft,
-        screenTop,
-        screenW,
-        screenH
-      );
-      const corners = [
-        { x: screenLeft,  y: screenTop, type:'corner' }, // top-left
-        { x: screenRight, y: screenTop, type:'corner' }, // top-right
-        { x: screenLeft, y:  screenBottom, type:'corner' }, // bottom-left
-        { x: screenRight, y:  screenBottom, type:'corner' }, // bottom-right
-        { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left' }, // left
-        { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
-        { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
-        { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
-      ];
-      corners.forEach((c, index) => {
-        ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
+        if (p.cpOut) {
+          const handle = toScreen(p.cpOut.x, p.cpOut.y);
+          ctx.save();
+          ctx.strokeStyle = COLOUR;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(anchor.x, anchor.y);
+          ctx.lineTo(handle.x, handle.y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(handle.x, handle.y, HANDLE_R, 0, Math.PI * 2);
+          ctx.fillStyle = 'white'; ctx.fill();
+          ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
+          ctx.restore();
+        }
 
-        if (c.type === 'corner'){
-
-          ctx.fillRect(
-            c.x  - HANDLE_SIZE,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 2
-          );
-          ctx.strokeRect(
-            c.x - HANDLE_SIZE,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 2
-          );
-
-        }else if ((c.type === 'side-right' && activeToolRef.current !== 'cropping') || (c.type === 'side-left' && activeToolRef.current !== 'cropping')){
-          ctx.fillRect(
-            c.x - HANDLE_SIZE,
-            c.y - HANDLE_SIZE * 4,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 8
-          );
-          ctx.strokeRect(
-            c.x - HANDLE_SIZE,
-            c.y - HANDLE_SIZE * 4,
-            HANDLE_SIZE * 2,
-            HANDLE_SIZE * 8
-          );
-        }else if ((c.type === 'side-top' && activeToolRef.current !== 'cropping') || (c.type === 'side-bottom' && activeToolRef.current !== 'cropping')){
-          ctx.fillRect(
-            c.x - HANDLE_SIZE * 4,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 8,
-            HANDLE_SIZE * 2
-          );
-          ctx.strokeRect(
-            c.x - HANDLE_SIZE * 4,
-            c.y - HANDLE_SIZE,
-            HANDLE_SIZE * 8,
-            HANDLE_SIZE * 2
-          );
+        if (p.cpIn) {
+          const handle = toScreen(p.cpIn.x, p.cpIn.y);
+          ctx.save();
+          ctx.strokeStyle = COLOUR;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(anchor.x, anchor.y);
+          ctx.lineTo(handle.x, handle.y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(handle.x, handle.y, HANDLE_R, 0, Math.PI * 2);
+          ctx.fillStyle = 'white'; ctx.fill();
+          ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
+          ctx.restore();
         }
       });
-      // Draw rotate handle: top-center + distance
-      ctx.beginPath();
-      ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE * 2, 0, 2 * Math.PI);
-      ctx.closePath();
-      ctx.stroke();
-      // Curved arrow
-      ctx.beginPath();
-      ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE / 1.2, Math.PI * 0.10, Math.PI * 1.7);
-      ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-      ctx.lineWidth = TRANSFORM_WIDTH;
-      ctx.stroke();
-      // Arrowhead
-      const r = HANDLE_SIZE / 1.2;
-      //Pick the angle where the arrowhead sits
-      const endAngle = Math.PI * 1.6;
-      const arrowLength = 6;
-      const arrowShort = 5.5;
-      const spread = 0.7; // controls arrow openness
-      const arrowx = screenLeft+(screenW/2)
-      const arrowy = screenBottom + ROTATE_DISTANCE;
-      const ax = (arrowx + Math.cos(endAngle) * r) + 3.5;
-      const ay = (arrowy + Math.sin(endAngle) * r) + 1.5
-      const arrowAngle = endAngle + Math.PI / 2; // tangent direction
-      ctx.beginPath();
-      // Left wing
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(
-        ax - Math.cos(arrowAngle - spread) * arrowShort,
-        ay - Math.sin(arrowAngle - spread) * arrowShort
-      );
-      // Right wing
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(
-        ax - Math.cos(arrowAngle + spread) * arrowLength,
-        ay - Math.sin(arrowAngle + spread) * arrowLength
-      );
-      ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-      ctx.lineWidth = TRANSFORM_WIDTH;
-      ctx.lineCap = 'round';
-      ctx.stroke();
+
+      // anchor points
+      object.points.forEach((p) => {
+        const screen = toScreen(p.x, p.y);
+        const isCorner = !p.cpOut && !p.cpIn;
+        ctx.save();
+        ctx.beginPath();
+        if (!isCorner) {
+          ctx.translate(screen.x, screen.y);
+          ctx.rotate(Math.PI / 4);
+          ctx.rect(-(ANCHOR_R - 1), -(ANCHOR_R - 1), (ANCHOR_R - 1) * 2, (ANCHOR_R - 1) * 2);
+        } else {
+          ctx.rect(screen.x - ANCHOR_R, screen.y - ANCHOR_R, ANCHOR_R * 2, ANCHOR_R * 2);
+        }
+        ctx.fillStyle = 'white'; ctx.fill();
+        ctx.strokeStyle = COLOUR; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.restore();
+      });
+
       ctx.restore();
-      
-      }
+      return;
 
+   }
 
+  // Single selection
+  if (selectedIndex != null) {
+    const object = objectsRef.current[selectedIndex];
+
+    if (object && (object.type !== 'pen' && object.type !== 'air brush')) {
+      drawElementControls(ctx, object);
     }
 
-    ctx.restore();
-  };
+    return;
+  }
+
+  // Multiple selection
+  if (multipleSelections.length > 0) {
+
+    multipleSelections.forEach((i, index) => {
+
+      const object = objectsRef.current[i]
+    
+      if (object && (object.type !== 'pen' && object.type !== 'air brush')) {
+        drawElementControls(ctx, object);
+      }
+    });
+  }
+};
 
 const clearCanvas = (ctx) => {
   ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
@@ -6763,6 +6666,62 @@ function pointInPolygon(x, y, pts) {
     return { x: mouseX, y: mouseY};
   };
 
+  function getWorldCorners(obj) {
+  const animatedProps = getAnimatedProps(obj);
+  const cos = Math.cos(animatedProps.angle);
+  const sin = Math.sin(animatedProps.angle);
+  const hw = (obj.width / 2) * animatedProps.scale;
+  const hh = (obj.h / 2) * animatedProps.scale;
+
+  return [
+    { x: -hw, y: -hh },
+    { x:  hw, y: -hh },
+    { x:  hw, y:  hh },
+    { x: -hw, y:  hh },
+  ].map(c => ({
+    x: obj.cx + c.x * cos - c.y * sin,
+    y: obj.cy + c.x * sin + c.y * cos,
+  }));
+}
+
+function getSelectionBounds(selectedObjects) {
+  const allCorners = selectedObjects.flatMap(obj => {
+    if (obj.type === 'custom-shape') {
+      // use world space flat points for custom shapes
+      const animatedProps = getAnimatedProps(obj);
+      const flat = obj._flat ?? flattenCurve(obj.points, obj.closed);
+      const cos = Math.cos(animatedProps.angle);
+      const sin = Math.sin(animatedProps.angle);
+      return flat.map(p => ({
+        x: obj.cx + (p.x * cos - p.y * sin) * animatedProps.scale,
+        y: obj.cy + (p.x * sin + p.y * cos) * animatedProps.scale,
+      }));
+    }
+    return getWorldCorners(obj);
+  });
+
+  const minX = Math.min(...allCorners.map(c => c.x));
+  const maxX = Math.max(...allCorners.map(c => c.x));
+  const minY = Math.min(...allCorners.map(c => c.y));
+  const maxY = Math.max(...allCorners.map(c => c.y));
+
+  const width  = maxX - minX;
+  const height = maxY - minY;
+  const cx     = minX + width / 2;
+  const cy     = minY + height / 2;
+
+  // synthetic object that hitObject can test against
+  return {
+    cx,
+    cy,
+    width,
+    h: height,
+    angle: 0,   // always axis-aligned — no rotation on the group box
+    scale: 1,
+    clippingPath: null,
+  };
+}
+
 
   const getMousePos = e => {
 
@@ -6783,8 +6742,6 @@ function pointInPolygon(x, y, pts) {
     const pos = getMousePos(e);
     const tool = activeToolRef.current
     if (!pos) return
-
-
 
     if (isTextEditingRef.current){
       //textHilightRef.current = true
@@ -6816,15 +6773,26 @@ function pointInPolygon(x, y, pts) {
     if (handMode.current) {
       isPanning.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
-    } else if (tool ===  'size-position' && tool !== 'cropping') {
-        const selectionPos = getSelectionMousePos(e)
-
-       // selectionRef.current = { startX: selectionPos.x, startY: selectionPos.y }
-
-        selectionRef.current = { startX: pos.x, startY: pos.y }
-       
-        drawUpper()
     }else if (tool === 'size-position' || tool === 'cropping') {
+
+      if (tool !== 'cropping'){
+        const hit = hitObject(selectionBoundsRef.current, pos.x, pos.y);
+  
+        if (!hit){
+          // no hit start another selection
+          selectedIndexesRef.current = []
+          selectionBoundsRef.current = null
+          selectionRef.current = { startX: pos.x, startY: pos.y }
+          
+        
+        }else{
+          // modify a group selection exit early
+          draggingRef.current = { id: null, startX: pos.x, startY: pos.y }
+          //exit early
+          return
+      
+        }       
+      }
 
       // resize handles corners
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
@@ -6862,10 +6830,11 @@ function pointInPolygon(x, y, pts) {
             }
           }
       }
+
+
       // object selection (topmost first)
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         if (hitObject(objectsRef.current[i], pos.x, pos.y)) {
-
             if (isElementInScene(objectsRef.current[i])){
                 setActiveElement(objectsRef.current[i])
                 selectedIndexRef.current = i
@@ -6877,7 +6846,10 @@ function pointInPolygon(x, y, pts) {
         }
       }
 
-      selectedIndexRef.current = null
+
+
+        console.log('selectedIndexRef.current set to null')
+        selectedIndexRef.current = null
         setActiveElementId(null)
       if (selectedIndexRef.current === null){
         drawUpper()
@@ -6916,7 +6888,7 @@ function pointInPolygon(x, y, pts) {
       console.log('customShapeType', customShapeType)
       
     if (customShapeType === 'pen'){
-        if (objectsRef.current[selectedIndexRef.current].type !== 'custom-shape'){
+        if (objectsRef.current[selectedIndexRef.current]?.type !== 'custom-shape'){
           selectedIndexRef.current = null
           setActiveElementId(null)
           setActiveElement(null)
@@ -7088,7 +7060,6 @@ function pointInPolygon(x, y, pts) {
              if (isElementInScene(objectsRef.current[i])){
                   if (objectsRef.current[i].type === 'custom-shape' && activeElement?.id === objectsRef.current[i].id){
                         const hit = anchorHit(pos, objectsRef.current[i]);
-
                         if (hit){
                           console.log('hit', hit)
                           const obj = getActiveElement()
@@ -7099,13 +7070,8 @@ function pointInPolygon(x, y, pts) {
                       drawLower()
                       drawArtboard()
                       return;
-
-
-                          
+                  
                         }
-
-
-
                   }
 
              }
@@ -7289,56 +7255,6 @@ function pointInPolygon(x, y, pts) {
         drawArtboard()
 
     }else if (activeToolRef.current === 'size-position'){
-
-      if (selecting){
-        const selectionPos = getSelectionMousePos(e)
-        /*
-
-        selecting.width = Math.abs(selectionPos.x - selecting.startX);
-        selecting.height = Math.abs(selectionPos.y - selecting.startX);
-
-        selecting.endX = selectionPos.x
-        selecting.endY = selectionPos.y
-        */
-
-        selecting.width = Math.abs(pos.x - selecting.startX);
-        selecting.height = Math.abs(pos.y - selecting.startY);
-
-        selecting.endX = pos.x
-        selecting.endY = pos.y
-
-
-        const selectionRect = {
-          minX: Math.min(selecting.startX, selecting.endX),
-          maxX: Math.max(selecting.startX, selecting.endX),
-          minY: Math.min(selecting.startY, selecting.endY),
-          maxY: Math.max(selecting.startY, selecting.endY),
-        };
-
-        for (let i = objectsRef.current.length - 1; i >= 0; i--) {
-            if (isElementInScene(objectsRef.current[i])){
-                const obj = objectsRef.current[i]
-
-               if (obj.type === 'custom-shape') {
-                  customShapeInSelection(obj, selectionRect);
-
-                  console.log(customShapeInSelection(obj, selectionRect))
-               }else{
-                  objectInSelection(obj, selectionRect);
-                  console.log(objectInSelection(obj, selectionRect))
-               }
-
-                
-
-            }
-        }
-
-
-
-
-        drawUpper();
-      }
-
       // resizing element from corner proportional
       if (resizing) {
 
@@ -7568,8 +7484,6 @@ function pointInPolygon(x, y, pts) {
           obj.width = right - left;
           obj.h     = bottom - top;
 
-
-
           // Update center
           const localCx = (left + right) / 2;
           const localCy = (top + bottom) / 2;
@@ -7577,7 +7491,6 @@ function pointInPolygon(x, y, pts) {
           const worldDy = localCx * Math.sin(animated.angle) + localCy * Math.cos(animated.angle);
           obj.cx += worldDx;
           obj.cy += worldDy;
-
 
           if (obj.type === 'custom-shape') {
             const scaleX = obj.width / oldWidth;
@@ -7590,11 +7503,6 @@ function pointInPolygon(x, y, pts) {
               console.log('obj', obj)
             }
           }
-
-
-
-
-
         }
 
         // 4️⃣ Update object position (top-left)
@@ -7604,7 +7512,6 @@ function pointInPolygon(x, y, pts) {
         if (obj.type === 'text'){
           obj.updateLinesWrap()
         }
-
 
         drawLower();
         drawUpper();
@@ -7639,15 +7546,31 @@ function pointInPolygon(x, y, pts) {
     // dragging element
       if (dragging){
 
-
         const dx = pos.x - dragging.startX;
         const dy = pos.y - dragging.startY;
 
-          const obj = getActiveElement()
+        if (selectedIndexesRef.current.length>0){
+           selectedIndexesRef.current.forEach((i, index) => {
+
+              objectsRef.current[i].cx = objectsRef.current[i].cx + dx
+              objectsRef.current[i].cy = objectsRef.current[i].cy + dy
+              objectsRef.current[i].x = objectsRef.current[i].cx - objectsRef.current[i].width/2
+              objectsRef.current[i].y = objectsRef.current[i].cy - objectsRef.current[i].h/2
+              
+            });
+
+
+        }else{
+
+         const obj = getActiveElement()
           obj.cx = obj.cx + dx;
           obj.cy = obj.cy + dy;
           obj.x = obj.cx - obj.width/2
           obj.y = obj.cy - obj.h/2
+
+        }
+
+
 
         //  return
           drawLower();
@@ -7694,6 +7617,54 @@ function pointInPolygon(x, y, pts) {
           drawUpper();
           drawArtboard()
         return;
+      }
+
+      if (selecting){
+
+        console.log('selecting')
+   
+        selecting.width = Math.abs(pos.x - selecting.startX);
+        selecting.height = Math.abs(pos.y - selecting.startY);
+
+        selecting.endX = pos.x
+        selecting.endY = pos.y
+
+
+        const selectionRect = {
+          minX: Math.min(selecting.startX, selecting.endX),
+          maxX: Math.max(selecting.startX, selecting.endX),
+          minY: Math.min(selecting.startY, selecting.endY),
+          maxY: Math.max(selecting.startY, selecting.endY),
+        };
+
+        const containOnly = true; // or tie to a key e.g. e.shiftKey
+
+        for (let i = objectsRef.current.length - 1; i >= 0; i--) {
+            if (isElementInScene(objectsRef.current[i])){
+                const obj = objectsRef.current[i]
+                const hasObject = selectedIndexesRef.current.includes(i);
+               // const hasObject = selectedIndexesRef.current.some(object => object.id === obj.id);
+               if (obj.type === 'custom-shape') {
+
+                 // customShapeInSelection(obj, selectionRect);
+                  if (customShapeInSelection(obj, selectionRect, containOnly) && !hasObject){
+                    //selectedIndexesRef.current.push(obj)
+                    selectedIndexesRef.current.push(i)
+                  }
+               }else{
+                 // objectInSelection(obj, selectionRect);
+
+                  if ( objectInSelection(obj, selectionRect, containOnly) && !hasObject){
+                    //selectedIndexesRef.current.push(obj)
+                    selectedIndexesRef.current.push(i)
+                  }
+                  
+               }
+            }
+        }
+
+       drawUpper();
+        return
       }
 
     }else if (activeToolRef.current === 'shape' && dragging){
@@ -8269,7 +8240,49 @@ const getClippingValues = (obj) => {
     ctx.globalAlpha = 1;
   }
 
+  const deselectActiveElement = () => {
+      setActiveElement(null)
+      selectedIndexRef.current = null
+      setActiveElementId(null)
+  }
+
   const handleMouseUp = async() => {
+
+
+    if (selectedIndexesRef.current.length > 0){
+
+        //only single selection
+      if (selectedIndexesRef.current.length === 1){
+          const i = selectedIndexesRef.current[0]
+          setActiveElement(objectsRef.current[i])
+           selectedIndexRef.current = i
+           setActiveElementId(i)
+
+      }else{
+        if (selectedIndexRef.current !== null){
+          //there is alre
+          deselectActiveElement()
+        }
+      }
+
+
+      
+
+
+
+
+
+      const selectedObjects = []
+      selectedIndexesRef.current.forEach((i, index) => {
+        selectedObjects.push(objectsRef.current[i])
+      });
+      const selectionBounds = getSelectionBounds(selectedObjects);
+      // store it so you can draw it and hit test against it
+      selectionBoundsRef.current = selectionBounds;
+
+
+      //drawUpper()
+    }
     //setDragging(null)
 
     obj = getActiveElement()
