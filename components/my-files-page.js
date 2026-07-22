@@ -21,6 +21,7 @@ import ReactPlayer from 'react-player'
 import { usePathname } from 'next/navigation';
 import { ThreeDotMenu } from "components/three-dot-menu"
 import Link from "next/link"
+import { uploadFile } from "@/lib/upload-file"
 
 const imageTypes = ['image/png', 'image/jpeg']
 const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
@@ -564,12 +565,12 @@ const copyFileUrl = (url) => {
 }
 
 export const ImageTurbo = ({
-
+   
 })=>{
-    const [imgSrc, setImgSrc] = useState('')
+    const { user } = useUserContext();
+    const [imgSrc, setImgSrc] = useState(null)
     const [prompt, setPrompt] = useState('An Image of a golden retriever puppy');
-    const [loader, setLoader] = useState('')
-
+    const [loader, setLoader] = useState(false)
 
     const handleSubmit = async (e) => {
       e.preventDefault(); // Blocks the full-page reload
@@ -592,7 +593,13 @@ export const ImageTurbo = ({
 
         const responseData = await response.json()
 
-        setImgSrc(`data:image/png;base64,${responseData.base64Image}`)
+        if (responseData.base64Image){
+          setImgSrc(`data:image/png;base64,${responseData.base64Image}`)
+        }else{
+          showError('No Image')
+        }
+
+        
 
         console.log('responseData')
       }catch(err){
@@ -606,6 +613,37 @@ export const ImageTurbo = ({
 
     const saveImage = async () => {
 
+      try{
+        setLoader(true)
+        const pureBase64 = imgSrc.replace(/^data:.+;base64,/, '');
+    
+          // 2. Decode the Base64 string into binary text
+          const binaryString = atob(pureBase64);
+          
+          // 3. Create a byte array from the binary text
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          const file = new File([bytes], 'blob.png', { type: "image/png" });
+
+
+          await uploadFile(file, null, {file_description:prompt}, user)
+          showSuccess("File Uploaded")
+
+      }catch(err){
+        console.log(err)
+        showError(err)
+      }finally{
+
+        setLoader(false)
+      }
+
+        
+
+
     }
 
 
@@ -618,7 +656,7 @@ export const ImageTurbo = ({
       {imgSrc&&
         <>
           <img src={imgSrc} style={{maxWidth: '400px'}}/>
-          <button className="btn btn-sm primary"> Save </button>
+          <button onClick={saveImage} className="btn btn-sm primary"> Save </button>
         </>
       }
       <form onSubmit={handleSubmit}>

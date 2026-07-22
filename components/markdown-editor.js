@@ -6,7 +6,6 @@ import { EditorView } from '@codemirror/view';
 
 const MarkdownEditorComponent = ({ value, onChange, selectedTab, onTabChange }) => {
 
-  console.log('MarkdownEditor', value)
 
   return (
     <div>

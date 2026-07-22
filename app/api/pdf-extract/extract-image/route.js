@@ -149,7 +149,7 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace, outputScale = 1
 
 
     const trimmedFile =  await sharp(imageBuffer)
-    .trim({ threshold: 100, background: '#ffffff' })
+    .trim({ threshold: 25, background: '#ffffff' })
     .toBuffer();
 
 

@@ -21,9 +21,12 @@ import ReactPlayer from 'react-player'
 import { usePathname } from 'next/navigation';
 import { ThreeDotMenu } from "components/three-dot-menu"
 import { ImageComponent } from "components/my-files-page"
+import { ImageTurbo } from "components/my-files-page"
+
 import {
 Copy
 } from 'lucide-react';
+import { uploadFile } from "@/lib/upload-file"
 
 const imageTypes = ['image/png', 'image/jpeg']
 const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
@@ -532,17 +535,27 @@ const copyFileUrl = (url) => {
                   }
 
                   {filesDisplay ==='Gemini'&&
-                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                    <div style={{
+                      overflowY: 'scroll',
+                      height: 'calc(100% - 200px)'
+                    }}>
                     <ImageGeneration/>
                   </div>
                   }
                   {filesDisplay ==='Video'&&
-                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                    <div style={{
+                      overflowY: 'scroll',
+                      height: 'calc(100% - 200px)'
+                    }}>
                     <VideoGeneration/>
                   </div>
                   }
                   {filesDisplay ==='X Z Image Turbo'&&
-                    <div style={{marginTop:'10px', paddingTop:'15px'}}>
+                    <div style={{
+                      overflowY: 'scroll',
+                      height: 'calc(100% - 200px)'
+                    }}>
+                      <ImageTurbo user={user}/>
                     </div>
                   }
                 </div>

@@ -6,7 +6,6 @@ const contentful = require('contentful-management');
 async function uploadBase64(client, imagePath, fileName, fileType, caption, spaceId, environmentId) {
 
 
-
   // 2. Convert base64 to a Buffer
   const base64Data = imagePath.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(base64Data, 'base64');
@@ -148,13 +147,22 @@ try {
     },{ status: 200 })
 
 
+} catch (err) {
+  console.error("========== ERROR ==========");
+  console.error("Message:", String(err?.message || ""));
+  console.error("Name:", String(err?.name || ""));
+  console.error("Status:", String(err?.status || ""));
+  console.error("Status Code:", String(err?.statusCode || ""));
+  console.error("Stack:", String(err?.stack || ""));
+  console.error("===========================");
 
-  }catch(err){
-    console.error(err);
-    return Response.json(
-      { error: "Failed to get contentful data" },
-      { status: 500 }
-    );
-  }
+  return Response.json(
+    {
+      error: "Failed to get contentful data",
+      details: String(err?.message || "Unknown error"),
+    },
+    { status: 500 }
+  );
+}
 
 }

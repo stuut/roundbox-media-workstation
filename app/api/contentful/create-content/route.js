@@ -142,11 +142,29 @@ try {
       },{ status: 200 })
 
   }catch(err){
-    console.error(err);
+  console.error("Contentful error:", {
+    message: err?.message,
+    status: err?.status,
+    details: err?.details,
+  });
+
+  if (err?.status === 401 || err?.status === 403) {
     return Response.json(
-      { error: "Failed to get contentful data" },
-      { status: 500 }
+      {
+        error: "Contentful authentication failed",
+        details: "The Contentful access token may be expired or invalid.",
+      },
+      { status: 401 }
     );
+  }
+
+  return Response.json(
+    {
+      error: "Failed to get contentful data",
+      details: err?.message,
+    },
+    { status: 500 }
+  );
   }
 
 }

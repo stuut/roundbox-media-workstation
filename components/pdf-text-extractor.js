@@ -350,7 +350,7 @@ export default function PdfTextExtractor({user, feeds}) {
             });
 
             const images = await response.json();
-            console.log('images', images)
+         
 
             const updateImages = images.data.map((entry, index) => {
 
@@ -702,7 +702,6 @@ const sendAreaData = async(selectionArea) => {
   if (inputTypeRef.current === 'images'){
 
     const checkedImages = await checkInstagramImages([responseJson.image])
-    console.log('setImages', images)
 
     const updatingItems = [...imagesRef.current, ...checkedImages]
     reflowImages(updatingItems)
@@ -928,12 +927,12 @@ const addWordPressArticle = (paragraphs, images) => {
   }else{
 
     var firstImage = addFirstImage(images)
-    console.log('firstImage', firstImage )
+   
 
     if (images.length>1){
       let lastImages = addLastImages(images)
 
-      console.log('lastImages', lastImages)
+     
 
       if (lastImages){
         setTinymceContent(firstImage + combinedContent + lastImages)
@@ -965,7 +964,7 @@ const addLastImages = (images) => {
 
   let imagesWithoutFirstElement = images.slice(1);
 
-  console.log('imagesWithoutFirstElement', imagesWithoutFirstElement)
+ 
 
   imagesWithoutFirstElement.forEach((image, index) => {
 
@@ -1068,6 +1067,10 @@ const createWPImageHTML = (image) => {
   return imageHTML
 }
 
+function isUppercase(word){
+  return /^\p{Lu}/u.test( word );
+}
+
 
 
 const LINE_WRAP_MARK = '\u0001';
@@ -1091,9 +1094,12 @@ function detectArticle(data) {
 
   data.text_json.blocks.forEach(block => {
     const rawText = block.text;
-    if (rawText.length === 0) return;
+    if (rawText.length === 0){
+      return;
+    }
 
     if (rawText.trim() === '') {
+    
       if (suppressNextSpace) return;
       if (currentSection === 'body') currentParagraph += ' ';
       else if (currentSection === 'caption') currentCaption += ' ';
@@ -1107,9 +1113,11 @@ function detectArticle(data) {
       return;
     }
 
-    const isBold = block.fontName === 'BKSRGB+MuseoSans-900' ||
-      block.fontName === 'KSGAJY+BodoniSvtyTwoITCTT-Bold' ||
-      block.fontName === 'KSGAJY+Helvetica-Bold'
+
+
+    const isBold = block.fontName.includes('MuseoSans-900')||
+    //block.fontName.includes('BodoniSvtyTwoITCTT-Bold')||
+    block.fontName.includes('Helvetica-Bold')
     let text = rawText
     let noSpace = false
     let isDropCap = false
@@ -1125,6 +1133,7 @@ function detectArticle(data) {
       const lastIndex = text.lastIndexOf("/");
       if (lastIndex !== -1) text = text.substring(0, lastIndex) + text.substring(lastIndex + 1);
     }
+
     if (text.length === 1 && block.height > 20) { noSpace = true; isDropCap = true; }
 
     if (block.height < 8) {
@@ -1157,17 +1166,40 @@ function detectArticle(data) {
     } else {
       currentSection = 'body';
       if (selectedFeedRef.current?.CMSType === "wordpress") {
+        
         text = isBold ? `<b>${text}</b>` : text;
+
       } else if (selectedFeed && selectedFeed?.CMSType === "contentful") {
         text = isBold ? `__${text}__` : text;
       }
+
       const endsWithPeriod = currentParagraph.trim().endsWith('.');
-      const endsWithQuotePeriod = currentParagraph.trim().endsWith('".');
-      const endsWithPeriodQuote = currentParagraph.trim().endsWith('."');
+      const endsWithQuotePeriod = currentParagraph.trim().endsWith('".') || currentParagraph.trim().endsWith('”.');
+      const endsWithPeriodQuote = currentParagraph.trim().endsWith('."') || currentParagraph.trim().endsWith('.”');;
+      
       const endsWithColon = currentParagraph.trim().endsWith(':');
       const startsWithBullet = text.trim().startsWith('•');
       const endsWithWWW = currentParagraph.trim().endsWith('www.');
-      if ((endsWithPeriod || endsWithQuotePeriod || endsWithPeriodQuote || endsWithColon || startsWithBullet) && !endsWithWWW) {
+
+      const endBulletPoint = isUppercase(text) &&  currentParagraph.trim().startsWith('•')
+
+    
+      if (isUppercase(text) && currentParagraph.length>2 && currentParagraph.trim().startsWith('•')){
+
+        console.log('previousParagraph', previousParagraph)
+
+        console.log('currentParagraph', currentParagraph)
+
+         console.log('text', text)
+         
+      }
+
+     
+
+
+      if ((endsWithPeriod || endsWithQuotePeriod || endsWithPeriodQuote || endsWithColon || startsWithBullet ) && !endsWithWWW) {
+        
+        
         paragraphs.push(currentParagraph);
         currentParagraph = "";
         suppressNextSpace = false;
@@ -1194,7 +1226,24 @@ function detectArticle(data) {
 
   const filterCaptions = captions.filter((cap) => cap !== "")
   const filterParagraphs = paragraphs.filter((par) => par !== "")
-  return { paragraphs: filterParagraphs, heading: normalizeSpaces(heading), captions: filterCaptions };
+  console.log('filterParagraphs', filterParagraphs)
+
+
+  let tidyUpBold
+
+  tidyUpBold = filterParagraphs.map((par) =>
+    par
+      .replace(/<\/b>\s*<b>/g, ' ')
+      .replace(/__\s*__/g, ' ')
+  );
+
+ 
+
+
+  console.log('filterParagraphs', tidyUpBold)
+
+
+  return { paragraphs: tidyUpBold, heading: normalizeSpaces(heading), captions: filterCaptions };
 }
 
 function normalizeSpaces(text) {
@@ -1224,7 +1273,7 @@ useEffect(()=>{
 
 
 const reflowImages = (images) => {
-console.log('reflowImages', images)
+
     if (selectedFeedRef.current.CMSType === 'wordpress'){
         setTinymceContent('')
         addWordPressArticle(null, images)
@@ -1236,7 +1285,7 @@ console.log('reflowImages', images)
 }
 
 useEffect(()=>{
-  console.log('update images', images)
+ 
 
   imagesRef.current = images
 
@@ -1277,7 +1326,7 @@ useEffect(()=>{
     }else if (selectedFeedRef.current.CMSType === 'contentful'){
 
         if (!mdValue){
-         console.log('addContentfulArticle selectedFeed')
+        
           addContentfulArticle(paragraphsState, images)
         }
     }
@@ -1423,12 +1472,12 @@ const handleMDEditorChange = (newValue) => {
 
 useEffect(()=>{
   mdValueRef.current = mdValue
-  console.log('mdValueRef.current', mdValueRef.current)
+
 },[mdValue])
 
 
 const removeArticleImage = (id) => {
-  console.log('setImages')
+ 
 
   const updatingItems = images.filter((image)=>image.id !== id)
 
@@ -1512,7 +1561,7 @@ const handleDrop = (e, id) => {
         updatedItems.splice(targetItemIndex, 0, draggedItem);
       }
       setImages(updatedItems);
-      console.log('reflowImages')
+      
       reflowImages(updatedItems)
     }
   }else{
@@ -1593,7 +1642,7 @@ const editMedia = (media, index, tool) => {
 }
 
 const handleEditReplace = async(index, newItem) => {
-  console.log(' newItem',  newItem)
+ 
 
   const checkedImages = await checkInstagramImages([newItem])
 
@@ -1619,7 +1668,7 @@ useEffect(() => {
 
 
   if (!displayEditItem && item) {
-      console.log('handleEditReplace', item)
+      
       handleEditReplace(editingIndex.current, item)
       setItem(null)
   }
@@ -1704,12 +1753,6 @@ const startSSE = () => {
             file_name:file.name,
             file_description:editImageData.current.file_description??null
           })
-
-          console.log('Images', images)
-
-          console.log('editImageData', editImageData)
-
-          console.log('fileInfo', fileInfo)
 
           setImages(prevItems =>
             prevItems.map((item, i) => item.id === editImageData.current.id ? fileInfo : item)
@@ -2114,9 +2157,6 @@ const createPost = async() => {
           setUploadedPosts(uploadedPosts => [...uploadedPosts, {...data.data, website:selectedFeed.website}])
           setUsedDates(usedDates => [...usedDates, moment(date).format('YYYY-MM-DD HH:mm:ss')])
           showSuccess('Post Created')
-
-
-
 
     }catch(err){
       console.log(err)

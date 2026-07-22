@@ -745,16 +745,42 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const dragTarget = useRef(null);
   const newHandleIndex = useRef(-1);
   const mousePosRef = useRef(null)
+  const history = useRef([])
+
 
   const browserFFmpeg = process.env.NODE_ENV !== 'development'
 
   const autoLoad = searchParams.get('auto_load') 
   const fileUrl = searchParams.get('file_url')
+  const fileId = searchParams.get('file_id')
   const fileName = searchParams.get('file_name')
   const fileType = searchParams.get('file_type')
   const autoLoadType = searchParams.get('auto_load_type')
 
   const rotateStartAngleRef = useRef(null)
+
+
+  const setHistory = () => {
+    const json = JSON.stringify({
+      canvas: {
+        width: PAGE_WIDTH,
+        height: PAGE_HEIGHT,
+        bleed: BLEED,
+        backgroundColour: backgroundColour,
+        currentPreset: currentPreset
+      },
+      audio:{
+        audio_url:audioUrl
+      },
+      sceneManager: sceneManagerRef.current,
+      duration:duration,
+      elements: objectsRef.current
+
+    }, null, 2);
+
+    history.current.push(json)
+
+  }
 
 
 
@@ -6823,8 +6849,6 @@ function getSelectionBounds(selectedObjects) {
 
         const rotateHandle = checkRotateHandleHit(selectionBoundsRef.current, pos.x, pos.y)
 
-        console.log('rotateHandle', rotateHandle)
-
         const moveHit = hitObject(selectionBoundsRef.current, pos.x, pos.y);
   
         if (!moveHit && !resizeHandle && !resizeSideHandle && !rotateHandle){
@@ -6858,26 +6882,31 @@ function getSelectionBounds(selectedObjects) {
 
           }
 
-          if (resizeHandle){
-            resizingRef.current = { index: null, corner: resizeHandle }
+          if (resizeHandle !== null){
 
             let activeCorner
 
                  switch (resizeHandle) {
-                  case 0: activeCorner = 'side-left'; break;
-                  case 1: activeCorner = 'side-right'; break;
-                  case 2: activeCorner = 'top'; break;
-                  case 3: activeCorner = 'bottom'; break;
+                  case 0: activeCorner = 'top-left'; break;
+                  case 1: activeCorner = 'top-right'; break;
+                  case 2: activeCorner = 'bottom-left'; break;
+                  case 3: activeCorner = 'bottom-right'; break;
                 }
+
+            const exactEdge = getHandlePosition(selectionBoundsRef.current).find(h => h.type === activeCorner);
+     
 
             resizingRef.current = {
               corner: resizeHandle,
+              offsetX: pos.x - exactEdge.x,
+              offsetY: pos.y - exactEdge.y,
               startBounds: {
                 cx: selectionBoundsRef.current.cx,
                 cy: selectionBoundsRef.current.cy,
                 width: selectionBoundsRef.current.width,
                 h: selectionBoundsRef.current.h,
               },
+              startPos:pos,
               objects: selectedIndexesRef.current.map(i => {
                 const obj = objectsRef.current[i];
                 const handle = getHandlePosition(obj).find(h => h.type === activeCorner);
@@ -6897,8 +6926,7 @@ function getSelectionBounds(selectedObjects) {
             };
           }
 
-          if (resizeSideHandle){
-            resizingSideRef.current = { index: null, side: resizeSideHandle }
+          if (resizeSideHandle !== null){
 
              let activeCorner
 
@@ -7447,10 +7475,10 @@ function getSelectionBounds(selectedObjects) {
       if (resizing) {
 
       hideToolBar()
-      const { corner, offsetX,  offsetY} = resizing;
+      const { corner, objects, startPos, offsetX, offsetY } = resizing;
 
 
-      function resizeElement(obj, pos){
+      function resizeElement(obj, pos, corner){
         const animated = getAnimatedProps(obj);
         const keepRatio = e.shiftKey;
         const aspect = obj.width/ obj.h;
@@ -7548,11 +7576,21 @@ function getSelectionBounds(selectedObjects) {
                 };
 
          
-          resizeElement(selectionBoundsRef.current, adjustedPos)
-         
+          resizeElement(selectionBoundsRef.current, adjustedPos, corner)
 
-          selectedIndexesRef.current.forEach((i, index) => {
-              resizeElement(objectsRef.current[i], pos)
+          const diffX = pos.x - startPos.x
+          const diffY = pos.y - startPos.y
+         
+          objects.forEach(({ index, handleX, handleY }) => {
+
+               const obj = objectsRef.current[index];
+
+              const simulatedPos = {
+                x: handleX + diffX ,
+                y: handleY + diffY,
+              }
+             
+              resizeElement(obj, simulatedPos, corner);
 
           });
 
@@ -7568,7 +7606,7 @@ function getSelectionBounds(selectedObjects) {
                 };
 
 
-          resizeElement(obj, adjustedPos)
+          resizeElement(obj, adjustedPos, corner)
 
         }
 
@@ -8530,8 +8568,8 @@ const getClippingValues = (obj) => {
 
   const handleMouseUp = async() => {
 
+   
     if (selectionRef.current){
-
         if (selectedIndexesRef.current.length > 0){
 
             //only single selection
@@ -8560,13 +8598,23 @@ const getClippingValues = (obj) => {
       }
 
 
-if (rotatingRef.current && selectionBoundsRef.current) {
-  selectionBoundsRef.current = getSelectionBounds(
-    selectedIndexesRef.current.map(i => objectsRef.current[i])
-  );
-  selectionBoundsRef.current.angle = 0;
-  rotatingRef.current = null;
-}
+      if (selectedIndexesRef.current.length > 0){
+         const selectedObjects = []
+          selectedIndexesRef.current.forEach((i, index) => {
+            selectedObjects.push(objectsRef.current[i])
+          });
+          const selectionBounds = getSelectionBounds(selectedObjects);
+          selectionBoundsRef.current = selectionBounds;
+      }
+
+
+      if (rotatingRef.current && selectionBoundsRef.current) {
+        selectionBoundsRef.current = getSelectionBounds(
+          selectedIndexesRef.current.map(i => objectsRef.current[i])
+        );
+        selectionBoundsRef.current.angle = 0;
+        rotatingRef.current = null;
+      }
       
 
 
@@ -8687,8 +8735,10 @@ if (rotatingRef.current && selectionBoundsRef.current) {
          drawUpper()
     }
 
-    
+    drawUpper()
     drawLower()
+
+    //setHistory()
 
   };
 
