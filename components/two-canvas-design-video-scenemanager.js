@@ -5587,8 +5587,6 @@ function buildCurve(c, pointList, close) {
 
         if (object.type !== 'image'){
 
-          const groupTransform = selectionBoundsRef.current
-
            const screenCx = animationProps.cx
             const screenCy = animationProps.cy
             ctx.translate(screenCx, screenCy);
@@ -6763,6 +6761,8 @@ function getSelectionBounds(selectedObjects) {
 }
 
 
+
+
   const getMousePos = e => {
 
     if (offsetRef.current === null) return
@@ -6839,7 +6839,6 @@ function getSelectionBounds(selectedObjects) {
           if (moveHit){
             draggingRef.current = { id: null, startX: pos.x, startY: pos.y }
           }
-
           // check if corner handle hit
           if (rotateHandle){
               rotatingRef.current = {
@@ -6858,6 +6857,92 @@ function getSelectionBounds(selectedObjects) {
              // rotateStartAngleRef.current = selectionBoundsRef.current.angle ?? 0;
 
           }
+
+          if (resizeHandle){
+            resizingRef.current = { index: null, corner: resizeHandle }
+
+            let activeCorner
+
+                 switch (resizeHandle) {
+                  case 0: activeCorner = 'side-left'; break;
+                  case 1: activeCorner = 'side-right'; break;
+                  case 2: activeCorner = 'top'; break;
+                  case 3: activeCorner = 'bottom'; break;
+                }
+
+            resizingRef.current = {
+              corner: resizeHandle,
+              startBounds: {
+                cx: selectionBoundsRef.current.cx,
+                cy: selectionBoundsRef.current.cy,
+                width: selectionBoundsRef.current.width,
+                h: selectionBoundsRef.current.h,
+              },
+              objects: selectedIndexesRef.current.map(i => {
+                const obj = objectsRef.current[i];
+                const handle = getHandlePosition(obj).find(h => h.type === activeCorner);
+                return {
+                  index: i,
+                  // snapshot original object state
+                  cx: obj.cx,
+                  cy: obj.cy,
+                  width: obj.width,
+                  h: obj.h,
+                  angle: obj.angle,
+                  // snapshot handle position in world space
+                  handleX: handle.x,
+                  handleY: handle.y,
+                };
+              })
+            };
+          }
+
+          if (resizeSideHandle){
+            resizingSideRef.current = { index: null, side: resizeSideHandle }
+
+             let activeCorner
+
+             switch (resizeSideHandle) {
+                  case 0: activeCorner = 'side-left'; break;
+                  case 1: activeCorner = 'side-right'; break;
+                  case 2: activeCorner = 'side-top'; break;
+                  case 3: activeCorner = 'side-bottom'; break;
+             }
+
+            const exactEdge = getHandlePosition(selectionBoundsRef.current).find(h => h.type === activeCorner);
+
+            resizingSideRef.current = {
+              side: resizeSideHandle,
+              offsetX: pos.x - exactEdge.x,
+              offsetY: pos.y - exactEdge.y,
+              startBounds: {
+                cx: selectionBoundsRef.current.cx,
+                cy: selectionBoundsRef.current.cy,
+                width: selectionBoundsRef.current.width,
+                h: selectionBoundsRef.current.h,
+              },
+              startPos:pos,
+              objects: selectedIndexesRef.current.map(i => {
+                const obj = objectsRef.current[i];
+                const handle = getHandlePosition(obj).find(h => h.type === activeCorner);
+
+       
+                return {
+                  index: i,
+                  // snapshot original object state
+                  cx: obj.cx,
+                  cy: obj.cy,
+                  width: obj.width,
+                  h: obj.h,
+                  angle: obj.angle ?? 0,
+                  scale: obj.scale ?? 1,
+                  // snapshot handle position in world space
+                  handleX: handle.x,
+                  handleY: handle.y,
+                };
+              })
+            };
+          }
          
 
           //exit early
@@ -6871,7 +6956,24 @@ function getSelectionBounds(selectedObjects) {
         const handle = checkResizeHandleHit(objectsRef.current[i], pos.x, pos.y);
         if (handle !== null) {
           if (isElementInScene(objectsRef.current[i])){
-            resizingRef.current = { index: i, corner: handle }
+
+            let activeCorner
+
+             switch (handle) {
+                  case 0: activeCorner = 'top-left'; break;
+                  case 1: activeCorner = 'top-right'; break;
+                  case 2: activeCorner = 'bottom-left'; break;
+                  case 3: activeCorner = 'bottom-right'; break;
+             }
+
+            const exactEdge = getHandlePosition(objectsRef.current[i]).find(h => h.type === activeCorner);
+
+
+            resizingRef.current = {
+              corner: handle,
+              offsetX: pos.x - exactEdge.x,
+              offsetY: pos.y - exactEdge.y, 
+            }
             selectedIndexRef.current = i
             setActiveElementId(i)
             return;
@@ -6883,7 +6985,23 @@ function getSelectionBounds(selectedObjects) {
         const handle = checkResizeSideHandleHit(objectsRef.current[i], pos.x, pos.y);
         if (handle !== null) {
           if (isElementInScene(objectsRef.current[i])){
-            resizingSideRef.current = { index: i, side: handle }
+
+            let activeCorner
+
+             switch (handle) {
+                  case 0: activeCorner = 'side-left'; break;
+                  case 1: activeCorner = 'side-right'; break;
+                  case 2: activeCorner = 'side-top'; break;
+                  case 3: activeCorner = 'side-bottom'; break;
+             }
+
+            const exactEdge = getHandlePosition(objectsRef.current[i]).find(h => h.type === activeCorner);
+
+            resizingSideRef.current = { 
+              side: handle,
+              offsetX: pos.x - exactEdge.x,
+              offsetY: pos.y - exactEdge.y, 
+            }
             selectedIndexRef.current = i
               setActiveElementId(i)
             return;
@@ -6921,7 +7039,6 @@ function getSelectionBounds(selectedObjects) {
 
 
 
-        console.log('selectedIndexRef.current set to null')
         selectedIndexRef.current = null
         setActiveElementId(null)
       if (selectedIndexRef.current === null){
@@ -6957,8 +7074,6 @@ function getSelectionBounds(selectedObjects) {
 
 
       const pos = getMousePos(e); // function that gives {x,y} in world space
-
-      console.log('customShapeType', customShapeType)
       
     if (customShapeType === 'pen'){
         if (objectsRef.current[selectedIndexRef.current]?.type !== 'custom-shape'){
@@ -7331,41 +7446,32 @@ function getSelectionBounds(selectedObjects) {
       // resizing element from corner proportional
       if (resizing) {
 
-        hideToolBar()
-        const { index, corner } = resizing;
-        const obj = getActiveElement();
-        if (!obj) return
+      hideToolBar()
+      const { corner, offsetX,  offsetY} = resizing;
+
+
+      function resizeElement(obj, pos){
         const animated = getAnimatedProps(obj);
-
         const keepRatio = e.shiftKey;
-
         const aspect = obj.width/ obj.h;
-
         const oldWidth = obj.width;
         const oldHeight = obj.h;
-
         // Mouse position relative to center, rotated into object space
         const dx = pos.x - obj.cx;
         const dy = pos.y - obj.cy;
-
         const imageHalfW = obj.width / 2;
         const imageHalfH = obj.h / 2;
-
         let padX = 0;
         let padY = 0;
-
         const cos = Math.cos(-animated.angle);
         const sin = Math.sin(-animated.angle);
 
         const localX = (dx * cos - dy * sin) / animated.scale;
         const localY = (dx * sin + dy * cos) / animated.scale;
-
         // Compute half-width/half-height based on dragged corner
         let halfW
         let halfH
-
         if (obj.clippingPath){
-
           // determine horizontal padding
           switch (corner) {
             case 0: // top-left
@@ -7377,7 +7483,6 @@ function getSelectionBounds(selectedObjects) {
               padX = imageHalfW - obj.clippingPath.right;
               break;
           }
-
           // determine vertical padding
           switch (corner) {
             case 0: // top-left
@@ -7389,28 +7494,19 @@ function getSelectionBounds(selectedObjects) {
               padY = imageHalfH - obj.clippingPath.bottom;
               break;
           }
-
-
           halfW = Math.abs(localX) + padX
           halfH = Math.abs(localY) + padY
-
         }else{
-
           halfW = Math.abs(localX)
           halfH = Math.abs(localY)
-
         }
-
         if (!keepRatio) {
           const newAspect = halfW / halfH;
           if (newAspect > aspect) halfW = halfH * aspect;
           else halfH = halfW / aspect;
         }
-
         obj.width= halfW * 2
         obj.h = halfH * 2
-
-
 
          if (obj.type === 'custom-shape') {
             const scaleX = obj.width / oldWidth;
@@ -7437,12 +7533,48 @@ function getSelectionBounds(selectedObjects) {
 
         }
 
-        // DO NOT TOUCH obj.cx / obj.cy
-        objectsRef.current[index] = obj;
-
         if (obj.type === 'text'){
           obj.updateLinesWrap()
         }
+      }
+
+        if (selectedIndexesRef.current.length>0){
+
+              // adjust for mouse shift - the difference between where the mouse lands in the 
+              //resizing box and the actual edge of the box
+                const adjustedPos = {
+                  x: pos.x - offsetX,
+                  y: pos.y - offsetY,
+                };
+
+         
+          resizeElement(selectionBoundsRef.current, adjustedPos)
+         
+
+          selectedIndexesRef.current.forEach((i, index) => {
+              resizeElement(objectsRef.current[i], pos)
+
+          });
+
+        }else{
+          const obj = getActiveElement();
+          if (!obj) return
+
+              // adjust for mouse shift - the difference between where the mouse lands in the 
+              //resizing box and the actual edge of the box
+                const adjustedPos = {
+                  x: pos.x - offsetX,
+                  y: pos.y - offsetY,
+                };
+
+
+          resizeElement(obj, adjustedPos)
+
+        }
+
+        // DO NOT TOUCH obj.cx / obj.cy
+
+
 
         drawLower();
         drawUpper();
@@ -7453,16 +7585,19 @@ function getSelectionBounds(selectedObjects) {
       // resize Side
       if (resizingSide) {
 
-        hideToolBar()
-        const { index, side } = resizingSide; // side = 0: top, 1: right, 2: bottom, 3: left
-        const obj = getActiveElement()
+      hideToolBar()
 
-          const oldWidth = obj.width;  // add these
-          const oldHeight = obj.h;
-          const oldCx = obj.cx;  // capture before any shift
-          const oldCy = obj.cy;
+      //const { side } = resizingSide; // side = 0: top, 1: right, 2: bottom, 3: left
+
+
+
+      function resizeElementSide(obj, pos, side){  
+
+        const oldWidth = obj.width;  // add these
+        const oldHeight = obj.h;
+        const oldCx = obj.cx;  // capture before any shift
+        const oldCy = obj.cy;
         const animated = getAnimatedProps(obj);
-
         // Transform mouse → local object space
         const dx = pos.x - obj.cx;
         const dy = pos.y - obj.cy;
@@ -7485,17 +7620,14 @@ function getSelectionBounds(selectedObjects) {
           case 2: top    = localY; break;
           case 3: bottom = localY; break;
         }
-
         // 2️⃣ If there is a clipping path
         if (obj.clippingPath) {
           const clip = obj.clippingPath;
-
           // Save old clip size for later
           const oldClipW = clip.right - clip.left;
           const oldClipH = clip.bottom - clip.top;
           const oldClipCx = (clip.left + clip.right) / 2;
           const oldClipCy = (clip.top + clip.bottom) / 2;
-
 
           // Update the side being dragged
           switch (side) {
@@ -7512,17 +7644,14 @@ function getSelectionBounds(selectedObjects) {
               clip.bottom = localY;
               break; // bottom
           }
-
           // Compute new clip width/height
           const newClipW = clip.right - clip.left;
           const newClipH = clip.bottom - clip.top;
-
           // Compute center shift in local space
           const newClipCx = (clip.left + clip.right) / 2;
           const newClipCy = (clip.top + clip.bottom) / 2;
           const shiftX = newClipCx - oldClipCx;
           const shiftY = newClipCy - oldClipCy;
-
           clip.left   -= shiftX;
           clip.right  -= shiftX;
           clip.top    -= shiftY;
@@ -7530,19 +7659,15 @@ function getSelectionBounds(selectedObjects) {
           clip.width  = newClipW;
           clip.height = newClipH;
           obj.clippingPath = clip;
-
           // Rotate shift back to world space
           const worldDx = shiftX * Math.cos(animated.angle) - shiftY * Math.sin(animated.angle);
           const worldDy = shiftX * Math.sin(animated.angle) + shiftY * Math.cos(animated.angle);
-
           // Apply center shift
           obj.cx += worldDx;
           obj.cy += worldDy;
 
-
           const scaleX = newClipW / oldClipW;
           const scaleY = newClipH / oldClipH;
-
 
           obj.width *= scaleX;
           obj.h     *= scaleY;
@@ -7585,6 +7710,54 @@ function getSelectionBounds(selectedObjects) {
         if (obj.type === 'text'){
           obj.updateLinesWrap()
         }
+
+      }  
+
+      const { side, objects, startPos, offsetX, offsetY } = resizingSide;
+
+
+      if (selectedIndexesRef.current.length>0){
+
+              // adjust for mouse shift - the difference between where the mouse lands in the 
+              //resizing box and the actual edge of the box
+                const adjustedPos = {
+                  x: pos.x - offsetX,
+                  y: pos.y - offsetY,
+                };
+                
+              resizeElementSide(selectionBoundsRef.current, adjustedPos, side)
+        
+              const diffX = pos.x - startPos.x
+              const diffY = pos.y - startPos.y
+
+          objects.forEach(({ index, handleX, handleY }) => {
+
+               const obj = objectsRef.current[index];
+
+              const simulatedPos = {
+                x: handleX + diffX ,
+                y: handleY + diffY,
+              }
+             
+              resizeElementSide(obj, simulatedPos, side);
+
+          });
+
+        }else{
+          const obj = getActiveElement();
+          if (!obj) return
+
+          const adjustedPos = {
+              x: pos.x - offsetX,
+              y: pos.y - offsetY,
+           };
+          
+          resizeElementSide(obj, adjustedPos, side)
+
+      }
+
+
+
 
         drawLower();
         drawUpper();
@@ -7647,7 +7820,7 @@ function getSelectionBounds(selectedObjects) {
         return;
       }
 
-    // dragging element
+    // dragging moving element
       if (dragging){
 
         const dx = pos.x - dragging.startX;
@@ -7669,7 +7842,6 @@ function getSelectionBounds(selectedObjects) {
               objectsRef.current[i].cy = objectsRef.current[i].cy + dy
               objectsRef.current[i].x = objectsRef.current[i].cx - objectsRef.current[i].width/2
               objectsRef.current[i].y = objectsRef.current[i].cy - objectsRef.current[i].h/2
-              
             });
 
         }else{
@@ -8689,29 +8861,41 @@ function drawSoftStrokePreview(stroke) {
 
 
 
-  const getCorners = (obj) => {
-    const { cx, cy, width, h, angle } = obj;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
+const getHandlePosition = (obj) => {
+  const animatedProps = getAnimatedProps(obj);
 
-    // Half dimensions
-    const hw = width / 2;
-    const hh = h / 2;
+  console.log('animatedProps', animatedProps)
 
-    // Local corners relative to center
-    const localCorners = [
-      { x: -hw, y: -hh }, // top-left
-      { x:  hw, y: -hh }, // top-right
-      { x:  hw, y:  hh }, // bottom-right
-      { x: -hw, y:  hh }  // bottom-left
-    ];
+  const cos = Math.cos(animatedProps.angle);
+  const sin = Math.sin(animatedProps.angle);
 
-    // Rotate and translate to world coordinates
-    return localCorners.map(c => ({
-      x: cx + c.x * cos - c.y * sin,
-      y: cy + c.x * sin + c.y * cos
-    }));
-  };
+  const hw = (obj.width / 2) * animatedProps.scale;
+  const hh = (obj.h / 2) * animatedProps.scale;
+
+  const cx = animatedProps.cx;
+  const cy = animatedProps.cy;
+
+  // local corners in scaled space
+  const localCorners = [
+    { x: -hw, y: -hh, type: 'top-left' },
+    { x:  hw, y: -hh, type: 'top-right' },
+    { x:  hw, y:  hh, type: 'bottom-right' },
+    { x: -hw, y:  hh, type: 'bottom-left' },
+    { x: -hw, y:   0, type: 'side-left' },
+    { x:  hw, y:   0, type: 'side-right' },
+    { x:   0, y: -hh, type: 'side-top' },
+    { x:   0, y:  hh, type: 'side-bottom' },
+  ];
+
+
+
+  // rotate each local corner to world space
+  return localCorners.map(c => ({
+    x: cx + c.x * cos - c.y * sin,
+    y: cy + c.x * sin + c.y * cos,
+    type: c.type,
+  }));
+};
 
 
 
@@ -11352,7 +11536,7 @@ const handleElementDragStart = (e, id) => {
           <p><strong>Export Social</strong></p> 
             <button
               onClick={() => {
-                showShare(true)
+                setShowShare(true)
               }} style={{flex: 2, marginBottom:0}} className='btn secondary icon-button'>
               <CalendarDays className='button-icon'/>
               Share Social
