@@ -6917,7 +6917,8 @@ function getSelectionBounds(selectedObjects) {
                   cy: obj.cy,
                   width: obj.width,
                   h: obj.h,
-                  angle: obj.angle,
+                  angle: obj.angle?? 0,
+                  scale: obj.scale ?? 1,
                   // snapshot handle position in world space
                   handleX: handle.x,
                   handleY: handle.y,
@@ -7404,6 +7405,7 @@ function getSelectionBounds(selectedObjects) {
   }
 
 
+
   const handleMouseMove = (e) => {
 
     const pos = getMousePos(e);
@@ -7580,6 +7582,43 @@ function getSelectionBounds(selectedObjects) {
 
           const diffX = pos.x - startPos.x
           const diffY = pos.y - startPos.y
+
+          const scaleX = selectionBoundsRef.current.width / resizingRef.current.startBounds.width;
+          const scaleY = selectionBoundsRef.current.h / resizingRef.current.startBounds.h;
+          const groupCx = resizingRef.current.startBounds.cx;
+          const groupCy = resizingRef.current.startBounds.cy;  
+          
+          const { startBounds } = resizingRef.current;
+
+          let pivotX = startBounds.cx;
+          let pivotY = startBounds.cy;
+
+          
+          objects.forEach(({ index, cx, cy, width, h, angle, scale }) => {
+            const obj = objectsRef.current[index];
+            const oldWidth = obj.width;
+            const oldHeight = obj.h;
+
+            obj.cx = pivotX + (cx - pivotX) * scaleX;
+            obj.cy = pivotY + (cy - pivotY) * scaleY;
+            obj.width = width * scaleX;
+            obj.h     = h * scaleY;
+            obj.x     = obj.cx - obj.width / 2;
+            obj.y     = obj.cy - obj.h / 2;
+
+            if (obj.type === 'custom-shape') {
+                const scaleX = obj.width / oldWidth;
+                const scaleY = obj.h / oldHeight;
+                if (obj.closed) {
+                  scalePointsClosed(obj, scaleX, scaleY);
+                } else {
+                  scalePointsOpen(obj, scaleX, scaleY);
+                }
+              }
+          });
+
+
+          /*
          
           objects.forEach(({ index, handleX, handleY }) => {
 
@@ -7592,7 +7631,7 @@ function getSelectionBounds(selectedObjects) {
              
               resizeElement(obj, simulatedPos, corner);
 
-          });
+          });*/
 
         }else{
           const obj = getActiveElement();
@@ -7768,6 +7807,64 @@ function getSelectionBounds(selectedObjects) {
               const diffX = pos.x - startPos.x
               const diffY = pos.y - startPos.y
 
+          const scaleX = selectionBoundsRef.current.width / resizingSideRef.current.startBounds.width;
+          const scaleY = selectionBoundsRef.current.h / resizingSideRef.current.startBounds.h;
+          const groupCx = resizingSideRef.current.startBounds.cx;
+          const groupCy = resizingSideRef.current.startBounds.cy; 
+
+          const { startBounds } = resizingSideRef.current;
+
+          let pivotX = groupCx; // default to center
+          let pivotY = groupCy;
+
+          switch (side) {
+            case 0: // left side dragged → right edge is pinned
+              pivotX = startBounds.cx + startBounds.width / 2;
+              break;
+            case 1: // right side dragged → left edge is pinned
+              pivotX = startBounds.cx - startBounds.width / 2;
+              break;
+            case 2: // top dragged → bottom edge is pinned
+              pivotY = startBounds.cy + startBounds.h / 2;
+              break;
+            case 3: // bottom dragged → top edge is pinned
+              pivotY = startBounds.cy - startBounds.h / 2;
+              break;
+          }
+
+          objects.forEach(({ index, cx, cy, width, h, angle, scale }) => {
+            const obj = objectsRef.current[index];
+            const oldWidth = obj.width;
+            const oldHeight = obj.h;
+
+            // scale position relative to pinned edge, not group center
+              obj.cx = pivotX + (cx - pivotX) * scaleX;
+              obj.cy = pivotY + (cy - pivotY) * scaleY;
+
+              // scale dimensions
+              obj.width = width * scaleX;
+              obj.h     = h * scaleY;
+              obj.x     = obj.cx - obj.width / 2;
+              obj.y     = obj.cy - obj.h / 2;
+
+
+
+            if (obj.type === 'custom-shape') {
+                const scaleX = obj.width / oldWidth;
+                const scaleY = obj.h / oldHeight;
+                if (obj.closed) {
+                  scalePointsClosed(obj, scaleX, scaleY);
+                } else {
+                  scalePointsOpen(obj, scaleX, scaleY);
+                }
+              }
+          });
+
+
+          
+          
+          /*
+
           objects.forEach(({ index, handleX, handleY }) => {
 
                const obj = objectsRef.current[index];
@@ -7779,7 +7876,7 @@ function getSelectionBounds(selectedObjects) {
              
               resizeElementSide(obj, simulatedPos, side);
 
-          });
+          });*/
 
         }else{
           const obj = getActiveElement();
@@ -13145,7 +13242,7 @@ useEffect(() => {
                           }
                           {element.type === 'image'&&
                             <div style={{width: '100%' }} className='repeater-timeline-bar'>
-                              {Array(Math.round(activeScene.duration)).fill(0).map((_, index) => (
+                              {Array(Math.round(activeScene?.duration)).fill(0).map((_, index) => (
                                 <img
                                   key={index}
                                   src={element.imageSrc} // Replace with your image source
@@ -13372,7 +13469,7 @@ const TemplatePanel = ({
 
   return(
     <div>
-      <p className='font-label' style={{fontSize:'0.8em'}}><strong>Create AI Template</strong></p>
+      <p className='font-label' style={{fontSize:'0.8em'}}><strong>Create A Design</strong></p>
       <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
         <input style={{
           width:"100%",
@@ -15289,7 +15386,6 @@ useEffect(() => {
                     <button className="btn primary" onClick={save}>Save</button>
                   </div>
                 }
-                <button style={{marginTop:'25px'}} className='btn secondary'>Generative Expand</button>
 
               </div>
               <div ref={fileEditContainerRef}
