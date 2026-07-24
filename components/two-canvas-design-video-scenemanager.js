@@ -289,6 +289,7 @@ const heightPx = Math.round(heightMM * mmToInch * dpi); // 3508
 //const PAGE_WIDTH = 2480;
 //const PAGE_HEIGHT = 3508;
 const COLOUR = 'rgb(65 95 145)'
+const HANDLE_HILIGHT_COLOUR = 'rgb(210 224 255)'
 const ANCHOR_COLOUR = 'rgb(65 95 145)'
 const BEZIER_ANCHOR_COLOUR = 'rgb(65 95 145)'
 const HILIGHTCOLOUR = 'rgb(210 224 255)'
@@ -304,6 +305,7 @@ const TRANSFORM_WIDTH = 1
 const GUIDES_WIDTH = 1
 const ANCHOR_R = 6;
 const HANDLE_R = 4;
+const CORNER_RADIUS_OFFSET = 20
 
 
 
@@ -746,6 +748,8 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const newHandleIndex = useRef(-1);
   const mousePosRef = useRef(null)
   const history = useRef([])
+  const hilightHandle = useRef(null)
+
 
 
   const browserFFmpeg = process.env.NODE_ENV !== 'development'
@@ -5282,8 +5286,12 @@ const drawElementFrame = (ctx, object) => {
     { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
     { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
     { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
+    { x: screenLeft+CORNER_RADIUS_OFFSET, y: screenTop+CORNER_RADIUS_OFFSET, type:'corner-radius' }, // bottom
   ];
   corners.forEach((c, index) => {
+
+    console.log('c', c)
+
     ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
 
     if (c.type === 'corner'){
@@ -5300,6 +5308,36 @@ const drawElementFrame = (ctx, object) => {
         HANDLE_SIZE * 2,
         HANDLE_SIZE * 2
       );
+
+ 
+
+    }else if (c.type === 'corner-radius'){
+
+      ctx.ellipse(
+        c.x  - HANDLE_SIZE,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE,
+        HANDLE_SIZE,
+        0, 
+        0, 
+        Math.PI * 2
+      );
+
+
+        ctx.fillRect(
+        c.x  - HANDLE_SIZE,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 2
+      );
+      ctx.strokeRect(
+        c.x - HANDLE_SIZE,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 2
+      );
+    
+
 
     }else if ((c.type === 'side-right') || (c.type === 'side-left')){
       ctx.fillRect(
@@ -5409,14 +5447,16 @@ const drawElementControls = (ctx, object) => {
               screenH
             );
             const corners = [
-              { x: screenLeft,  y: screenTop, type:'corner' }, // top-left
-              { x: screenRight, y: screenTop, type:'corner' }, // top-right
-              { x: screenLeft, y:  screenBottom, type:'corner' }, // bottom-left
-              { x: screenRight, y:  screenBottom, type:'corner' }, // bottom-right
-              { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left' }, // left
-              { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
-              { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
-              { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
+              { x: screenLeft,  y: screenTop, type:'corner', label:'top-left' }, // top-left
+              { x: screenRight, y: screenTop, type:'corner', label:'top-right' }, // top-right
+              { x: screenLeft, y:  screenBottom, type:'corner', label:'bottom-left' }, // bottom-left
+              { x: screenRight, y:  screenBottom, type:'corner', label:'bottom-right' }, // bottom-right
+              { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left', label:'side-left' }, // left
+              { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right', label:'side-right' }, // right
+              { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top', label:'side-top' }, // top
+              { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom', label:'side-bottom' }, // bottom
+              { x: screenLeft+CORNER_RADIUS_OFFSET, y: screenTop+CORNER_RADIUS_OFFSET, type:'corner-radius' }, // bottom
+
             ];
             corners.forEach((c, index) => {
               ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
@@ -5430,6 +5470,22 @@ const drawElementControls = (ctx, object) => {
                   HANDLE_SIZE * 2,
                   HANDLE_SIZE * 2
                 );
+
+                // Highlight selected handle
+                if (
+                  hilightHandle.current &&
+                  hilightHandle.current.handle === c.label
+                ) {
+                  ctx.fillStyle = HANDLE_HILIGHT_COLOUR;
+                  
+                  ctx.fillRect(
+                    c.x - HANDLE_SIZE,
+                    c.y - HANDLE_SIZE,
+                    HANDLE_SIZE * 2,
+                    HANDLE_SIZE * 2
+                  );
+                }
+
                 ctx.strokeRect(
                   c.x - HANDLE_SIZE,
                   c.y - HANDLE_SIZE,
@@ -5437,7 +5493,23 @@ const drawElementControls = (ctx, object) => {
                   HANDLE_SIZE * 2
                 );
 
-              }else if ((c.type === 'side-right' && activeToolRef.current !== 'cropping') || (c.type === 'side-left' && activeToolRef.current !== 'cropping')){
+   }else if (c.type === 'corner-radius'){
+
+    
+            ctx.beginPath();
+
+            ctx.arc(
+              c.x, 
+              c.y, 
+              HANDLE_SIZE, 
+              0, 
+              2 * Math.PI
+            );
+
+           ctx.fill();
+          ctx.stroke(); 
+
+    }else if ((c.type === 'side-right' && activeToolRef.current !== 'cropping') || (c.type === 'side-left' && activeToolRef.current !== 'cropping')){
               
 
                 // Start the path and add a rounded rectangle
@@ -5449,6 +5521,13 @@ const drawElementControls = (ctx, object) => {
                   HANDLE_SIZE * 8,
                   [10, 10, 10, 10]
                 )
+
+                if (
+                  hilightHandle.current &&
+                  hilightHandle.current.handle === c.label
+                ) {
+                  ctx.fillStyle = HANDLE_HILIGHT_COLOUR;
+                }
                // ctx.fillStyle ="white"
                 ctx.fill();
                 ctx.stroke(); // Renders the outline
@@ -5466,6 +5545,13 @@ const drawElementControls = (ctx, object) => {
                   HANDLE_SIZE * 2,
                   [10, 10, 10, 10]
                 )
+
+                if (
+                  hilightHandle.current &&
+                  hilightHandle.current.handle === c.label
+                ) {
+                  ctx.fillStyle = HANDLE_HILIGHT_COLOUR;
+                }
               //  ctx.fillStyle ="white"
                 ctx.fill();
                 ctx.stroke();
@@ -7420,16 +7506,16 @@ function getSelectionBounds(selectedObjects) {
         if (handle !== null) {
           if (isElementInScene(objectsRef.current[i])){
 
-            let activeCorner
+            let activeHandle
 
              switch (handle) {
-                  case 0: activeCorner = 'side-left'; break;
-                  case 1: activeCorner = 'side-right'; break;
-                  case 2: activeCorner = 'side-top'; break;
-                  case 3: activeCorner = 'side-bottom'; break;
+                  case 0: activeHandle = 'side-left'; break;
+                  case 1: activeHandle = 'side-right'; break;
+                  case 2: activeHandle = 'side-top'; break;
+                  case 3: activeHandle = 'side-bottom'; break;
              }
 
-            const exactEdge = getHandlePosition(objectsRef.current[i]).find(h => h.type === activeCorner);
+            const exactEdge = getHandlePosition(objectsRef.current[i]).find(h => h.type === activeHandle);
 
             resizingSideRef.current = { 
               side: handle,
@@ -7880,105 +7966,207 @@ function getSelectionBounds(selectedObjects) {
 
     }else if (activeToolRef.current === 'size-position'){
       // resizing element from corner proportional
+
+
+      if (selectedIndexesRef.current.length>0 || selectedIndexRef.current !== null){
+        if (selectedIndexesRef.current.length>0){
+
+          // check corner handle hit
+          for (let i = selectedIndexesRef.current.length - 1; i >= 0; i--) {
+              const handle = checkResizeHandleHit(selectedIndexesRef.current[i], pos.x, pos.y);
+
+              if (handle !== null){
+
+                let activeCorner
+                switch (handle) {
+                      case 0: activeCorner = 'top-left'; break;
+                      case 1: activeCorner = 'top-right'; break;
+                      case 2: activeCorner = 'bottom-left'; break;
+                      case 3: activeCorner = 'bottom-right'; break;
+                }
+                hilightHandle.current = {index: i, handle:activeCorner}
+                drawUpper()
+               
+              }else{
+                hilightHandle.current = null
+                drawUpper()
+                
+              }
+          }
+           // check side handle handle hit
+         for (let i = selectedIndexesRef.current.length - 1; i >= 0; i--) {
+              const handle = checkResizeSideHandleHit(selectedIndexesRef.current[i], pos.x, pos.y);
+
+              if (handle !== null){
+
+                let activeHandle
+                switch (handle) {
+                      case 0: activeHandle = 'side-left'; break;
+                      case 1: activeHandle = 'side-right'; break;
+                      case 2: activeHandle = 'side-top'; break;
+                      case 3: activeHandle = 'side-bottom'; break;
+                }
+                hilightHandle.current = {index: i, handle:activeHandle}
+                drawUpper()
+                
+                
+              }else{
+                hilightHandle.current = null
+                drawUpper()
+                
+              }
+          }
+
+        }else{
+          const obj = getActiveElement()
+          const handle = checkResizeHandleHit(obj, pos.x, pos.y);
+          const sideHandle = checkResizeSideHandleHit(obj, pos.x, pos.y);
+
+
+
+            //console.log('single select handle', handle)
+           if (handle !== null || sideHandle !== null){
+
+              if (handle !== null){
+                let activeCorner
+                switch (handle) {
+                      case 0: activeCorner = 'top-left'; break;
+                      case 1: activeCorner = 'top-right'; break;
+                      case 2: activeCorner = 'bottom-left'; break;
+                      case 3: activeCorner = 'bottom-right'; break;
+                }
+
+                hilightHandle.current = {index: selectedIndexRef.current, handle:activeCorner}
+                drawUpper()
+                
+              }else if (sideHandle !== null) {
+
+               let activeHandle
+                switch (sideHandle) {
+                        case 0: activeHandle = 'side-left'; break;
+                        case 1: activeHandle = 'side-right'; break;
+                        case 2: activeHandle = 'side-top'; break;
+                        case 3: activeHandle = 'side-bottom'; break;
+                  }
+
+                hilightHandle.current = {index: selectedIndexRef.current, handle:activeHandle}
+                drawUpper()
+                 
+              }
+            
+    
+              }else{
+                hilightHandle.current = null
+                drawUpper()
+              }
+
+
+        }
+
+      }
+
+
+
+
       if (resizing) {
 
       hideToolBar()
       const { corner, objects, startPos, offsetX, offsetY } = resizing;
 
-function resizeElement(obj, pos, corner) {
-  const snap = resizing;
-  const animated = getAnimatedProps(obj);
-  const keepRatio = e.shiftKey;
-  const aspect = snap.startWidth / snap.startHeight;
+        function resizeElement(obj, pos, corner) {
+          const snap = resizing;
+          const animated = getAnimatedProps(obj);
+          const keepRatio = e.shiftKey;
+          const aspect = snap.startWidth / snap.startHeight;
 
-  // reset to snapshot state first — prevents compounding
-  obj.width = snap.startWidth;
-  obj.h     = snap.startHeight;
-  obj.cx    = snap.startCx;
-  obj.cy    = snap.startCy;
+          // reset to snapshot state first — prevents compounding
+          obj.width = snap.startWidth;
+          obj.h     = snap.startHeight;
+          obj.cx    = snap.startCx;
+          obj.cy    = snap.startCy;
 
-  const cos = Math.cos(-animated.angle);
-  const sin = Math.sin(-animated.angle);
+          const cos = Math.cos(-animated.angle);
+          const sin = Math.sin(-animated.angle);
 
-  let halfW, halfH;
+          let halfW, halfH;
 
-  if (obj.clippingPath && snap.startClip) {
-    // mouse relative to clip center in world space
-    const clipWorldCx = snap.startCx + snap.startClip.cx
-    const clipWorldCy = snap.startCy + snap.startClip.cy
-    const cdx = pos.x - clipWorldCx;
-    const cdy = pos.y - clipWorldCy;
-    const clipLocalX = (cdx * cos - cdy * sin)
-    const clipLocalY = (cdx * sin + cdy * cos)
+          if (obj.clippingPath && snap.startClip) {
+            // mouse relative to clip center in world space
+            const clipWorldCx = snap.startCx + snap.startClip.cx
+            const clipWorldCy = snap.startCy + snap.startClip.cy
+            const cdx = pos.x - clipWorldCx;
+            const cdy = pos.y - clipWorldCy;
+            const clipLocalX = (cdx * cos - cdy * sin)
+            const clipLocalY = (cdx * sin + cdy * cos)
 
-    const newClipHalfW = Math.abs(clipLocalX);
-    const newClipHalfH = Math.abs(clipLocalY);
+            const newClipHalfW = Math.abs(clipLocalX);
+            const newClipHalfH = Math.abs(clipLocalY);
 
-    // ratio of image to clip size is fixed
-    const clipToImageW = snap.startWidth  / (snap.startClip.right - snap.startClip.left);
-    const clipToImageH = snap.startHeight / (snap.startClip.bottom - snap.startClip.top);
+            // ratio of image to clip size is fixed
+            const clipToImageW = snap.startWidth  / (snap.startClip.right - snap.startClip.left);
+            const clipToImageH = snap.startHeight / (snap.startClip.bottom - snap.startClip.top);
 
-    halfW = newClipHalfW * clipToImageW;
-    halfH = newClipHalfH * clipToImageH;
-  } else {
-    // mouse relative to image center
-    const dx = pos.x - snap.startCx;
-    const dy = pos.y - snap.startCy;
-    const localX = (dx * cos - dy * sin)
-    const localY = (dx * sin + dy * cos)
-    halfW = Math.abs(localX);
-    halfH = Math.abs(localY);
-  }
+            halfW = newClipHalfW * clipToImageW;
+            halfH = newClipHalfH * clipToImageH;
+          } else {
+            // mouse relative to image center
+            const dx = pos.x - snap.startCx;
+            const dy = pos.y - snap.startCy;
+            const localX = (dx * cos - dy * sin)
+            const localY = (dx * sin + dy * cos)
+            halfW = Math.abs(localX);
+            halfH = Math.abs(localY);
+          }
 
-  if (!keepRatio) {
-    const newAspect = halfW / halfH;
-    if (newAspect > aspect) halfW = halfH * aspect;
-    else halfH = halfW / aspect;
-  }
+          if (!keepRatio) {
+            const newAspect = halfW / halfH;
+            if (newAspect > aspect) halfW = halfH * aspect;
+            else halfH = halfW / aspect;
+          }
 
-  obj.width = halfW * 2;
-  obj.h     = halfH * 2;
+          obj.width = halfW * 2;
+          obj.h     = halfH * 2;
 
-  if (obj.type === 'custom-shape') {
-    const scaleX = obj.width / snap.startWidth;
-    const scaleY = obj.h     / snap.startHeight;
-    if (obj.closed) {
-      scalePointsClosed(obj, scaleX, scaleY);
-    } else {
-      scalePointsOpen(obj, scaleX, scaleY);
-    }
-  }
+          if (obj.type === 'custom-shape') {
+            const scaleX = obj.width / snap.startWidth;
+            const scaleY = obj.h     / snap.startHeight;
+            if (obj.closed) {
+              scalePointsClosed(obj, scaleX, scaleY);
+            } else {
+              scalePointsOpen(obj, scaleX, scaleY);
+            }
+          }
 
-  if (obj.clippingPath && snap.startClip) {
-    const scaleX = obj.width / snap.startWidth;
-    const scaleY = obj.h     / snap.startHeight;
+          if (obj.clippingPath && snap.startClip) {
+            const scaleX = obj.width / snap.startWidth;
+            const scaleY = obj.h     / snap.startHeight;
 
-    const clip = { ...snap.startClip };
-    clip.left   = snap.startClip.left   * scaleX;
-    clip.right  = snap.startClip.right  * scaleX;
-    clip.top    = snap.startClip.top    * scaleY;
-    clip.bottom = snap.startClip.bottom * scaleY;
-    clip.cx     = (clip.left + clip.right)  / 2;
-    clip.cy     = (clip.top  + clip.bottom) / 2;
-    clip.width  = clip.right - clip.left;
-    clip.height = clip.bottom - clip.top;
-    obj.clippingPath = clip;
+            const clip = { ...snap.startClip };
+            clip.left   = snap.startClip.left   * scaleX;
+            clip.right  = snap.startClip.right  * scaleX;
+            clip.top    = snap.startClip.top    * scaleY;
+            clip.bottom = snap.startClip.bottom * scaleY;
+            clip.cx     = (clip.left + clip.right)  / 2;
+            clip.cy     = (clip.top  + clip.bottom) / 2;
+            clip.width  = clip.right - clip.left;
+            clip.height = clip.bottom - clip.top;
+            obj.clippingPath = clip;
 
-    // keep clip center fixed in world space
-    const shiftLocalX = snap.startClip.cx - clip.cx;
-    const shiftLocalY = snap.startClip.cy - clip.cy;
+            // keep clip center fixed in world space
+            const shiftLocalX = snap.startClip.cx - clip.cx;
+            const shiftLocalY = snap.startClip.cy - clip.cy;
 
-    const worldDx = shiftLocalX * Math.cos(animated.angle) - shiftLocalY * Math.sin(animated.angle);
-    const worldDy = shiftLocalX * Math.sin(animated.angle) + shiftLocalY * Math.cos(animated.angle);
+            const worldDx = shiftLocalX * Math.cos(animated.angle) - shiftLocalY * Math.sin(animated.angle);
+            const worldDy = shiftLocalX * Math.sin(animated.angle) + shiftLocalY * Math.cos(animated.angle);
 
-    obj.cx = snap.startCx + worldDx;
-    obj.cy = snap.startCy + worldDy;
-  }
+            obj.cx = snap.startCx + worldDx;
+            obj.cy = snap.startCy + worldDy;
+          }
 
-  if (obj.type === 'text') {
-    obj.updateLinesWrap();
-  }
-}
+          if (obj.type === 'text') {
+            obj.updateLinesWrap();
+          }
+        }
 
         if (selectedIndexesRef.current.length>0){
 
@@ -8108,8 +8296,7 @@ function resizeElement(obj, pos, corner) {
         const localX = (dx * cos - dy * sin) / animated.scale;
         const localY = (dx * sin + dy * cos) / animated.scale;
 
-        console.log('obj', obj)
-        console.log('obj.clippingPath', obj.clippingPath)
+
 
         if (obj.clippingPath && snap.startClip) {
           const clip = { ...snap.startClip };
