@@ -1731,7 +1731,8 @@ const onSelectScene = (id) => {
     imageBitmap = null,
     airbrushBufferBitmap = null,
     clippingPath = null,
-    effects = []
+    effects = [],
+    cornerRadius = [0,0,0,0]
 
   } = {}) {
     // Basic properties
@@ -1796,6 +1797,7 @@ const onSelectScene = (id) => {
     this.airbrushBufferBitmap = airbrushBufferBitmap
     this.clippingPath = clippingPath
     this.effects = effects
+    this.cornerRadius = cornerRadius
     this.init();
 
     // ✅ Only update lines if text exists and canvas context is available
@@ -5017,25 +5019,105 @@ function objectInSelection(obj, selRect, containOnly = false) {
     // all four corners of the object must be inside the selection
     const cos = Math.cos(animatedProps.angle);
     const sin = Math.sin(animatedProps.angle);
-    const hw = (obj.width / 2) * animatedProps.scale;
-    const hh = (obj.h / 2) * animatedProps.scale;
 
-    // get object corners in world space
-    const corners = [
-      { x: -hw, y: -hh },
-      { x:  hw, y: -hh },
-      { x:  hw, y:  hh },
-      { x: -hw, y:  hh },
-    ].map(c => ({
-      x: obj.cx + c.x * cos - c.y * sin,
-      y: obj.cy + c.x * sin + c.y * cos,
-    }));
+    if (obj.clippingPath){
 
-    return corners.every(c =>
-      c.x >= selRect.minX && c.x <= selRect.maxX &&
-      c.y >= selRect.minY && c.y <= selRect.maxY
-    );
+      const width = obj.clippingPath.right - obj.clippingPath.left
+      const height = obj.clippingPath.bottom - obj.clippingPath.top
+
+      const clipCx = (obj.clippingPath.left + obj.clippingPath.right)/2
+      const clipCy = (obj.clippingPath.top + obj.clippingPath.bottom)/2
+
+      const cx = clipCx + animatedProps.cx
+      const cy = clipCy + animatedProps.cy
+
+      const hw = (width / 2) * animatedProps.scale;
+      const hh = (height / 2) * animatedProps.scale;
+
+      // get object corners in world space
+      const corners = [
+        { x: -hw, y: -hh },
+        { x:  hw, y: -hh },
+        { x:  hw, y:  hh },
+        { x: -hw, y:  hh },
+      ].map(c => ({
+        x: cx + c.x * cos - c.y * sin,
+        y: cy + c.x * sin + c.y * cos,
+      }));
+
+      return corners.every(c =>
+        c.x >= selRect.minX && c.x <= selRect.maxX &&
+        c.y >= selRect.minY && c.y <= selRect.maxY
+      );
+
+    }else{
+
+      const hw = (obj.width / 2) * animatedProps.scale;
+      const hh = (obj.h / 2) * animatedProps.scale;
+
+      // get object corners in world space
+      const corners = [
+        { x: -hw, y: -hh },
+        { x:  hw, y: -hh },
+        { x:  hw, y:  hh },
+        { x: -hw, y:  hh },
+      ].map(c => ({
+        x: animatedProps.cx + c.x * cos - c.y * sin,
+        y: animatedProps.cy + c.x * sin + c.y * cos,
+      }));
+
+      return corners.every(c =>
+        c.x >= selRect.minX && c.x <= selRect.maxX &&
+        c.y >= selRect.minY && c.y <= selRect.maxY
+      );
+    }
+
+  }else{
+        // get object bounds in world space for quick reject
+      const halfW = obj.width / 2 * animatedProps.scale;
+      const halfH = obj.h / 2 * animatedProps.scale;
+      if (!boundsOverlap(selRect, obj.cx - halfW, obj.cx + halfW, obj.cy - halfH, obj.cy + halfH)) {
+        return false;
+      }
+
+      // convert selection rect corners to object local space
+      const corners = [
+        { x: selRect.minX, y: selRect.minY },
+        { x: selRect.maxX, y: selRect.minY },
+        { x: selRect.maxX, y: selRect.maxY },
+        { x: selRect.minX, y: selRect.maxY },
+      ];
+
+      const localCorners = corners.map(c => {
+        const dx = c.x - obj.cx;
+        const dy = c.y - obj.cy;
+        const cos = Math.cos(-animatedProps.angle);
+        const sin = Math.sin(-animatedProps.angle);
+        return {
+          x: (dx * cos - dy * sin) / animatedProps.scale,
+          y: (dx * sin + dy * cos) / animatedProps.scale,
+        };
+      });
+
+      // check if any selection corner is inside object
+      const left   = -(obj.width / 2);
+      const right  =  (obj.width / 2);
+      const top    = -(obj.h / 2);
+      const bottom =  (obj.h / 2);
+
+      if (localCorners.some(c => c.x >= left && c.x <= right && c.y >= top && c.y <= bottom)) {
+        return true;
+      }
+
+      // check if object center is inside selection (handles case where object is smaller than selection)
+      if (obj.cx >= selRect.minX && obj.cx <= selRect.maxX &&
+          obj.cy >= selRect.minY && obj.cy <= selRect.maxY) {
+        return true;
+      }
+
+      return false;
   }
+
 
   // intersect mode — your existing logic
   // ...
@@ -5064,6 +5146,193 @@ function customShapeInSelection(obj, selRect, containOnly = false) {
   // ...
 }
 
+const drawElementClip = (ctx, object) => {
+
+  if (!object.clippingPath) return;
+
+  const animationProps = getAnimatedProps(object)
+
+  ctx.save();
+
+   const clipW = object.clippingPath.right - object.clippingPath.left;
+   const clipH = object.clippingPath.bottom - object.clippingPath.top;
+
+  const left   = -clipW / 2;
+  const right  =  clipW  / 2;
+  const top    = -clipH / 2;
+  const bottom =  clipH / 2;
+              ctx.translate(
+                offset.x + (object.clippingPath.cx + animationProps.cx) * scaleRef.current,
+                offset.y + (object.clippingPath.cy + animationProps.cy) * scaleRef.current
+              );  const screenLeft   = left * scaleRef.current;
+  const screenRight  = right * scaleRef.current;
+  const screenTop    = top * scaleRef.current;
+  const screenBottom = bottom * scaleRef.current;
+  const screenW = screenRight - screenLeft;
+  const screenH = screenBottom - screenTop;
+
+  ctx.rotate(animationProps.angle);
+  ctx.scale(animationProps.scale, animationProps.scale);
+
+  ctx.strokeStyle = CROP_COLOUR;
+  ctx.lineWidth = TRANSFORM_WIDTH;
+  ctx.strokeRect(
+    screenLeft,
+    screenTop,
+    screenW,
+    screenH
+  );
+  const corners = [
+    { x: screenLeft,  y: screenTop, type:'corner' }, // top-left
+    { x: screenRight, y: screenTop, type:'corner' }, // top-right
+    { x: screenLeft, y:  screenBottom, type:'corner' }, // bottom-left
+    { x: screenRight, y:  screenBottom, type:'corner' }, // bottom-right
+    { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left' }, // left
+    { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
+    { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
+    { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
+  ];
+  corners.forEach((c, index) => {
+    ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
+
+    if (c.type === 'corner'){
+
+      ctx.fillRect(
+        c.x  - HANDLE_SIZE,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 2
+      );
+      ctx.strokeRect(
+        c.x - HANDLE_SIZE,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 2
+      );
+
+    }else if ((c.type === 'side-right') || (c.type === 'side-left')){
+      ctx.fillRect(
+        c.x - HANDLE_SIZE,
+        c.y - HANDLE_SIZE * 4,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 8
+      );
+      ctx.strokeRect(
+        c.x - HANDLE_SIZE,
+        c.y - HANDLE_SIZE * 4,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 8
+      );
+    }else if ((c.type === 'side-top') || (c.type === 'side-bottom')){
+      ctx.fillRect(
+        c.x - HANDLE_SIZE * 4,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 8,
+        HANDLE_SIZE * 2
+      );
+      ctx.strokeRect(
+        c.x - HANDLE_SIZE * 4,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 8,
+        HANDLE_SIZE * 2
+      );
+    }
+  });
+
+
+
+  ctx.restore();
+}
+
+
+const drawElementFrame = (ctx, object) => {
+  ctx.save();
+
+  const animationProps = getAnimatedProps(object)
+
+  const left   = -object.width / 2;
+  const right  =  object.width / 2;
+  const top    = -object.h / 2;
+  const bottom =  object.h / 2;
+  ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
+  const screenLeft   = left * scaleRef.current;
+  const screenRight  = right * scaleRef.current;
+  const screenTop    = top * scaleRef.current;
+  const screenBottom = bottom * scaleRef.current;
+  const screenW = screenRight - screenLeft;
+  const screenH = screenBottom - screenTop;
+
+  ctx.rotate(animationProps.angle);
+  ctx.scale(animationProps.scale, animationProps.scale);
+
+  ctx.strokeStyle = TRANSFORM_COLOUR;
+  ctx.lineWidth = TRANSFORM_WIDTH;
+  ctx.strokeRect(
+    screenLeft,
+    screenTop,
+    screenW,
+    screenH
+  );
+  const corners = [
+    { x: screenLeft,  y: screenTop, type:'corner' }, // top-left
+    { x: screenRight, y: screenTop, type:'corner' }, // top-right
+    { x: screenLeft, y:  screenBottom, type:'corner' }, // bottom-left
+    { x: screenRight, y:  screenBottom, type:'corner' }, // bottom-right
+    { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left' }, // left
+    { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right' }, // right
+    { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top' }, // top
+    { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom' }, // bottom
+  ];
+  corners.forEach((c, index) => {
+    ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
+
+    if (c.type === 'corner'){
+
+      ctx.fillRect(
+        c.x  - HANDLE_SIZE,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 2
+      );
+      ctx.strokeRect(
+        c.x - HANDLE_SIZE,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 2
+      );
+
+    }else if ((c.type === 'side-right') || (c.type === 'side-left')){
+      ctx.fillRect(
+        c.x - HANDLE_SIZE,
+        c.y - HANDLE_SIZE * 4,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 8
+      );
+      ctx.strokeRect(
+        c.x - HANDLE_SIZE,
+        c.y - HANDLE_SIZE * 4,
+        HANDLE_SIZE * 2,
+        HANDLE_SIZE * 8
+      );
+    }else if ((c.type === 'side-top') || (c.type === 'side-bottom')){
+      ctx.fillRect(
+        c.x - HANDLE_SIZE * 4,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 8,
+        HANDLE_SIZE * 2
+      );
+      ctx.strokeRect(
+        c.x - HANDLE_SIZE * 4,
+        c.y - HANDLE_SIZE,
+        HANDLE_SIZE * 8,
+        HANDLE_SIZE * 2
+      );
+    }
+  });
+
+
+  ctx.restore();
+}
 
 const drawElementControls = (ctx, object) => {
 
@@ -5151,6 +5420,7 @@ const drawElementControls = (ctx, object) => {
             ];
             corners.forEach((c, index) => {
               ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
+              //ctx.strokeStyle = "blue";
 
               if (c.type === 'corner'){
 
@@ -5168,73 +5438,88 @@ const drawElementControls = (ctx, object) => {
                 );
 
               }else if ((c.type === 'side-right' && activeToolRef.current !== 'cropping') || (c.type === 'side-left' && activeToolRef.current !== 'cropping')){
-                ctx.fillRect(
+              
+
+                // Start the path and add a rounded rectangle
+                ctx.beginPath();
+                ctx.roundRect(
                   c.x - HANDLE_SIZE,
                   c.y - HANDLE_SIZE * 4,
                   HANDLE_SIZE * 2,
-                  HANDLE_SIZE * 8
-                );
-                ctx.strokeRect(
-                  c.x - HANDLE_SIZE,
-                  c.y - HANDLE_SIZE * 4,
-                  HANDLE_SIZE * 2,
-                  HANDLE_SIZE * 8
-                );
+                  HANDLE_SIZE * 8,
+                  [10, 10, 10, 10]
+                )
+               // ctx.fillStyle ="white"
+                ctx.fill();
+                ctx.stroke(); // Renders the outline
+               // ctx.closePath()
+
               }else if ((c.type === 'side-top' && activeToolRef.current !== 'cropping') || (c.type === 'side-bottom' && activeToolRef.current !== 'cropping')){
-                ctx.fillRect(
+                
+              
+                ctx.beginPath();
+
+                ctx.roundRect(
                   c.x - HANDLE_SIZE * 4,
                   c.y - HANDLE_SIZE,
                   HANDLE_SIZE * 8,
-                  HANDLE_SIZE * 2
-                );
-                ctx.strokeRect(
-                  c.x - HANDLE_SIZE * 4,
-                  c.y - HANDLE_SIZE,
-                  HANDLE_SIZE * 8,
-                  HANDLE_SIZE * 2
-                );
+                  HANDLE_SIZE * 2,
+                  [10, 10, 10, 10]
+                )
+              //  ctx.fillStyle ="white"
+                ctx.fill();
+                ctx.stroke();
+               // ctx.closePath()
+
+
               }
             });
-            // Draw rotate handle: top-center + distance
-            ctx.beginPath();
-            ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE * 2, 0, 2 * Math.PI);
-            ctx.closePath();
-            ctx.stroke();
-            // Curved arrow
-            ctx.beginPath();
-            ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE / 1.2, Math.PI * 0.10, Math.PI * 1.7);
-            ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-            ctx.lineWidth = TRANSFORM_WIDTH;
-            ctx.stroke();
-            // Arrowhead
-            const r = HANDLE_SIZE / 1.2;
-            //Pick the angle where the arrowhead sits
-            const endAngle = Math.PI * 1.6;
-            const arrowLength = 6;
-            const arrowShort = 5.5;
-            const spread = 0.7; // controls arrow openness
-            const arrowx = screenLeft+(screenW/2)
-            const arrowy = screenBottom + ROTATE_DISTANCE;
-            const ax = (arrowx + Math.cos(endAngle) * r) + 3.5;
-            const ay = (arrowy + Math.sin(endAngle) * r) + 1.5
-            const arrowAngle = endAngle + Math.PI / 2; // tangent direction
-            ctx.beginPath();
-            // Left wing
-            ctx.moveTo(ax, ay);
-            ctx.lineTo(
-              ax - Math.cos(arrowAngle - spread) * arrowShort,
-              ay - Math.sin(arrowAngle - spread) * arrowShort
-            );
-            // Right wing
-            ctx.moveTo(ax, ay);
-            ctx.lineTo(
-              ax - Math.cos(arrowAngle + spread) * arrowLength,
-              ay - Math.sin(arrowAngle + spread) * arrowLength
-            );
-            ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
-            ctx.lineWidth = TRANSFORM_WIDTH;
-            ctx.lineCap = 'round';
-            ctx.stroke();
+
+            if (activeToolRef.current !== 'cropping'){
+
+            
+              // Draw rotate handle: top-center + distance
+              ctx.beginPath();
+              ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE * 2, 0, 2 * Math.PI);
+              ctx.closePath();
+              ctx.stroke();
+              // Curved arrow
+              ctx.beginPath();
+              ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE / 1.2, Math.PI * 0.10, Math.PI * 1.7);
+              ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
+              ctx.lineWidth = TRANSFORM_WIDTH;
+              ctx.stroke();
+              // Arrowhead
+              const r = HANDLE_SIZE / 1.2;
+              //Pick the angle where the arrowhead sits
+              const endAngle = Math.PI * 1.6;
+              const arrowLength = 6;
+              const arrowShort = 5.5;
+              const spread = 0.7; // controls arrow openness
+              const arrowx = screenLeft+(screenW/2)
+              const arrowy = screenBottom + ROTATE_DISTANCE;
+              const ax = (arrowx + Math.cos(endAngle) * r) + 3.5;
+              const ay = (arrowy + Math.sin(endAngle) * r) + 1.5
+              const arrowAngle = endAngle + Math.PI / 2; // tangent direction
+              ctx.beginPath();
+              // Left wing
+              ctx.moveTo(ax, ay);
+              ctx.lineTo(
+                ax - Math.cos(arrowAngle - spread) * arrowShort,
+                ay - Math.sin(arrowAngle - spread) * arrowShort
+              );
+              // Right wing
+              ctx.moveTo(ax, ay);
+              ctx.lineTo(
+                ax - Math.cos(arrowAngle + spread) * arrowLength,
+                ay - Math.sin(arrowAngle + spread) * arrowLength
+              );
+              ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
+              ctx.lineWidth = TRANSFORM_WIDTH;
+              ctx.lineCap = 'round';
+
+              ctx.stroke();
+            }
             //ctx.restore();
 
           } finally {
@@ -5418,6 +5703,8 @@ const drawUpper = () => {
 
     if (object && (object.type !== 'pen' && object.type !== 'air brush')) {
       drawElementControls(ctx, object);
+      //drawElementFrame(ctx, object)
+      //drawElementClip(ctx, object)
     }
 
     return;
@@ -5659,8 +5946,30 @@ function buildCurve(c, pointList, close) {
       }
 
       if (object.type === "rectangle") {
+        //ctx.beginPath(); // 🟢 Always begin a new path for each object
 
-        ctx.rect(-object.width/ 2, -object.h / 2, object.width, object.h);
+        ctx.roundRect(-object.width/ 2, -object.h / 2, object.width, object.h, object.cornerRadius);
+        
+      /*  
+       if (object.fill) {
+        ctx.fillStyle = object.fill || "lightgray";
+        ctx.fill();
+       }
+        
+      if (object.strokeColour && object.strokeWeight){
+
+        ctx.strokeStyle = object.strokeColour || "black";
+        ctx.lineWidth = object.strokeWeight || 0
+        // put stroke on outside
+        ctx.strokeRect(
+          -object.width/ 2 - (object.strokeWeight/2),
+          -object.h / 2 - (object.strokeWeight/2),
+          object.width + object.strokeWeight,
+          object.h + object.strokeWeight
+        );
+      }*/
+
+         //ctx.closePath();
       } else if (object.type === "ellipse") {
 
         ctx.ellipse(0, 0, object.width/ 2, object.h / 2, 0, 0, Math.PI * 2);
@@ -5700,10 +6009,9 @@ function buildCurve(c, pointList, close) {
         if (object.clippingPath){
 
           const clipCx = (object.clippingPath.left + object.clippingPath.right)/2
-
           const clipCy = (object.clippingPath.top + object.clippingPath.bottom)/2
-
-          ctx.save();
+     
+            ctx.save();
             ctx.translate(clipCx + animationProps.cx, clipCy + animationProps.cy);
             ctx.rotate(animationProps.angle);
             ctx.scale(animationProps.scale, animationProps.scale);
@@ -5899,6 +6207,59 @@ useEffect(() => {
   return hit
 };
 
+
+const getHandlePolygonsNoClip = (object) => {
+  const { cx, cy } = object;
+  const animatedProps = getAnimatedProps(object)
+
+  if (!animatedProps)return
+
+  let width
+  let h
+
+  let left, right, top, bottom;
+
+    left   = -object.width / 2;
+    right  =  object.width / 2;
+    top    = -object.h / 2;
+    bottom =  object.h / 2;
+
+  width = right - left;
+  h = bottom - top;
+
+
+  const cos = Math.cos(animatedProps.angle);
+  const sin = Math.sin(animatedProps.angle);
+
+  // Use actual bounds
+   const localCorners = [
+     { x: left,  y: top },    // top-left
+     { x: right, y: top },    // top-right
+     { x: left,  y: bottom }, // bottom-left
+     { x: right, y: bottom }  // bottom-right
+   ];
+
+  const half = HANDLE_SIZE / scale;
+  const localRect = [
+    { x: -half, y: -half },
+    { x:  half, y: -half },
+    { x:  half, y:  half },
+    { x: -half, y:  half }
+  ];
+
+  // For each corner → build its rotated rect
+  return localCorners.map(corner => {
+    const cornerX = cx + corner.x * cos - corner.y * sin;
+    const cornerY = cy + corner.x * sin + corner.y * cos;
+
+    return localRect.map(p => ({
+      x: cornerX + p.x * cos - p.y * sin,
+      y: cornerY + p.x * sin + p.y * cos
+    }));
+  });
+};
+
+
 const getHandlePolygons = (object) => {
   const { cx, cy } = object;
   const animatedProps = getAnimatedProps(object)
@@ -6031,6 +6392,8 @@ const checkResizeHandleHit = (object, mouseX, mouseY) => {
   if (!object) return;
 
   const polygons = getHandlePolygons(object);
+
+  //const polygons = getHandlePolygonsNoClip(object);
 
   for (let i = 0; i < polygons.length; i++) {
     if (hitPolygon(mouseX, mouseY, polygons[i])) {
@@ -6308,6 +6671,7 @@ function findClosestSegment(localX, localY, obj) {
 
   return { segment: closestSegment, t: closestT };
 }
+
 
 
 
@@ -6730,24 +7094,61 @@ function pointInPolygon(x, y, pts) {
 
   function getWorldCorners(obj) {
     const animatedProps = getAnimatedProps(obj);
-    const cos = Math.cos(animatedProps.angle);
-    const sin = Math.sin(animatedProps.angle);
-    const hw = (obj.width / 2) * animatedProps.scale;
-    const hh = (obj.h / 2) * animatedProps.scale;
 
-    return [
-      { x: -hw, y: -hh },
-      { x:  hw, y: -hh },
-      { x:  hw, y:  hh },
-      { x: -hw, y:  hh },
-    ].map(c => ({
-      x: obj.cx + c.x * cos - c.y * sin,
-      y: obj.cy + c.x * sin + c.y * cos,
-    }));
+    if (obj.clippingPath){
+      const cos = Math.cos(animatedProps.angle);
+      const sin = Math.sin(animatedProps.angle);
+
+      const width = obj.clippingPath.right - obj.clippingPath.left
+      const height = obj.clippingPath.bottom - obj.clippingPath.top
+
+      const clipCx = (obj.clippingPath.left + obj.clippingPath.right)/2
+      const clipCy = (obj.clippingPath.top + obj.clippingPath.bottom)/2
+
+      const cx = clipCx + animatedProps.cx
+      const cy = clipCy + animatedProps.cy
+
+      const hw = (width / 2) * animatedProps.scale;
+      const hh = (height / 2) * animatedProps.scale;
+
+      return [
+        { x: -hw, y: -hh },
+        { x:  hw, y: -hh },
+        { x:  hw, y:  hh },
+        { x: -hw, y:  hh },
+      ].map(c => ({
+        x: cx + c.x * cos - c.y * sin,
+        y: cy + c.x * sin + c.y * cos,
+      }));
+
+    }else{
+
+      const cos = Math.cos(animatedProps.angle);
+      const sin = Math.sin(animatedProps.angle);
+      const hw = (obj.width / 2) * animatedProps.scale;
+      const hh = (obj.h / 2) * animatedProps.scale;
+
+      return [
+        { x: -hw, y: -hh },
+        { x:  hw, y: -hh },
+        { x:  hw, y:  hh },
+        { x: -hw, y:  hh },
+      ].map(c => ({
+        x: animatedProps.cx + c.x * cos - c.y * sin,
+        y: animatedProps.cy + c.x * sin + c.y * cos,
+      }));
+    }
+
+
 }
 
 function getSelectionBounds(selectedObjects) {
+
+  console.log('getSelectionBounds', getSelectionBounds)
+
+
   const allCorners = selectedObjects.flatMap(obj => {
+
     if (obj.type === 'custom-shape') {
       // use world space flat points for custom shapes
       const animatedProps = getAnimatedProps(obj);
@@ -6759,6 +7160,7 @@ function getSelectionBounds(selectedObjects) {
         y: obj.cy + (p.x * sin + p.y * cos) * animatedProps.scale,
       }));
     }
+
     return getWorldCorners(obj);
   });
 
@@ -6979,7 +7381,6 @@ function getSelectionBounds(selectedObjects) {
       
         }       
       }
-
       // resize handles corners
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         const handle = checkResizeHandleHit(objectsRef.current[i], pos.x, pos.y);
@@ -6996,12 +7397,16 @@ function getSelectionBounds(selectedObjects) {
              }
 
             const exactEdge = getHandlePosition(objectsRef.current[i]).find(h => h.type === activeCorner);
-
-
+             // get clipping opath edges
             resizingRef.current = {
               corner: handle,
               offsetX: pos.x - exactEdge.x,
-              offsetY: pos.y - exactEdge.y, 
+              offsetY: pos.y - exactEdge.y,
+              startCx: objectsRef.current[i].cx,
+              startCy: objectsRef.current[i].cy,
+              startWidth: objectsRef.current[i].width,
+              startHeight: objectsRef.current[i].h,
+              startClip: objectsRef.current[i].clippingPath ? { ...objectsRef.current[i].clippingPath } : null, 
             }
             selectedIndexRef.current = i
             setActiveElementId(i)
@@ -7030,6 +7435,11 @@ function getSelectionBounds(selectedObjects) {
               side: handle,
               offsetX: pos.x - exactEdge.x,
               offsetY: pos.y - exactEdge.y, 
+              startCx: objectsRef.current[i].cx,
+              startCy: objectsRef.current[i].cy,
+              startWidth: objectsRef.current[i].width,
+              startHeight: objectsRef.current[i].h,
+              startClip: objectsRef.current[i].clippingPath ? { ...objectsRef.current[i].clippingPath } : null, 
             }
             selectedIndexRef.current = i
               setActiveElementId(i)
@@ -7048,8 +7458,6 @@ function getSelectionBounds(selectedObjects) {
             }
           }
       }
-
-
       // object selection (topmost first)
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         if (hitObject(objectsRef.current[i], pos.x, pos.y)) {
@@ -7065,8 +7473,6 @@ function getSelectionBounds(selectedObjects) {
             }
         }
       }
-
-
 
         selectedIndexRef.current = null
         setActiveElementId(null)
@@ -7479,94 +7885,100 @@ function getSelectionBounds(selectedObjects) {
       hideToolBar()
       const { corner, objects, startPos, offsetX, offsetY } = resizing;
 
+function resizeElement(obj, pos, corner) {
+  const snap = resizing;
+  const animated = getAnimatedProps(obj);
+  const keepRatio = e.shiftKey;
+  const aspect = snap.startWidth / snap.startHeight;
 
-      function resizeElement(obj, pos, corner){
-        const animated = getAnimatedProps(obj);
-        const keepRatio = e.shiftKey;
-        const aspect = obj.width/ obj.h;
-        const oldWidth = obj.width;
-        const oldHeight = obj.h;
-        // Mouse position relative to center, rotated into object space
-        const dx = pos.x - obj.cx;
-        const dy = pos.y - obj.cy;
-        const imageHalfW = obj.width / 2;
-        const imageHalfH = obj.h / 2;
-        let padX = 0;
-        let padY = 0;
-        const cos = Math.cos(-animated.angle);
-        const sin = Math.sin(-animated.angle);
+  // reset to snapshot state first — prevents compounding
+  obj.width = snap.startWidth;
+  obj.h     = snap.startHeight;
+  obj.cx    = snap.startCx;
+  obj.cy    = snap.startCy;
 
-        const localX = (dx * cos - dy * sin) / animated.scale;
-        const localY = (dx * sin + dy * cos) / animated.scale;
-        // Compute half-width/half-height based on dragged corner
-        let halfW
-        let halfH
-        if (obj.clippingPath){
-          // determine horizontal padding
-          switch (corner) {
-            case 0: // top-left
-            case 2: // bottom-left
-              padX = obj.clippingPath.left + imageHalfW;
-              break;
-            case 1: // top-right
-            case 3: // bottom-right
-              padX = imageHalfW - obj.clippingPath.right;
-              break;
-          }
-          // determine vertical padding
-          switch (corner) {
-            case 0: // top-left
-            case 1: // top-right
-              padY = obj.clippingPath.top + imageHalfH;
-              break;
-            case 3: // bottom-right
-            case 2: // bottom-left
-              padY = imageHalfH - obj.clippingPath.bottom;
-              break;
-          }
-          halfW = Math.abs(localX) + padX
-          halfH = Math.abs(localY) + padY
-        }else{
-          halfW = Math.abs(localX)
-          halfH = Math.abs(localY)
-        }
-        if (!keepRatio) {
-          const newAspect = halfW / halfH;
-          if (newAspect > aspect) halfW = halfH * aspect;
-          else halfH = halfW / aspect;
-        }
-        obj.width= halfW * 2
-        obj.h = halfH * 2
+  const cos = Math.cos(-animated.angle);
+  const sin = Math.sin(-animated.angle);
 
-         if (obj.type === 'custom-shape') {
-            const scaleX = obj.width / oldWidth;
-            const scaleY = obj.h / oldHeight;
-            if (obj.closed) {
-              scalePointsClosed(obj, scaleX, scaleY);
-            } else {
-              scalePointsOpen(obj, scaleX, scaleY);
-            }
-          }
+  let halfW, halfH;
 
+  if (obj.clippingPath && snap.startClip) {
+    // mouse relative to clip center in world space
+    const clipWorldCx = snap.startCx + snap.startClip.cx
+    const clipWorldCy = snap.startCy + snap.startClip.cy
+    const cdx = pos.x - clipWorldCx;
+    const cdy = pos.y - clipWorldCy;
+    const clipLocalX = (cdx * cos - cdy * sin)
+    const clipLocalY = (cdx * sin + cdy * cos)
 
-        if (obj.clippingPath){
-            // left right top bottom are distances from cy and cx
-          const scaleX = obj.width / oldWidth;
-          const scaleY = obj.h / oldHeight;
+    const newClipHalfW = Math.abs(clipLocalX);
+    const newClipHalfH = Math.abs(clipLocalY);
 
-          obj.clippingPath.left *= scaleX;
-          obj.clippingPath.right *= scaleX;
-          obj.clippingPath.top *= scaleY;
-          obj.clippingPath.bottom *= scaleY;
-          obj.clippingPath.cx *= scaleX;
-          obj.clippingPath.cy *= scaleY;
+    // ratio of image to clip size is fixed
+    const clipToImageW = snap.startWidth  / (snap.startClip.right - snap.startClip.left);
+    const clipToImageH = snap.startHeight / (snap.startClip.bottom - snap.startClip.top);
 
-        }
+    halfW = newClipHalfW * clipToImageW;
+    halfH = newClipHalfH * clipToImageH;
+  } else {
+    // mouse relative to image center
+    const dx = pos.x - snap.startCx;
+    const dy = pos.y - snap.startCy;
+    const localX = (dx * cos - dy * sin)
+    const localY = (dx * sin + dy * cos)
+    halfW = Math.abs(localX);
+    halfH = Math.abs(localY);
+  }
 
-        if (obj.type === 'text'){
-          obj.updateLinesWrap()
-        }
-      }
+  if (!keepRatio) {
+    const newAspect = halfW / halfH;
+    if (newAspect > aspect) halfW = halfH * aspect;
+    else halfH = halfW / aspect;
+  }
+
+  obj.width = halfW * 2;
+  obj.h     = halfH * 2;
+
+  if (obj.type === 'custom-shape') {
+    const scaleX = obj.width / snap.startWidth;
+    const scaleY = obj.h     / snap.startHeight;
+    if (obj.closed) {
+      scalePointsClosed(obj, scaleX, scaleY);
+    } else {
+      scalePointsOpen(obj, scaleX, scaleY);
+    }
+  }
+
+  if (obj.clippingPath && snap.startClip) {
+    const scaleX = obj.width / snap.startWidth;
+    const scaleY = obj.h     / snap.startHeight;
+
+    const clip = { ...snap.startClip };
+    clip.left   = snap.startClip.left   * scaleX;
+    clip.right  = snap.startClip.right  * scaleX;
+    clip.top    = snap.startClip.top    * scaleY;
+    clip.bottom = snap.startClip.bottom * scaleY;
+    clip.cx     = (clip.left + clip.right)  / 2;
+    clip.cy     = (clip.top  + clip.bottom) / 2;
+    clip.width  = clip.right - clip.left;
+    clip.height = clip.bottom - clip.top;
+    obj.clippingPath = clip;
+
+    // keep clip center fixed in world space
+    const shiftLocalX = snap.startClip.cx - clip.cx;
+    const shiftLocalY = snap.startClip.cy - clip.cy;
+
+    const worldDx = shiftLocalX * Math.cos(animated.angle) - shiftLocalY * Math.sin(animated.angle);
+    const worldDy = shiftLocalX * Math.sin(animated.angle) + shiftLocalY * Math.cos(animated.angle);
+
+    obj.cx = snap.startCx + worldDx;
+    obj.cy = snap.startCy + worldDy;
+  }
+
+  if (obj.type === 'text') {
+    obj.updateLinesWrap();
+  }
+}
 
         if (selectedIndexesRef.current.length>0){
 
@@ -7585,8 +7997,6 @@ function getSelectionBounds(selectedObjects) {
 
           const scaleX = selectionBoundsRef.current.width / resizingRef.current.startBounds.width;
           const scaleY = selectionBoundsRef.current.h / resizingRef.current.startBounds.h;
-          const groupCx = resizingRef.current.startBounds.cx;
-          const groupCy = resizingRef.current.startBounds.cy;  
           
           const { startBounds } = resizingRef.current;
 
@@ -7606,6 +8016,20 @@ function getSelectionBounds(selectedObjects) {
             obj.x     = obj.cx - obj.width / 2;
             obj.y     = obj.cy - obj.h / 2;
 
+            if(obj.clippingPath){
+              const scaleX = obj.width / oldWidth;
+              const scaleY = obj.h / oldHeight;
+
+              obj.clippingPath.left *= scaleX;
+              obj.clippingPath.right *= scaleX;
+              obj.clippingPath.top *= scaleY;
+              obj.clippingPath.bottom *= scaleY;
+              obj.clippingPath.cx *= scaleX;
+              obj.clippingPath.cy *= scaleY;
+
+            }  
+
+          
             if (obj.type === 'custom-shape') {
                 const scaleX = obj.width / oldWidth;
                 const scaleY = obj.h / oldHeight;
@@ -7666,100 +8090,112 @@ function getSelectionBounds(selectedObjects) {
 
       //const { side } = resizingSide; // side = 0: top, 1: right, 2: bottom, 3: left
 
-
-
-      function resizeElementSide(obj, pos, side){  
-
-        const oldWidth = obj.width;  // add these
-        const oldHeight = obj.h;
-        const oldCx = obj.cx;  // capture before any shift
-        const oldCy = obj.cy;
+     function resizeElementSide(obj, pos, side) {
+        const snap = resizingSide;
         const animated = getAnimatedProps(obj);
-        // Transform mouse → local object space
+
+        // restore to snapshot state first
+        obj.width = snap.startWidth;
+        obj.h     = snap.startHeight;
+        obj.cx    = snap.startCx;
+        obj.cy    = snap.startCy;
+
+        // mouse to local space
         const dx = pos.x - obj.cx;
         const dy = pos.y - obj.cy;
-
         const cos = Math.cos(-animated.angle);
         const sin = Math.sin(-animated.angle);
-
         const localX = (dx * cos - dy * sin) / animated.scale;
         const localY = (dx * sin + dy * cos) / animated.scale;
 
-        let left   = -obj.width / 2;
-        let right  =  obj.width / 2;
-        let top    = -obj.h / 2;
-        let bottom =  obj.h / 2;
+        console.log('obj', obj)
+        console.log('obj.clippingPath', obj.clippingPath)
 
-        // 3️⃣ No clipping path: just resize the object bounds
-        switch (side) {
-          case 0: left   = localX; break;
-          case 1: right  = localX; break;
-          case 2: top    = localY; break;
-          case 3: bottom = localY; break;
-        }
-        // 2️⃣ If there is a clipping path
-        if (obj.clippingPath) {
-          const clip = obj.clippingPath;
-          // Save old clip size for later
-          const oldClipW = clip.right - clip.left;
-          const oldClipH = clip.bottom - clip.top;
-          const oldClipCx = (clip.left + clip.right) / 2;
-          const oldClipCy = (clip.top + clip.bottom) / 2;
+        if (obj.clippingPath && snap.startClip) {
+          const clip = { ...snap.startClip };
 
-          // Update the side being dragged
+          // update dragged side
           switch (side) {
-            case 0:
-              clip.left  = localX
-              break; // left
-            case 1:
-              clip.right = localX
-              break; // right
-            case 2:
-              clip.top = localY;
-              break; // top
-            case 3:
-              clip.bottom = localY;
-              break; // bottom
+            case 0: clip.left   = localX; break;
+            case 1: clip.right  = localX; break;
+            case 2: clip.top    = localY; break;
+            case 3: clip.bottom = localY; break;
           }
-          // Compute new clip width/height
+
+          const oldClipW = snap.startClip.right - snap.startClip.left;
+          const oldClipH = snap.startClip.bottom - snap.startClip.top;
           const newClipW = clip.right - clip.left;
           const newClipH = clip.bottom - clip.top;
-          // Compute center shift in local space
-          const newClipCx = (clip.left + clip.right) / 2;
-          const newClipCy = (clip.top + clip.bottom) / 2;
-          const shiftX = newClipCx - oldClipCx;
-          const shiftY = newClipCy - oldClipCy;
-          clip.left   -= shiftX;
-          clip.right  -= shiftX;
-          clip.top    -= shiftY;
-          clip.bottom -= shiftY;
-          clip.width  = newClipW;
-          clip.height = newClipH;
-          obj.clippingPath = clip;
-          // Rotate shift back to world space
-          const worldDx = shiftX * Math.cos(animated.angle) - shiftY * Math.sin(animated.angle);
-          const worldDy = shiftX * Math.sin(animated.angle) + shiftY * Math.cos(animated.angle);
-          // Apply center shift
-          obj.cx += worldDx;
-          obj.cy += worldDy;
 
           const scaleX = newClipW / oldClipW;
           const scaleY = newClipH / oldClipH;
 
-          obj.width *= scaleX;
-          obj.h     *= scaleY;
+          obj.width = snap.startWidth  * scaleX;
+          obj.h     = snap.startHeight * scaleY;
+
+          // scale clip proportionally to image
+          clip.left   = snap.startClip.left   * scaleX;
+          clip.right  = snap.startClip.right  * scaleX;
+          clip.top    = snap.startClip.top    * scaleY;
+          clip.bottom = snap.startClip.bottom * scaleY;
+          clip.width  = clip.right - clip.left;
+          clip.height = clip.bottom - clip.top;
+          clip.cx     = (clip.left + clip.right) / 2;
+          clip.cy     = (clip.top  + clip.bottom) / 2;
+          obj.clippingPath = clip;
+
+  // pin the opposite clip edge in world space
+  // world pos of edge = obj.cx + clip.edge
+  // so: snap.startCx + snap.startClip.pinnedEdge = obj.cx + clip.pinnedEdge
+  // therefore: obj.cx = snap.startCx + snap.startClip.pinnedEdge - clip.pinnedEdge
 
 
-          const {clipCx, clipCy, clipWidth, clipHeight} = getClippingValues(obj)
-          obj.clippingPath.cx = clipCx
-          obj.clippingPath.cy = clipCy
+//world position of edge = obj.cx + clip.edge  (read directly from render)
+//pinned edge must stay constant:
+//snap.startCx + snap.startClip.pinnedEdge = obj.cx + clip.pinnedEdge
+//therefore:
+//obj.cx = snap.startCx + (snap.startClip.pinnedEdge - clip.pinnedEdge)
 
-        } else {
+            let shiftLocalX = 0;
+            let shiftLocalY = 0;
+
+            switch (side) {
+              case 0: // left dragged → right clip edge pinned
+                shiftLocalX = snap.startClip.right - clip.right;
+                break;
+              case 1: // right dragged → left clip edge pinned
+                shiftLocalX = snap.startClip.left - clip.left;
+                break;
+              case 2: // top dragged → bottom clip edge pinned
+                shiftLocalY = snap.startClip.bottom - clip.bottom;
+                break;
+              case 3: // bottom dragged → top clip edge pinned
+                shiftLocalY = snap.startClip.top - clip.top;
+                break;
+            }
+
+            const worldDx = shiftLocalX * Math.cos(animated.angle) - shiftLocalY * Math.sin(animated.angle);
+            const worldDy = shiftLocalX * Math.sin(animated.angle) + shiftLocalY * Math.cos(animated.angle);
+
+            obj.cx = snap.startCx + worldDx;
+            obj.cy = snap.startCy + worldDy;
+          } else {
+          // no clipping path — compute from snapshot dimensions
+          let left   = -snap.startWidth / 2;
+          let right  =  snap.startWidth / 2;
+          let top    = -snap.startHeight / 2;
+          let bottom =  snap.startHeight / 2;
+
+          switch (side) {
+            case 0: left   = localX; break;
+            case 1: right  = localX; break;
+            case 2: top    = localY; break;
+            case 3: bottom = localY; break;
+          }
 
           obj.width = right - left;
           obj.h     = bottom - top;
 
-          // Update center
           const localCx = (left + right) / 2;
           const localCy = (top + bottom) / 2;
           const worldDx = localCx * Math.cos(animated.angle) - localCy * Math.sin(animated.angle);
@@ -7768,27 +8204,23 @@ function getSelectionBounds(selectedObjects) {
           obj.cy += worldDy;
 
           if (obj.type === 'custom-shape') {
-            const scaleX = obj.width / oldWidth;
-            const scaleY = obj.h / oldHeight;
+            const scaleX = obj.width / snap.startWidth;
+            const scaleY = obj.h / snap.startHeight;
             if (obj.closed) {
               scalePointsClosed(obj, scaleX, scaleY);
             } else {
-              console.log('obj', obj)
-              scalePointsOpenSide(obj, scaleX, scaleY, oldCx, oldCy);
-              console.log('obj', obj)
+              scalePointsOpenSide(obj, scaleX, scaleY, snap.startCx, snap.startCy);
             }
           }
         }
 
-        // 4️⃣ Update object position (top-left)
         obj.x = obj.cx - obj.width / 2;
         obj.y = obj.cy - obj.h / 2;
 
-        if (obj.type === 'text'){
-          obj.updateLinesWrap()
+        if (obj.type === 'text') {
+          obj.updateLinesWrap();
         }
-
-      }  
+      }
 
       const { side, objects, startPos, offsetX, offsetY } = resizingSide;
 
@@ -7847,6 +8279,19 @@ function getSelectionBounds(selectedObjects) {
               obj.x     = obj.cx - obj.width / 2;
               obj.y     = obj.cy - obj.h / 2;
 
+
+            if(obj.clippingPath){
+              const scaleX = obj.width / oldWidth;
+              const scaleY = obj.h / oldHeight;
+
+              obj.clippingPath.left *= scaleX;
+              obj.clippingPath.right *= scaleX;
+              obj.clippingPath.top *= scaleY;
+              obj.clippingPath.bottom *= scaleY;
+              obj.clippingPath.cx *= scaleX;
+              obj.clippingPath.cy *= scaleY;
+
+            }  
 
 
             if (obj.type === 'custom-shape') {
@@ -8000,7 +8445,7 @@ function getSelectionBounds(selectedObjects) {
         return;
       }
 
-       // dragging resize handles
+       // dragging cutsom shape handles
       if (phase.current === 'drag-anchor') {
         const obj = getActiveElement()
         if (!obj) return
@@ -8306,78 +8751,82 @@ function getSelectionBounds(selectedObjects) {
     }else if (activeToolRef.current === 'cropping'){
 
       if (resizing) {
-        const obj = getActiveElement();
+
+function clippingPath(obj, adjustedPos) {
+  const resizing = resizingRef.current;
+  const animated = getAnimatedProps(obj);
+
+  const imageHalfW = obj.width / 2;
+  const imageHalfH = obj.h / 2;
+
+  const rect = resizing.startClip ?? {
+    width:  obj.width,
+    height: obj.h,
+    cx:     0,
+    cy:     0,
+    right:  imageHalfW,
+    left:  -imageHalfW,
+    bottom: imageHalfH,
+    top:   -imageHalfH,
+  };
+
+  let anchorLocalX, anchorLocalY;
+
+  switch (resizing.corner) {
+    case 0: anchorLocalX = rect.right; anchorLocalY = rect.bottom; break; // top-left → bottom-right pinned
+    case 1: anchorLocalX = rect.left;  anchorLocalY = rect.bottom; break; // top-right → bottom-left pinned
+    case 2: anchorLocalX = rect.right; anchorLocalY = rect.top;    break; // bottom-left → top-right pinned
+    case 3: anchorLocalX = rect.left;  anchorLocalY = rect.top;    break; // bottom-right → top-left pinned
+  }
+
+  // clamp anchor to image bounds
+  anchorLocalX = Math.max(-imageHalfW, Math.min(imageHalfW, anchorLocalX));
+  anchorLocalY = Math.max(-imageHalfH, Math.min(imageHalfH, anchorLocalY));
+
+  // mouse to local space
+  const dx = adjustedPos.x - obj.cx;
+  const dy = adjustedPos.y - obj.cy;
+  const cos = Math.cos(-animated.angle);
+  const sin = Math.sin(-animated.angle);
+  const localX = (dx * cos - dy * sin) / animated.scale;
+  const localY = (dx * sin + dy * cos) / animated.scale;
+
+  // clamp mouse to image bounds
+  const clampedX = Math.max(-imageHalfW, Math.min(imageHalfW, localX));
+  const clampedY = Math.max(-imageHalfH, Math.min(imageHalfH, localY));
+
+  let newWidth  = Math.abs(clampedX - anchorLocalX);
+  let newHeight = Math.abs(clampedY - anchorLocalY);
+
+  if (e.shiftKey) {
+    const maxDim = Math.max(newWidth, newHeight);
+    newWidth  = maxDim;
+    newHeight = maxDim;
+  }
+
+  obj.clippingPath = {
+    left:   Math.min(anchorLocalX, clampedX),
+    top:    Math.min(anchorLocalY, clampedY),
+    right:  Math.max(anchorLocalX, clampedX),
+    bottom: Math.max(anchorLocalY, clampedY),
+    width:  newWidth,
+    height: newHeight,
+    cx:     (anchorLocalX + clampedX) / 2,
+    cy:     (anchorLocalY + clampedY) / 2,
+  };
+}
+  
+        const { offsetX, offsetY } = resizing;
+
+       const obj = getActiveElement();
         if (!obj) return
-        const animated = getAnimatedProps(obj);
 
-        const rect = obj.clippingPath ?? { width: obj.width, height: obj.h, cx: 0, cy: 0 };
-
-      const halfW = rect.width / 2;
-      const halfH = rect.height / 2;
-
-        let corner
-        let anchorLocalX, anchorLocalY;
-
-        if (e.shiftKey) {
-          // Center of the image
-          anchorLocalX = 0;
-          anchorLocalY = 0;
-        }else{
-          switch (resizing.corner) {
-              case 0: // top-left
-                  anchorLocalX = rect.cx + halfW;
-                  anchorLocalY = rect.cy + halfH;
-                  break;
-              case 1: // top-right
-                  anchorLocalX = rect.cx - halfW;
-                  anchorLocalY = rect.cy + halfH;
-                  break;
-              case 2: // bottom-left
-                  anchorLocalX = rect.cx + halfW;
-                  anchorLocalY = rect.cy - halfH;
-                  break;
-              case 3: // bottom-right
-                  anchorLocalX = rect.cx - halfW;
-                  anchorLocalY = rect.cy - halfH;
-                  break;
-          }
-        }
-
-        const dx = pos.x - obj.cx;
-        const dy = pos.y - obj.cy;
-
-        const cos = Math.cos(-animated.angle);
-        const sin = Math.sin(-animated.angle);
-
-        const localX = (dx * cos - dy * sin) / animated.scale;
-        const localY = (dx * sin + dy * cos) / animated.scale;
-
-        let newWidth = Math.abs(localX - anchorLocalX);
-        let newHeight = Math.abs(localY - anchorLocalY);
-
-        if (e.shiftKey) {
-            const maxDim = Math.max(newWidth, newHeight);
-            newWidth = maxDim;
-            newHeight = maxDim;
-        }
-
-        const newLocalCx = (anchorLocalX + localX) / 2;
-        const newLocalCy = (anchorLocalY + localY) / 2;
-
-
-        obj.clippingPath = {
-            left: Math.min(anchorLocalX, localX),
-            top: Math.min(anchorLocalY, localY),
-            right: Math.max(anchorLocalX, localX),
-            bottom: Math.max(anchorLocalY, localY),
-            width: newWidth,
-            height: newHeight,
-            cx: newLocalCx,
-            cy: newLocalCy
+        const adjustedPos = {
+            x: pos.x - offsetX,
+            y: pos.y - offsetY,
         };
 
-
-
+        clippingPath(obj, adjustedPos)
 
 
 
@@ -9011,37 +9460,75 @@ function drawSoftStrokePreview(stroke) {
 const getHandlePosition = (obj) => {
   const animatedProps = getAnimatedProps(obj);
 
-  console.log('animatedProps', animatedProps)
+  if (obj.clippingPath) {
+      const cos = Math.cos(animatedProps.angle);
+      const sin = Math.sin(animatedProps.angle);
 
-  const cos = Math.cos(animatedProps.angle);
-  const sin = Math.sin(animatedProps.angle);
+      const width = obj.clippingPath.right - obj.clippingPath.left
+      const height = obj.clippingPath.bottom - obj.clippingPath.top
 
-  const hw = (obj.width / 2) * animatedProps.scale;
-  const hh = (obj.h / 2) * animatedProps.scale;
+      const clipCx = (obj.clippingPath.left + obj.clippingPath.right)/2
+      const clipCy = (obj.clippingPath.top + obj.clippingPath.bottom)/2
 
-  const cx = animatedProps.cx;
-  const cy = animatedProps.cy;
+      const hw = (width / 2) * animatedProps.scale;
+      const hh = (height / 2) * animatedProps.scale;
 
-  // local corners in scaled space
-  const localCorners = [
-    { x: -hw, y: -hh, type: 'top-left' },
-    { x:  hw, y: -hh, type: 'top-right' },
-    { x:  hw, y:  hh, type: 'bottom-right' },
-    { x: -hw, y:  hh, type: 'bottom-left' },
-    { x: -hw, y:   0, type: 'side-left' },
-    { x:  hw, y:   0, type: 'side-right' },
-    { x:   0, y: -hh, type: 'side-top' },
-    { x:   0, y:  hh, type: 'side-bottom' },
-  ];
+      const cx = clipCx + animatedProps.cx
+      const cy = clipCy + animatedProps.cy
+
+      // local corners in scaled space
+      const localCorners = [
+        { x: -hw, y: -hh, type: 'top-left' },
+        { x:  hw, y: -hh, type: 'top-right' },
+        { x:  hw, y:  hh, type: 'bottom-right' },
+        { x: -hw, y:  hh, type: 'bottom-left' },
+        { x: -hw, y:   0, type: 'side-left' },
+        { x:  hw, y:   0, type: 'side-right' },
+        { x:   0, y: -hh, type: 'side-top' },
+        { x:   0, y:  hh, type: 'side-bottom' },
+      ];
+
+      // rotate each local corner to world space
+      return localCorners.map(c => ({
+        x: cx + c.x * cos - c.y * sin,
+        y: cy + c.x * sin + c.y * cos,
+        type: c.type,
+      }));
+  }else{
+
+      const cos = Math.cos(animatedProps.angle);
+      const sin = Math.sin(animatedProps.angle);
+
+      const hw = (obj.width / 2) * animatedProps.scale;
+      const hh = (obj.h / 2) * animatedProps.scale;
+
+      const cx = animatedProps.cx;
+      const cy = animatedProps.cy;
+
+      // local corners in scaled space
+      const localCorners = [
+        { x: -hw, y: -hh, type: 'top-left' },
+        { x:  hw, y: -hh, type: 'top-right' },
+        { x:  hw, y:  hh, type: 'bottom-right' },
+        { x: -hw, y:  hh, type: 'bottom-left' },
+        { x: -hw, y:   0, type: 'side-left' },
+        { x:  hw, y:   0, type: 'side-right' },
+        { x:   0, y: -hh, type: 'side-top' },
+        { x:   0, y:  hh, type: 'side-bottom' },
+      ];
 
 
 
-  // rotate each local corner to world space
-  return localCorners.map(c => ({
-    x: cx + c.x * cos - c.y * sin,
-    y: cy + c.x * sin + c.y * cos,
-    type: c.type,
-  }));
+      // rotate each local corner to world space
+      return localCorners.map(c => ({
+        x: cx + c.x * cos - c.y * sin,
+        y: cy + c.x * sin + c.y * cos,
+        type: c.type,
+      }));
+
+  }
+
+
 };
 
 
