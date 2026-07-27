@@ -1,13 +1,18 @@
 "use client"
 import { useState } from "react"
-
+import {
+Square,
+RectangleVertical,
+RectangleHorizontal,
+} from 'lucide-react';
 
 export function ImagePromptInput({ onSubmit, isEditing, isLoading }) {
   const [prompt, setPrompt] = useState("")
+  const [aspectRatio, setAspectRatio] = useState('1:1')
 
   const handleSubmit = () => {
     if (prompt.trim()) {
-      onSubmit(prompt.trim())
+      onSubmit(prompt.trim(), aspectRatio)
       setPrompt("")
     }
   }
@@ -33,15 +38,24 @@ export function ImagePromptInput({ onSubmit, isEditing, isLoading }) {
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
       />
-
-      <button
-        type="submit"
-        className='btn primary'
-        disabled={!prompt.trim() || isLoading}
-      >
-
+      <div className="properties-container" style={{display:'inline-block'}}>
+        <p className="label" style={{marginTop:'0px'}}><strong>Aspect Ratio</strong></p>
+        <div style={{display:'flex', alignItems:'center'}}>
+          <Square onClick={()=> setAspectRatio('1:1')} size={35} className={`cropped-image ${aspectRatio==='1:1'?'active':''}`} alt="crop ratio 1/1" />
+          <RectangleVertical onClick={()=> setAspectRatio('9:16')} size={35}  className={`cropped-image ${aspectRatio==='9:16'?'active':''}`} alt="crop ratio 9/16" />
+          <RectangleHorizontal onClick={()=> setAspectRatio('16:9')} size={35}  className={`cropped-image ${aspectRatio==='16:9'?'active':''}`}  alt="crop ratio 16/9" />
+        </div> 
+      </div>
+      <div>
+          <button
+            type="submit"
+            className='btn primary'
+            disabled={!prompt.trim() || isLoading}
+          >
+    
         {isEditing ? "Edit Image" : "Generate Image"}
       </button>
+      </div>
     </form>
   )
 }

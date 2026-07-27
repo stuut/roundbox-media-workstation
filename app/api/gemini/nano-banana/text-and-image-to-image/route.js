@@ -29,11 +29,9 @@ export async function POST(request) {
 
   try {
 
-  const { prompt, image: image, previous_interaction_id } = await request.json();
+  const { aspect_ratio, prompt, image, previous_interaction_id } = await request.json();
 
-  let input = [
-    { type: "text", text: prompt },
-  ];
+
 
 
   if (!prompt) {
@@ -48,6 +46,10 @@ export async function POST(request) {
           })
   }
 
+    let input = [
+      { type: "text", text: prompt },
+    ];
+
   const mimeType = 'image/jpeg'
 
   const data = {
@@ -56,7 +58,7 @@ export async function POST(request) {
     response_format: {
       type: "image",
       mime_type: mimeType,
-      aspect_ratio: "16:9",
+      aspect_ratio: aspect_ratio,
       image_size: "1K"
     },
   }

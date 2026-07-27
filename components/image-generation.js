@@ -22,7 +22,7 @@ export default function ImageGeneration() {
     setImage(imageData || null)
   }
 
-  const handlePromptSubmit = async prompt => {
+  const handlePromptSubmit = async (prompt, aspectRatio) => {
     try {
       setLoading(true)
 
@@ -30,6 +30,7 @@ export default function ImageGeneration() {
       const requestData = {
         prompt,
         image: image?image:null,
+        aspectRatio:aspectRatio,
         previous_interaction_id:history?history:null
       }
 
@@ -84,7 +85,7 @@ export default function ImageGeneration() {
           {!displayImage && !loading ? (
             <>
             <div className='properties-container' style={{marginBottom:'15px'}}>
-              <p className='label'><strong>Reference Image</strong></p>
+              <p style={{marginTop:'0px', marginBottom:'0px'}} className='label'><strong>Reference Image</strong></p>
               <ImageUpload
                 onImageSelect={handleImageSelect}
                 currentImage={currentImage}
