@@ -715,6 +715,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const offscreenCanvasExportRef = useRef(null);
 
   const [activeElement, setActiveElement] = useState(null);
+  const [activeElements, setActiveElements] = useState(null);
   const [activeSceneState, setActiveSceneState] = useState(null);
 
   const [selectedFeed, setSelectedFeed] = useState(feeds[0])
@@ -958,6 +959,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
   const setActiveElementId = (index) => {
     const activeScene = sceneManagerRef.current.getActiveScene()
+    if (!activeScene) return
     activeScene.activeElementId = index
   }
 
@@ -6478,6 +6480,8 @@ const checkResizeHandleHit = (object, mouseX, mouseY) => {
   if (!object) return;
 
   const polygons = getHandlePolygons(object);
+  
+  if (!polygons) return;
 
   //const polygons = getHandlePolygonsNoClip(object);
 
@@ -9304,7 +9308,6 @@ const getClippingValues = (obj) => {
    
     if (selectionRef.current){
         if (selectedIndexesRef.current.length > 0){
-
             //only single selection
           if (selectedIndexesRef.current.length === 1){
               const i = selectedIndexesRef.current[0]
@@ -9313,20 +9316,25 @@ const getClippingValues = (obj) => {
               setActiveElementId(i)
 
           }else{
+            //more than onev active Element
             if (selectedIndexRef.current !== null){
               //there is alre
               deselectActiveElement()
             }
           }
-
           const selectedObjects = []
           selectedIndexesRef.current.forEach((i, index) => {
             selectedObjects.push(objectsRef.current[i])
           });
-          const selectionBounds = getSelectionBounds(selectedObjects);
 
+          const selectionBounds = getSelectionBounds(selectedObjects);
           selectionBoundsRef.current = selectionBounds;
-            
+
+          if (selectedIndexesRef.current.length > 1){
+            setActiveElements(selectedObjects)
+          }  
+        }else{
+          setActiveElements(null)
         }
       }
 
@@ -9854,13 +9862,33 @@ const getHandlePosition = (obj) => {
       removeElement(obj)
     })
 
-    sceneManagerRef.current.activeSceneId = null
+    console.log('sceneManagerRef.current', sceneManagerRef.current)
+
+    const index = sceneManagerRef.current.scenes.findIndex(o => o.id === scene.id);
+
+    if (index !== -1) {
+  // 2. Determine the next object index before removing.
+  // If it's the last item, fallback to the new last item (index - 1).
+    let nextIndex = index < sceneManagerRef.current.scenes.length - 1 ? index : index - 1;
+
+    // 3. Remove the object from the array
     sceneManagerRef.current.removeScene(scene.id)
 
+    // 4. Select the next object (returns undefined if array is now empty)
+
+    const newScene = sceneManagerRef.current.scenes[nextIndex]
+    setActiveSceneState(newScene)
+    sceneManagerRef.current.activeSceneId = newScene.id
+  }
 
 
 
-    setActiveSceneState(null)
+    
+    
+    
+
+
+   
 
     drawLower()
     drawUpper()
@@ -9888,6 +9916,19 @@ const getHandlePosition = (obj) => {
 
      setDuration(prev => prev + scene.start)
 
+  }
+
+  const removeElementMultiple = (objs) => {
+    objs.forEach(element => {
+      removeElement(element)
+    });
+
+    if (selectedIndexesRef.current.length > 0){
+        selectedIndexesRef.current = []
+        selectionBoundsRef.current = null
+        drawUpper()
+    }
+    
   }
 
 
@@ -11070,6 +11111,13 @@ const createVideo = async (format) => {
   })
 };
 
+const duplicateMultiple = (objs) => {
+  objs.forEach(element => {
+    duplicate(element)
+  });
+}
+
+
 const duplicate = (element) => {
  const newElement = new Element({
     ...element,
@@ -12119,11 +12167,22 @@ const handleElementDragStart = (e, id) => {
               />
             </div>
           }
+          {activeElements &&
+            <>
+            <div style={{marginTop: '20px'}} className="property-label"><SquareMousePointer className="property-icon" /><p>Active Elements</p></div>
+            <div className='col-2 column-gap-2'>
+                <button onClick={() => duplicateMultiple(activeElements)} style={{flex: 4}} className='btn secondary icon-button'>
+                  <Copy className='button-icon'/>
+                  Duplicate
+                </button>
+                <button style={{}} onClick={() => removeElementMultiple(activeElements)} className='btn danger'><Trash2 style={{verticalAlign: 'middle'}} className="h-3 w-3"/></button>
+              </div>
+            </>
+          }
 
           {activeElement &&
             <>
               <div style={{marginTop: '20px'}} className="property-label"><SquareMousePointer className="property-icon" /><p>Active Element</p></div>
-
               <div className='col-2 column-gap-2'>
                 <button onClick={() => duplicate(activeElement)} style={{flex: 4}} className='btn secondary icon-button'>
                   <Copy className='button-icon'/>
@@ -13916,7 +13975,7 @@ useEffect(() => {
                           }
                           {element.type === 'image'&&
                             <div style={{width: '100%' }} className='repeater-timeline-bar'>
-                              {Array(Math.round(activeScene?.duration)).fill(0).map((_, index) => (
+                              {Array(Math.round(activeScene?.duration??5)).fill(0).map((_, index) => (
                                 <img
                                   key={index}
                                   src={element.imageSrc} // Replace with your image source
