@@ -15,11 +15,9 @@ export default async function Page() {
   const userId = user.id
 
   return (
-    <div style={{padding:'25px'}}>
+    <div style={{padding:'25px', height:'100%'}}>
       <h2>My Media</h2>
-      <div>
-        <MyFilesPageComponent/>
-      </div>
+        <MyFilesPageComponent/> 
     </div>
   );
 }

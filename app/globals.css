@@ -866,7 +866,7 @@ h2{
   background: var(--md-sys-color-surface);
   color:var(--md-sys-color-on-surface);
   padding:var(--card-padding);
-  border-radius: var(--border-radius);
+  border-radius: var(--btn-border-radius);
   margin: 10px 0
 }
 

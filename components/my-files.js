@@ -44,6 +44,8 @@ export default function MyFiles() {
   const [uploading, setUploading] = useState(false)
   const [fileFilters, setFileFilters] = useState([])
   const [imageSearch, setImageSearch] = useState('')
+  const [loader, setLoader] = useState(false)
+  const currentPage = useRef(1)
 
 
   const editMedia = (media) => {
@@ -51,10 +53,31 @@ export default function MyFiles() {
     setItem(media)
   }
 
+   const updatePage = () => {
+    currentPage.current = currentPage.current+1
+    getMoreData()
+  }
+
+    const getMoreData = async () => {
+
+    if (!user?.id) return
+
+     setLoader(true)
+
+    try {
+      const myFiles = await getFiles(user.id, getFilterArray(), currentPage.current);
+      setFiles(prev => [...prev, ...myFiles]);
+    } catch (error) {
+      console.log('error getting files', error);
+    }finally{
+      setLoader(false)
+    }
+  };
+
+
+
   useEffect(() => {
     if (!displayEditItem && item) {
-
-      console.log('displayEditItem', item)
 
         setItem(null)
         getData()
@@ -92,12 +115,15 @@ export default function MyFiles() {
 
     if (!user?.id) return
 
-    try {
+     setLoader(true)
 
-      const myFiles = await getFiles(user.id, getFilterArray());
+    try {
+      const myFiles = await getFiles(user.id, getFilterArray(), currentPage.current);
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
+    }finally{
+      setLoader(false)
     }
   };
 
@@ -295,6 +321,8 @@ const checkboxFunction = (item) => {
        : [...prev, item]                // Add if missing
    );
 
+   
+
 }
 
 async function downloadAndZip() {
@@ -345,16 +373,16 @@ const copyFileUrl = (url) => {
           </div>
         }
           <div className='center-absolute' style={{width:'100%', maxWidth:'1200px', height:'800px', zIndex:'1000'}}>
-            <div className="card" onClick={(e) => e.stopPropagation()}>
+            <div className="card" style={{margin: '0px'}}onClick={(e) => e.stopPropagation()}>
               <div style={{display:'flex', padding:'15px'}}>
-                <div style={{flex:1, flexDirection:'column', display:'flex'}}>
+                <div style={{flex:1, flexDirection:'column', display:'flex', paddingTop:'5px'}}>
                   <button onClick={() => setFilesDisplay('My Files')} className={`${'btn'} ${filesDisplay ==='My Files'?'primary':'secondary'}`}>My files</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Gemini')} className={`${'btn'} ${filesDisplay ==='Gemini'?'primary':'secondary'}`}>Gemini</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Veo</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('X Z Image Turbo')} className={`${'btn'} ${filesDisplay ==='X Z Image Turbo'?'primary':'secondary'}`}>X Z Image Turbo</button>
                 </div>
                 <div style={{flex:3, padding:'15px', overflowY: 'hidden', height: '800px'}}>
-                  <div style={uploading? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                  <div style={uploading? {display:'block', height: 'calc(100% + 70px)'}:{display:'none'}} className={'loader_screen'}>
                       <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                   </div>
                   <div>
@@ -380,9 +408,7 @@ const copyFileUrl = (url) => {
                           )
                       })}
                     </div>
-
-
-                    <div className="properties-container" style={{marginTop:'15px'}}>
+                    <div className="properties-container" style={{marginTop:'0px'}}>
                       <div style={{display:'flex', alignItems:'center'}}>
                           <input
                             style={{display:'none'}}
@@ -513,6 +539,9 @@ const copyFileUrl = (url) => {
                         justifyContent: 'center',
                         margin: '0 auto'
                       }}>
+                      <div style={loader? {display:'block', height: 'calc(100% + 70px)'}:{display:'none'}} className={'loader_screen'}>
+                        <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                      </div>
                         {files.map((file, index)=>{
                           return (
                             <ImageComponent
@@ -530,6 +559,9 @@ const copyFileUrl = (url) => {
                           )
                         })}
                       </div>
+                      {files.length>=50&&
+                        <button style={{margin:'15px auto', display:'block'}} className='btn primary' onClick={updatePage}>Load More</button>
+                      }
                     </div>
 
                   }

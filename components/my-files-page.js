@@ -40,12 +40,39 @@ export default function MyFilesPageComponent() {
   const [selectedFiles, setSelectedFiles] = useState([])
   const [files, setFiles] = useState([])
   const [loader, setLoader] = useState(false)
+  const currentPage = useRef(1)
+
 
 
   const editMedia = (media) => {
     setDisplayEditItem(true)
     setItem(media)
   }
+
+   const updatePage = () => {
+
+    currentPage.current = currentPage.current+1
+
+    getMoreData()
+
+  }
+
+  const getMoreData = async () => {
+
+    if (!user?.id) return
+
+     setLoader(true)
+
+    try {
+      const myFiles = await getFiles(user.id, getFilterArray(), currentPage.current);
+      setFiles(prev => [...prev, ...myFiles]);
+    } catch (error) {
+      console.log('error getting files', error);
+    }finally{
+      setLoader(false)
+    }
+  };
+
 
   useEffect(() => {
     return () => {
@@ -90,12 +117,16 @@ export default function MyFilesPageComponent() {
 
     if (!user?.id) return
 
+    setLoader(true)
+
     try {
 
-      const myFiles = await getFiles(user.id, getFilterArray());
+      const myFiles = await getFiles(user.id, getFilterArray(), currentPage.current);
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
+    }finally{
+      setLoader(false)
     }
   };
 
@@ -286,6 +317,8 @@ const deleteSelectedFiles = async () => {
 
 const checkboxFunction = (item) => {
 
+  setFiles([])
+
     setFileFilters((prev) =>
      prev.includes(item)
        ? prev.filter((i) => i !== item) // Remove if exists
@@ -337,17 +370,16 @@ const copyFileUrl = (url) => {
 
   return (
     <>
-
-            <div>
-              <div style={{display:'flex', padding:'15px'}}>
-                <div style={{flex:1, flexDirection:'column', display:'flex'}}>
+           
+              <div style={{display:'flex', padding:'15px', height:'calc(100% - 35px)'}}>
+                <div style={{flex:1, flexDirection:'column', display:'flex', paddingTop:'5px'}}>
                   <button onClick={() => setFilesDisplay('My Files')} className={`${'btn'} ${filesDisplay ==='My Files'?'primary':'secondary'}`}>My files</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Gemini')} className={`${'btn'} ${filesDisplay ==='Gemini'?'primary':'secondary'}`}>Gemini</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('Video')} className={`${'btn'} ${filesDisplay ==='Video'?'primary':'secondary'}`}>Veo</button>
                   <button style={{marginTop:'10px'}} onClick={() => setFilesDisplay('X Z Image Turbo')} className={`${'btn'} ${filesDisplay ==='X Z Image Turbo'?'primary':'secondary'}`}>X Z Image Turbo</button>
                 </div>
-                <div style={{flex:3, padding:'15px', height: '800px'}}>
-                  <div style={uploading? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+                <div style={{flex:3, padding:'15px', height: '100%'}}>
+                  <div style={uploading? {display:'block', height: 'calc(100% + 70px)'}:{display:'none'}} className={'loader_screen'}>
                       <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
                   </div>
 
@@ -355,31 +387,32 @@ const copyFileUrl = (url) => {
                   {(filesDisplay ==='My Files') &&
                     <>
                       <div>
-                    <div style={{
-                      display:'flex',
-                      flexDirection:'row',
-                      flexWrap: 'wrap',
-                      gap:'15px',
-                      margin: '0 auto'
-                    }}>
-                      {selectedFiles.map((file, index)=>{
-                        return(
-                          <ImageComponent
-                            key={file.id}
-                            fileFilters={fileFilters}
-                            file={file}
-                            editMedia={editMedia}
-                            copyFileUrl={copyFileUrl}
-                            selectedFiles={selectedFiles}
-                            selectFileFunction={selectFileFunction}
-                            width={'25%'}
-                            objectFit={false}
-                            showSelection={false}
-                            />
-                          )
-                      })}
-                    </div>
-                    <div className="properties-container" style={{marginTop:'15px'}}>
+                        <div style={{
+                          display:'flex',
+                          flexDirection:'row',
+                          flexWrap: 'wrap',
+                          gap:'15px',
+                          margin: '0 auto'
+                        }}>
+                          {selectedFiles.map((file, index)=>{
+                            return(
+                              <ImageComponent
+                                key={file.id}
+                                fileFilters={fileFilters}
+                                file={file}
+                                editMedia={editMedia}
+                                copyFileUrl={copyFileUrl}
+                                selectedFiles={selectedFiles}
+                                selectFileFunction={selectFileFunction}
+                                width={'25%'}
+                                objectFit={false}
+                                showSelection={false}
+                                />
+                              )
+                          })}
+                        </div>
+                        
+                    <div className="properties-container" style={{marginTop:'0px'}}>
                       <div style={{display:'flex', alignItems:'center'}}>
                           <input
                             style={{display:'none'}}
@@ -498,16 +531,19 @@ const copyFileUrl = (url) => {
                   </div>
                     <div style={{
                       overflowY: 'scroll',
-                      height: 'calc(100% - 200px)'
+                      height: 'calc(100% - 225px)'
                     }}>
                       <div style={{
                         display:'flex',
                         flexDirection:'row',
                         flexWrap: 'wrap',
-                        gap:'10px 10px',
+                        gap:'15px 15px',
                         justifyContent: 'center',
                         margin: '0 auto'
                       }}>
+                      <div style={loader? {display:'block', height: 'calc(100% + 70px)'}:{display:'none'}} className={'loader_screen'}>
+                        <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+                      </div>
                         {files.map((file, index)=>{
                           return (
                             <ImageComponent
@@ -525,6 +561,9 @@ const copyFileUrl = (url) => {
                           )
                         })}
                       </div>
+                      {files.length>=50&&
+                        <button style={{margin:'15px auto', display:'block'}} className='btn primary' onClick={updatePage}>Load More</button>
+                      }
                     </div>
                   </>
                   }
@@ -557,8 +596,6 @@ const copyFileUrl = (url) => {
 
 
                 </div>
-              </div>
-
 
     </>
   )

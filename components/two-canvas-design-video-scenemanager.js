@@ -13131,15 +13131,39 @@ const Media = ({
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false)
   const [fileDescription, setFileDescription] = useState('')
+  const [loader, setLoader] = useState(false)
+  const currentPage = useRef(1)
 
+   const updatePage = () => {
+
+    currentPage.current = currentPage.current+1
+
+    getMoreData()
+
+  }
+
+    const getMoreData = async () => {
+    try {
+      setLoader(true)
+      const myFiles = await getFiles(user.id, fileTypes, currentPage.current);
+       setFiles(prev => [...prev, ...myFiles]);
+    } catch (error) {
+      showError('error getting files', error);
+    }finally{
+      setLoader(false)
+    }
+  };
+  
 
   const getData = async () => {
-
     try {
-      const myFiles = await getFiles(user.id, fileTypes);
+      setLoader(true)
+      const myFiles = await getFiles(user.id, fileTypes, currentPage.current);
       setFiles(myFiles);
     } catch (error) {
       showError('error getting files', error);
+    }finally{
+      setLoader(false)
     }
   };
 
@@ -13151,12 +13175,15 @@ const Media = ({
 
   const getSearchData = async () => {
     try{
+      setLoader(true)
       const myFiles = await getFilesSearch(user.id, filter, fileTypes);
       if (Array.isArray(myFiles)) {
         setFiles(myFiles);
       }
     } catch (error) {
       console.log('error getting files', error);
+    }finally{
+      setLoader(false)
     }
 
   }
@@ -13343,6 +13370,9 @@ const deleteCallback = (fileId) => {
       alignContent: 'flex-start',
       height: 'calc(100% - 120px)'
     }}>
+      <div style={loader? {display:'block', height: 'calc(100% + 70px)'}:{display:'none'}} className={'loader_screen'}>
+        <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+      </div>
 
       {files.length === 0?(
           <div className='alert alert-danger'>{`No files for you`}</div>
@@ -13400,6 +13430,9 @@ const deleteCallback = (fileId) => {
               </div>
             )
           })}
+          {files.length>=50&&
+             <button style={{margin:'15px auto', display:'block'}} className='btn primary' onClick={updatePage}>Load More</button>
+          }
         </>
       )
     }
@@ -15994,7 +16027,7 @@ file
 }) => {
 const [fileDescription, setFileDescription] = useState(file?.file_description??'')
 const [editAction, setEditAction] = useState('')
-const [scale, setScale] = useState(0)
+const [scale, setScale] = useState(.9)
 const [offset, setOffset] = useState({
   x: 0,
   y: 0
@@ -16133,7 +16166,15 @@ useEffect(() => {
                         <img
                           style={{
                             width:'100%',
-                            borderRadius: 'var(--input-border-radius)'
+                            borderRadius: 'var(--input-border-radius)',
+                            left: '50%',
+                              top: '50%',
+                              position:'absolute',
+                              background: "white",
+                              boxShadow: "0 0",
+                              transformOrigin: "0 0",
+                              transform: `scale(${scale}) translate(-50%, -50%)`,
+                              willChange: 'transform'
                           }}
                           src={file.file_url}
                         />

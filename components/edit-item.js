@@ -124,6 +124,7 @@ return(
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "cropper"? 'active':''}`}onClick={() => setActiveTool('cropper')}> Cropper </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "upscale"? 'active':''}`}onClick={() => setActiveTool('upscale')}> Upscale </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "reframe"? 'active':''}`}onClick={() => setActiveTool('reframe')}> Recompose </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "remove background"? 'active':''}`}onClick={() => setActiveTool('reframe')}> Remove Background </p>
 
               </div>
               <div style={{flex:4, position:'relative'}}>
@@ -161,7 +162,6 @@ return(
                         setApplyChanges={setApplyChanges}
                         setLoader={setLoader}
                       />
-
                       }
 
                       {activeTool === 'cropper' &&
@@ -194,6 +194,17 @@ return(
                           setApplyChanges={setApplyChanges}
                           setLoader={setLoader}
                           saveFile={saveFile}
+                      />
+                      }
+
+                      {activeTool === 'remove background' &&
+
+                        <RemoveBackground
+                        user={user}
+                        image={workingFile}
+                        setWorkingFile={setWorkingFile}
+                        setApplyChanges={setApplyChanges}
+                        setLoader={setLoader}
                       />
                       }
                 
@@ -314,6 +325,83 @@ const Recompose = ({
     </div>
   )
 }
+
+const RemoveBackground = ({
+  user,
+  image,
+  setWorkingFile,
+  setApplyChanges,
+  setLoader
+
+})=>{
+
+  const [fileUrl, setFileUrl] = useState(image.file_url)
+
+const upscale = async () => {
+
+
+  try {
+    setLoader(true)
+      const response = await fetch(`/api/stability/remove-background`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        imageUrl: image.file_url,
+        fileName: image.file_name,
+        fileType: image.file_type,
+      }),
+    })
+
+    if (!response.ok) {
+      showError(`Image Error: ${response.status}`)
+      return
+    }
+
+    const result = await response.json()
+
+    if (response.ok) {
+
+      const fileinfo = await storeFileInfo({
+        user_id: user.id,
+        file_url: result.url,
+        file_type: image.file_type,
+        file_name: result.fileName,
+        file_description: image.file_description ?? null
+      })
+
+      setFileUrl(result.url)
+
+      setWorkingFile({
+        created_at: fileinfo.created_at,
+        file_type: image.file_type,
+        file_url: result.url,
+        file_name: result.fileName,
+        file_description: image.file_description??null,
+        id: fileinfo.id,
+        user_id: user.id
+      })
+      setApplyChanges(true)
+
+    }
+  }catch(error){
+    showError('Upscale error: ' + error.message)
+  }finally{
+    setLoader(false)
+  }
+}
+
+
+
+  return(
+    <div>
+      <img src={fileUrl} style={{maxWidth:'600px'}} />
+      <button className='btn primary' onClick={upscale}>Remove Background</button>
+    </div>
+  )
+}
+
 
 const Upscale = ({
   user,

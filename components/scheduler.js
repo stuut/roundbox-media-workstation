@@ -3041,17 +3041,14 @@ const FacebookLinkPreview = ({
   const [openGraphError, setOpenGraphError] = useState(null)
   const [postUrl, setPostUrl] = useState(url)
   const [captionText, setCaptionText] = useState(caption)
+  const [loader, setLoader] = useState(false)
 
-  const hasRun = useRef(false);
 
-  console.log('caption', caption)
 
 
   useEffect(() => {
 
-    console.log('caption useEffect', caption)
-
-    console.log('customCaptions', customCaptions)
+  
 
     if (customCaptions?.length>0 && customCaptionsToggle){
       const facebookCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
@@ -3065,8 +3062,8 @@ const FacebookLinkPreview = ({
 
 
 const getOpenGraph = async (url) => {
-    console.log('getOpenGraph', url)
   try {
+    setLoader(true)
 
     const response = await fetch('/api/open-graph', {
         method: 'POST',
@@ -3107,7 +3104,7 @@ const getOpenGraph = async (url) => {
     return showError(error.message);
   }
   finally {
-    //setLoader(false)
+    setLoader(false)
   }
 }
 
@@ -3151,6 +3148,10 @@ const refreshShareAttachment = async () => {
     return
   }
 
+  try{
+
+  setLoader(true)
+
   const facebookAccounts = selectedSocialPages.filter((account)=>account.platform === 'facebook')
 
   const facebookResponse = await fetch(`/api/facebook/refresh-share-attachment`, {
@@ -3178,12 +3179,20 @@ const refreshShareAttachment = async () => {
     })
 
     showSuccess('Attachment updated')
+
+    }catch(err){
+        showError(err)
+    }finally{
+      setLoader(false)
+    }
 }
 
-console.log('status', status)
 
 return(
-    <div style={{marginTop:'25px'}}>
+    <div style={{marginTop:'25px', position: 'relative'}}>
+      <div style={loader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
+        <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+      </div>
       <div
         style={{
           background:'#ffffff',
