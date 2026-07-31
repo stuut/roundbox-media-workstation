@@ -1,0 +1,37 @@
+<canvas id="myCanvas" width="500" height="500"></canvas>
+
+<script>
+  const canvas = document.getElementById('myCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const text = "TEXT ALONG A PATH USING CANVAS";
+  const centerX = 250;
+  const centerY = 250;
+  const radius = 150;
+  const startAngle = Math.PI; // Start from the left side
+
+  ctx.font = "24px Arial";
+  ctx.textAlign = "center";
+
+  // Total angle spread for the text length
+  const totalAngle = Math.PI; 
+  
+  for (let i = 0; i < text.length; i++) {
+      // Determine the angle for each specific letter
+      let angle = startAngle + (i / text.length) * totalAngle;
+
+      // Calculate spatial coordinates on the circle perimeter
+      let x = centerX + radius * Math.cos(angle);
+      let y = centerY + radius * Math.sin(angle);
+
+      ctx.save();
+      ctx.translate(x, y);
+      
+      // Rotate context perpendicular to the circle line (+ Math.PI / 2)
+      ctx.rotate(angle + Math.PI / 2); 
+      
+      // Draw the single character
+      ctx.fillText(text[i], 0, 0);
+      ctx.restore();
+  }
+</script>

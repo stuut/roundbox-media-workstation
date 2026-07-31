@@ -22,6 +22,7 @@ import { usePathname } from 'next/navigation';
 import { ThreeDotMenu } from "components/three-dot-menu"
 import { ImageComponent } from "components/my-files-page"
 import { ImageTurbo } from "components/my-files-page"
+import { useRouter } from 'next/navigation'
 
 import {
 Copy
@@ -35,6 +36,7 @@ const documentTypes = ['application/pdf']
 
 
 export default function MyFiles() {
+  const router = useRouter()
   const pathname = usePathname();
   const { user } = useUserContext();
   const { showFiles, setShowFiles, files, setFiles, selectedFiles, setSelectedFiles, filePicker, fileLimit, setFileLimit} = useFilesContext();
@@ -48,6 +50,19 @@ export default function MyFiles() {
   const currentPage = useRef(1)
 
 
+    const openInDanva = () => {
+      const fileIds = selectedFiles.map((file)=> file.id)
+
+      const params = new URLSearchParams();
+
+      params.append('files', JSON.stringify(fileIds));
+
+      const href =  `/canvas-design-system?auto_load=true&width=1080&height=566&${params.toString()}`
+
+      router.push(href)
+    }
+
+
   const editMedia = (media) => {
     setDisplayEditItem(true)
     setItem(media)
@@ -58,7 +73,7 @@ export default function MyFiles() {
     getMoreData()
   }
 
-    const getMoreData = async () => {
+  const getMoreData = async () => {
 
     if (!user?.id) return
 
@@ -373,7 +388,7 @@ const copyFileUrl = (url) => {
           </div>
         }
           <div className='center-absolute' style={{width:'100%', maxWidth:'1200px', height:'800px', zIndex:'1000'}}>
-            <div className="card" style={{margin: '0px'}}onClick={(e) => e.stopPropagation()}>
+            <div className="card" style={{margin: '0px'}} onClick={(e) => e.stopPropagation()}>
               <div style={{display:'flex', padding:'15px'}}>
                 <div style={{flex:1, flexDirection:'column', display:'flex', paddingTop:'5px'}}>
                   <button onClick={() => setFilesDisplay('My Files')} className={`${'btn'} ${filesDisplay ==='My Files'?'primary':'secondary'}`}>My files</button>
@@ -389,7 +404,7 @@ const copyFileUrl = (url) => {
                     {(filePicker && selectedFiles.length>0) &&
                       <button className='btn primary btn-outline' onClick={(e) => setShowFiles(false)} disabled={selectedFiles.length===0}>Choose Files</button>
                     }
-                    <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '1%'}}>
+                    <div style={{display:'flex', flexDirection:'row',  flexWrap: 'wrap', gap: '1%', marginBottom:'15px'}}>
 
                       {selectedFiles.map((file, index)=>{
                         return(
@@ -438,6 +453,7 @@ const copyFileUrl = (url) => {
                               <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
                               <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
                               <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
+                              <button style={{marginLeft:'10px'}} className='btn secondary' onClick={openInDanva}>Open In Danva</button>
                             </>
                           }
                           {selectedFiles.length===1 &&

@@ -124,7 +124,7 @@ return(
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "cropper"? 'active':''}`}onClick={() => setActiveTool('cropper')}> Cropper </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "upscale"? 'active':''}`}onClick={() => setActiveTool('upscale')}> Upscale </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "reframe"? 'active':''}`}onClick={() => setActiveTool('reframe')}> Recompose </p>
-                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "remove background"? 'active':''}`}onClick={() => setActiveTool('reframe')}> Remove Background </p>
+                <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "remove background"? 'active':''}`}onClick={() => setActiveTool('remove background')}> Remove Background </p>
 
               </div>
               <div style={{flex:4, position:'relative'}}>

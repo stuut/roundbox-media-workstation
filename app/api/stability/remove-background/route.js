@@ -32,7 +32,7 @@ export async function POST(req) {
   //  form.append("right", right);
   //  form.append("up", up);
   //  form.append("down", down);
-    form.append("output_format", "jpeg");
+    form.append("output_format", 'png');
   //  if (prompt){
   //    form.append("prompt", prompt);
   //  }

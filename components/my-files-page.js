@@ -22,6 +22,7 @@ import { usePathname } from 'next/navigation';
 import { ThreeDotMenu } from "components/three-dot-menu"
 import Link from "next/link"
 import { uploadFile } from "@/lib/upload-file"
+import { useRouter } from 'next/navigation'
 
 const imageTypes = ['image/png', 'image/jpeg']
 const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/webm', 'audio/ogg']
@@ -29,6 +30,7 @@ const videoTypes = ['video/mp4', 'video/webm']
 const documentTypes = ['application/pdf']
 
 export default function MyFilesPageComponent() {
+  const router = useRouter()
   const pathname = usePathname();
   const { user } = useUserContext();
   const { displayEditItem, setDisplayEditItem, item, setItem } = useEditItemContext();
@@ -41,6 +43,21 @@ export default function MyFilesPageComponent() {
   const [files, setFiles] = useState([])
   const [loader, setLoader] = useState(false)
   const currentPage = useRef(1)
+
+
+      const openInDanva = () => {
+        const fileIds = selectedFiles.map((file)=> file.id)
+
+        const params = new URLSearchParams();
+
+        params.append('files', JSON.stringify(fileIds));
+
+        const href =  `/canvas-design-system?auto_load=true&width=1080&height=566&${params.toString()}`
+
+        router.push(href)
+      }
+
+
 
 
 
@@ -386,13 +403,14 @@ const copyFileUrl = (url) => {
 
                   {(filesDisplay ==='My Files') &&
                     <>
-                      <div>
+                      <div style={{marginBottom:'15px'}}>
                         <div style={{
                           display:'flex',
                           flexDirection:'row',
                           flexWrap: 'wrap',
                           gap:'15px',
-                          margin: '0 auto'
+                          margin: '0 auto 15px auto',
+                          zIndex:'1000'
                         }}>
                           {selectedFiles.map((file, index)=>{
                             return(
@@ -442,6 +460,8 @@ const copyFileUrl = (url) => {
                               <button style={{marginLeft:'10px'}} className='btn danger' onClick={deleteSelectedFiles}>Delete Files</button>
                               <button style={{marginLeft:'10px'}} className='btn primary' onClick={downloadAndZip}>Download Files</button>
                               <button style={{marginLeft:'10px'}} className='btn secondary' onClick={()=>setSelectedFiles([])}>Clear Selection</button>
+                              <button style={{marginLeft:'10px'}} className='btn secondary' onClick={openInDanva}>Open In Danva</button>
+
                             </>
                           }
                           {selectedFiles.length===1 &&
@@ -733,7 +753,30 @@ export const ImageComponent = ({
   objectFit,
   showSelection
 })=>{
+  const router = useRouter()
   const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
+
+  const getImageDimensions = (url) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = (err) => reject(err);
+      img.src = url;
+    });
+  };
+
+    const openInDanva = async() => {
+
+      const dimensions = await getImageDimensions(file.file_url);
+
+      const params = new URLSearchParams();
+
+      params.append('files', JSON.stringify([file.id]));
+
+      const href =  `/canvas-design-system?auto_load=true&width=${dimensions.width}&height=${dimensions.height}&${params.toString()}`
+
+      router.push(href)
+    }
 
   return(
     <div  style={{
@@ -743,7 +786,6 @@ export const ImageComponent = ({
       maxWidth: `calc(${width} - 15px)`,
       //minWidth: '250px',
       //height: '250px',
-      overflow: 'hidden',
       borderRadius: '8px'
     }}>
         {(file.file_type === 'image/png' || file.file_type === 'image/jpeg')&&
@@ -752,7 +794,7 @@ export const ImageComponent = ({
               <ThreeDotMenu>
                 <button className='btn btn-sm dropdown-button' onClick={() => editMedia(file)}>Edit Image</button>
                 <button className='btn btn-sm dropdown-button' onClick={() => copyFileUrl(file.file_url)}>Copy File Url</button>
-                <Link className='btn btn-sm dropdown-button' href = {`${window.location.origin}/canvas-design-system?auto_load=true&auto_load_type=image&file_url=${file.file_url}`}>Open In Danva</Link>
+                <button className='btn btn-sm dropdown-button' onClick ={openInDanva}>Open In Danva</button>
                 
               </ThreeDotMenu>
             </div>
