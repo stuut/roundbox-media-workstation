@@ -132,8 +132,10 @@ export default function MyFiles() {
 
      setLoader(true)
 
+     console.log('getData called')
+
     try {
-      const myFiles = await getFiles(user.id, getFilterArray(), currentPage.current);
+      const myFiles = await getFiles(user.id, getFilterArray(), 0);
       setFiles(myFiles);
     } catch (error) {
       console.log('error getting files', error);
@@ -544,7 +546,7 @@ const copyFileUrl = (url) => {
                   {(filesDisplay ==='My Files') &&
                     <div style={{
                       overflowY: 'scroll',
-                      height: 'calc(100% - 200px)'
+                      height: 'calc(100% - 250px)'
                     }}>
 
                       <div style={{

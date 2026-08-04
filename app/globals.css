@@ -1900,7 +1900,7 @@ input.form-input.column-name:disabled{
     text-decoration: none;
     vertical-align: middle;
     -webkit-appearance: button;
-    background: var(--md-sys-color-surface-dim);
+    background: var(--md-sys-color-surface-container);
     cursor: pointer;
     -webkit-user-select: none;
     -moz-user-select: none;

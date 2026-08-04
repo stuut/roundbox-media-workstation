@@ -16,7 +16,7 @@ import { getTemplates } from "@/lib/supabase";
 import { getChannels } from "@/lib/supabase";
 import { savePost } from "@/lib/supabase";
 import { saveProjectDB } from "@/lib/supabase";
-
+import { getProjectsDB } from "@/lib/supabase";
 import { savePostFile } from "@/lib/supabase";
 import { savePostPublications } from "@/lib/supabase";
 import { getFile } from "@/lib/supabase";
@@ -2594,7 +2594,7 @@ async drawImageInit() {
 redrawImage(ctx, animationProps) {
 
 
-
+/*
   if (this.clippingPath){
 
     ctx.rect(
@@ -2607,7 +2607,7 @@ redrawImage(ctx, animationProps) {
 
 
     ctx.clip();
-  }
+  }*/
 
     ctx.drawImage(
       this.img,
@@ -4869,22 +4869,12 @@ const pasteTextCallBack = useCallback((e) => {
 
 
           if (object.type === 'custom-shape' && !object.closed) {
-            // still drawing — points are absolute, render directly
-            //ctx.save();
-            //ctx.translate(offset.x + animationProps.cx * scaleRef.current, offset.y + animationProps.cy * scaleRef.current);
-            //ctx.rotate(animationProps.angle);
-            //ctx.scale(animationProps.scale, animationProps.scale);
+    
             buildCurveArtboard(ctx, object.points, object.closed);
             ctx.stroke();
-            //ctx.fillStyle = object.fill || "lightgray";
-            //ctx.fill();
-           // ctx.restore();
+     
           } else {
-            // committed — points are relative to cx/cy
-           // ctx.save();
-           // ctx.translate(offset.x + animationProps.cx * scaleRef.current , offset.y + animationProps.cy * scaleRef.current);   // move to object center
-           // ctx.rotate(animationProps.angle);
-           // ctx.scale(animationProps.scale, animationProps.scale);
+   
             buildCurveArtboard(ctx, object.points, object.closed);
             ctx.stroke();
             ctx.fillStyle = object.fill || "lightgray";
@@ -4917,10 +4907,7 @@ const pasteTextCallBack = useCallback((e) => {
         if (object.clippingPath){
 
           const clipCx = (object.clippingPath.left + object.clippingPath.right)/2
-
           const clipCy = (object.clippingPath.top + object.clippingPath.bottom)/2
-
-
           ctx.translate(offset.x + (clipCx + animationProps.cx) * scaleRef.current, offset.y + (clipCy + animationProps.cy) * scaleRef.current);
           ctx.rotate(animationProps.angle);
           ctx.scale(animationProps.scale, animationProps.scale);
@@ -4936,6 +4923,12 @@ const pasteTextCallBack = useCallback((e) => {
                   cy * scaleRef.current,
                  (object.clippingPath.right - object.clippingPath.left) * scaleRef.current,
                  (object.clippingPath.bottom - object.clippingPath.top) * scaleRef.current,
+                 [
+                  object.cornerRadius[0] * scaleRef.current,
+                  object.cornerRadius[1] * scaleRef.current,
+                  object.cornerRadius[2] * scaleRef.current,
+                  object.cornerRadius[3] * scaleRef.current,
+                ]
               )
 
               ctx.clip();
@@ -4948,8 +4941,6 @@ const pasteTextCallBack = useCallback((e) => {
                 object.h  * scaleRef.current
               );
 
-
-
             ctx.restore();
 
         }else{
@@ -4957,6 +4948,24 @@ const pasteTextCallBack = useCallback((e) => {
           ctx.translate(offset.x + animationProps.cx * scaleRef.current, offset.y + animationProps.cy * scaleRef.current);
           ctx.rotate(animationProps.angle);
           ctx.scale(animationProps.scale, animationProps.scale);
+
+          if (object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates.some(coord => coord.x !== 0 || coord.y !== 0)) {
+              ctx.roundRect(
+                -object.width / 2 * scaleRef.current,
+                -object.h / 2 * scaleRef.current,
+                object.width * scaleRef.current,
+                object.h,
+                [
+                  object.cornerRadius[0] * scaleRef.current,
+                  object.cornerRadius[1] * scaleRef.current,
+                  object.cornerRadius[2] * scaleRef.current,
+                  object.cornerRadius[3] * scaleRef.current,
+                ]
+              )
+
+              ctx.clip();
+
+          }
 
           ctx.drawImage(
             object.img,
@@ -5466,16 +5475,12 @@ const drawElementControls = (ctx, object) => {
 
             }
 
-
-
             const screenLeft   = left * scaleRef.current;
             const screenRight  = right * scaleRef.current;
             const screenTop    = top * scaleRef.current;
             const screenBottom = bottom * scaleRef.current;
             const screenW = screenRight - screenLeft;
             const screenH = screenBottom - screenTop;
-
-
 
 
             //ctx.translate(screenCx, screenCy);
@@ -5561,50 +5566,7 @@ const drawElementControls = (ctx, object) => {
               
 
               
-              /*
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[0]?.x !== 0?
-                (object.cornerRadiusCoordinates[0].x * scaleRef.current)
-                :
-                screenLeft + CORNER_RADIUS_OFFSET, 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[0]?.y !== 0?
-                (object.cornerRadiusCoordinates[0].y * scaleRef.current)
-                :
-                screenTop + CORNER_RADIUS_OFFSET, 
-                type:'corner-radius' 
-              }, // top-left
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[1]?.x !== 0?
-                (object.cornerRadiusCoordinates[1].x * scaleRef.current)
-                :
-                screenRight - CORNER_RADIUS_OFFSET, 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[1]?.y !== 0?
-                (object.cornerRadiusCoordinates[1].y * scaleRef.current)
-                :
-                screenTop + CORNER_RADIUS_OFFSET, 
-                type:'corner-radius' 
-              }, // top-right
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[3]?.x !== 0?
-                (object.cornerRadiusCoordinates[3].x * scaleRef.current)
-                :
-                screenLeft + CORNER_RADIUS_OFFSET, 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[3]?.y !== 0?
-                (object.cornerRadiusCoordinates[3].y * scaleRef.current)
-                :
-                screenBottom - CORNER_RADIUS_OFFSET, 
-                type:'corner-radius' 
-              }, // bottom-left
-
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[2]?.x !== 0?
-                (object.cornerRadiusCoordinates[2].x * scaleRef.current)
-                :
-                screenRight - CORNER_RADIUS_OFFSET, 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[2]?.y !== 0?
-                (object.cornerRadiusCoordinates[2].y * scaleRef.current)
-                :
-                screenBottom - CORNER_RADIUS_OFFSET, 
-                type:'corner-radius' 
-              }, // bottom-Right
-              */
-              
+             
             ];
             corners.forEach((c, index) => {
               ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
@@ -5641,7 +5603,7 @@ const drawElementControls = (ctx, object) => {
                   HANDLE_SIZE * 2
                 );
 
-   }else if (c.type === 'corner-radius' && object.type !== 'text'){
+   }else if (c.type === 'corner-radius' && object.type !== 'text' && activeToolRef.current !== 'cropping'){
 
             ctx.beginPath();
             ctx.arc(
@@ -6180,26 +6142,8 @@ function buildCurve(c, pointList, close) {
       if (object.type === "rectangle") {
         //ctx.beginPath(); // 🟢 Always begin a new path for each object
 
-        ctx.roundRect(-object.width/ 2, -object.h / 2, object.width, object.h, object.cornerRadius);
-        
-      /*  
-       if (object.fill) {
-        ctx.fillStyle = object.fill || "lightgray";
-        ctx.fill();
-       }
-        
-      if (object.strokeColour && object.strokeWeight){
-
-        ctx.strokeStyle = object.strokeColour || "black";
-        ctx.lineWidth = object.strokeWeight || 0
-        // put stroke on outside
-        ctx.strokeRect(
-          -object.width/ 2 - (object.strokeWeight/2),
-          -object.h / 2 - (object.strokeWeight/2),
-          object.width + object.strokeWeight,
-          object.h + object.strokeWeight
-        );
-      }*/
+        ctx.roundRect(-object.width/ 2, -object.h / 2, object.width, object.h, object.cornerRadius || 0);
+     
 
          //ctx.closePath();
       } else if (object.type === "ellipse") {
@@ -6248,11 +6192,12 @@ function buildCurve(c, pointList, close) {
             ctx.rotate(animationProps.angle);
             ctx.scale(animationProps.scale, animationProps.scale);
 
-            ctx.rect(
+            ctx.roundRect(
               -(object.clippingPath.right - object.clippingPath.left)/2,
               -(object.clippingPath.bottom - object.clippingPath.top)/2,
                object.clippingPath.right - object.clippingPath.left,
                object.clippingPath.bottom - object.clippingPath.top,
+               object.cornerRadius || 0
             )
 
             ctx.clip();
@@ -6268,9 +6213,24 @@ function buildCurve(c, pointList, close) {
           ctx.restore();
 
         }else{
+
             ctx.translate(animationProps.cx, animationProps.cy);
             ctx.rotate(animationProps.angle);
             ctx.scale(animationProps.scale, animationProps.scale);
+
+            if (object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates.some(coord => coord.x !== 0 || coord.y !== 0)) {
+              ctx.roundRect(
+                -object.width / 2,
+                -object.h / 2,
+                object.width,
+                object.h,
+                object.cornerRadius || 0
+              )
+
+              ctx.clip();
+
+            }
+
             object.redrawImage(ctx, animationProps)
         }
 
@@ -8401,6 +8361,25 @@ function getSelectionBounds(selectedObjects) {
     };
   }
 
+  function getCornerRadiusPosition(cornerIndex, radius, corners) {
+
+    const corner = corners[cornerIndex];
+
+    switch (cornerIndex) {
+        case 0:
+            return { x: corner.x + radius, y: corner.y + radius };
+
+        case 1:
+            return { x: corner.x - radius, y: corner.y + radius };
+
+        case 2:
+            return { x: corner.x + radius, y: corner.y - radius };
+
+        case 3:
+            return { x: corner.x - radius, y: corner.y - radius };
+    }
+}
+
 
 
   const handleMouseMove = (e) => {
@@ -8572,25 +8551,14 @@ function getSelectionBounds(selectedObjects) {
       if (resizingCornerRadius){
 
         
-        /*
-        const adjustedPos = {
-           x: pos.x - resizingCornerRadius.offsetX,
-           y: pos.y - resizingCornerRadius.offsetY,
-        };
-        */
+        const keepRatio = e.shiftKey;
 
-        const adjustedPos = {
-           x: pos.x,
-           y: pos.y,
-        };
-
-        
         const object = getActiveElement()
 
         const animated = getAnimatedProps(object);
 
-        const dx = adjustedPos.x - object.cx;
-        const dy = adjustedPos.y - object.cy;
+        const dx = pos.x - object.cx;
+        const dy = pos.y - object.cy;
 
         const cos = Math.cos(-animated.angle);
         const sin = Math.sin(-animated.angle);
@@ -8655,15 +8623,6 @@ function getSelectionBounds(selectedObjects) {
 
         const corner = corners[cornerIndex];
 
-        console.log({
-          corner,
-          halfWidth,
-          halfHeight,
-          mouseLocalX,
-          mouseLocalY
-      });
-
-
         // -----------------------------------------
         // Calculate distances from corner
         // -----------------------------------------
@@ -8712,7 +8671,7 @@ function getSelectionBounds(selectedObjects) {
         // Maximum possible radius
         const maxRadius = Math.min(
           halfWidth,
-          halfHeight,
+          halfHeight
         );
 
 
@@ -8722,129 +8681,95 @@ function getSelectionBounds(selectedObjects) {
           maxRadius
         );
 
-        console.log({
-            distanceX,
-            distanceY,
-            radius,
-            mouseLocalX,
-            mouseLocalY
-        });
 
-  
+        const maxPosition = Math.min(
+          halfWidth - ((CORNER_RADIUS_OFFSET * scaleRef.current + (CORNER_RADIUS_OFFSET + HANDLE_SIZE*2))),
+          halfHeight - ((CORNER_RADIUS_OFFSET * scaleRef.current  + (CORNER_RADIUS_OFFSET + HANDLE_SIZE*2))),
+        );
+
+
 
 
         // -----------------------------------------
         // Position handle at 45°
         // -----------------------------------------
 
-        let localX;
-        let localY;
 
-        switch (cornerIndex) {
+        const radiusCoOr = object.cornerRadiusCoordinates ?? [
+              { x: -object.width/2, y: -object.h/2, default:true}, // top-left
+              { x: object.width/2, y: -object.h/2, default:true}, // top-right
+              { x: -object.width/2, y: object.h/2, default:true}, // bottom-left
+              { x: object.width/2, y: object.h/2, default:true}, // bottom-right
+        ]     
 
-          case 0: // Top-left
-            localX = corner.x + radius;
-            localY = corner.y + radius;
-            break;
-
-          case 1: // Top-right
-            localX = corner.x - radius;
-            localY = corner.y + radius;
-            break;
-
-          case 2: // Bottom-left
-            localX = corner.x + radius;
-            localY = corner.y - radius;
-            break;
-
-          case 3: // Bottom-right
-            localX = corner.x - radius;
-            localY = corner.y - radius;
-            break;
-        }
+        const radiusMap = [0, 1, 3, 2];
 
 
- 
+        console.log('maxPosition', maxPosition)
+
+        console.log('min - 20', Math.min(radius, maxPosition))
+
+        if (e.shiftKey) {
+
+      for (let i = 0; i < 4; i++) {
+
+              object.cornerRadius[radiusMap[i]] = radius;
+
+             radiusCoOr[i] = getCornerRadiusPosition(
+              i,
+              Math.min(
+                radius,
+                maxPosition
+              ),
+              corners
+            );
+          }
+
+      } else {
+
+          object.cornerRadius[radiusIndex] = radius;
+
+          radiusCoOr[cornerIndex] = getCornerRadiusPosition(
+            cornerIndex,
+             Math.min(
+                radius,
+                maxPosition
+            ),
+            corners
+          );
+      }
+
+
+
+      object.cornerRadiusCoordinates = radiusCoOr
+
+
 
 
         // -----------------------------------------
         // Save radius using Canvas index
         // -----------------------------------------
 
-        object.cornerRadius[radiusIndex] = radius;
-
-
+          //object.cornerRadius[radiusIndex] = radius;
+         
         // -----------------------------------------
         // Save coordinates using normal index
         // -----------------------------------------
 
-       // console.log('top left x', (-object.width/2 * scaleRef.current) + CORNER_RADIUS_OFFSET)
-        //console.log('top left y', (-object.h/2 * scaleRef.current) + CORNER_RADIUS_OFFSET)
-
        // world space
        
-        const radiusCoOr = object.cornerRadiusCoordinates ?? [
-
-              { x: -object.width/2, y: -object.h/2, default:true}, // top-left
-              { x: object.width/2, y: -object.h/2, default:true}, // top-right
-              { x: -object.width/2, y: object.h/2, default:true}, // bottom-left
-              { x: object.width/2, y: object.h/2, default:true}, // bottom-right
-        ]
-
-                /*
-        const radiusCoOr = object.cornerRadiusCoordinates ?? [
-              { x: (-object.width/2 * scaleRef.current) + CORNER_RADIUS_OFFSET, y: (-object.h/2 * scaleRef.current) + CORNER_RADIUS_OFFSET }, // top-left
-              { x: (object.width/2 * scaleRef.current)  - CORNER_RADIUS_OFFSET, y: (-object.h/2 * scaleRef.current) + CORNER_RADIUS_OFFSET }, // top-right
-              { x: (-object.width/2 * scaleRef.current) + CORNER_RADIUS_OFFSET, y: (object.h/2 * scaleRef.current) - CORNER_RADIUS_OFFSET }, // bottom-left
-              { x: (object.width/2* scaleRef.current)  - CORNER_RADIUS_OFFSET, y: (object.h/2 * scaleRef.current) - CORNER_RADIUS_OFFSET }, // bottom-right
-        ]*/
-
+   
         /*
-        const radiusCoOr = object.cornerRadiusCoordinates ?? [
-              { x: (-object.width/2 * scaleRef.current) + CORNER_RADIUS_OFFSET, y: (-object.h/2 * scaleRef.current) + CORNER_RADIUS_OFFSET }, // top-left
-              { x: (object.width/2 * scaleRef.current)  - CORNER_RADIUS_OFFSET, y: (-object.h/2 * scaleRef.current) + CORNER_RADIUS_OFFSET }, // top-right
-              { x: (-object.width/2 * scaleRef.current) + CORNER_RADIUS_OFFSET, y: (object.h/2 * scaleRef.current) - CORNER_RADIUS_OFFSET }, // bottom-left
-              { x: (object.width/2* scaleRef.current)  - CORNER_RADIUS_OFFSET, y: (object.h/2 * scaleRef.current) - CORNER_RADIUS_OFFSET }, // bottom-right
-        ]*/
+        object.cornerRadiusCoordinates = radiusCoOr
 
-        radiusCoOr[cornerIndex]={
-          x: localX,
-          y: localY,
-          default:false
-
-        }
-
-          object.cornerRadiusCoordinates = radiusCoOr
-
-        /*    
-        const radiusCoOr = object.cornerRadiusCoordinates ?? [
-
-              { x: -object.width/2, y: -object.h/2 + CORNER_RADIUS_OFFSET }, // top-left
-              { x: object.width/2 - CORNER_RADIUS_OFFSET, y: -object.h/2 + CORNER_RADIUS_OFFSET }, // top-right
-              { x: -object.width/2 + CORNER_RADIUS_OFFSET, y: object.h/2 - CORNER_RADIUS_OFFSET }, // bottom-left
-              { x: object.width/2 - CORNER_RADIUS_OFFSET, y: object.h/2 - CORNER_RADIUS_OFFSET }, // bottom-right
-        ]
+          radiusCoOr[cornerIndex]={
+            x: localX,
+            y: localY,
+            default:false
+          }
+            */
 
 
-
-        radiusCoOr[cornerIndex]={
-          x: localX,
-          y: localY
-        }
-*/
-        
-
-
-      
-
-       
-
-       // distance = Math.hypot(newdragX, newdragY);
-
-       // object.cornerRadius[index] = distance;
-
-       
-        
         drawLower();
         drawUpper()
         drawArtboard();
@@ -8853,7 +8778,7 @@ function getSelectionBounds(selectedObjects) {
 
       }
 
-            // resizing element from corner proportional
+     // resizing element from corner proportional
 
     if (resizing) {
 
@@ -9072,7 +8997,7 @@ function getSelectionBounds(selectedObjects) {
       }
 
       // resize Side
-      if (resizingSide) {
+    if (resizingSide) {
 
       hideToolBar()
 
@@ -11743,6 +11668,36 @@ const saveAsTemplate = async () => {
 
 }
 
+const savePdf = async () => { 
+
+ const canvasPngBytes = lowerRef.current.toDataURL('image/png')
+
+    const response = await fetch('/api/save-pdf', {
+      method: 'POST',
+      body: JSON.stringify({ canvasPngBytes, width: PAGE_WIDTH, height: PAGE_HEIGHT })
+    });
+    if (!response.ok) throw new Error('Failed to create PDF');
+    const blob = await response.blob(); // no JSON parsing needed
+
+
+    const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'my-document.pdf';
+      document.body.appendChild(link);
+
+      link.click();
+
+      // Cleanup memory
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+}
+
+
+
+
 
 const saveProject = async (locally) => {
   const objs = objectsRef.current
@@ -11791,7 +11746,7 @@ const saveProject = async (locally) => {
       setCanvasLoader(true)
 
       await saveProjectDB({
-        json:json,
+        data:json,
         title:projectTitle,
         user_id: user.id
       })
@@ -13253,7 +13208,6 @@ const handleElementDragStart = (e, id) => {
               />
             }
           <Dropdown placeholder={'Save'} icon={Save}>
-            <p><strong>Save Locally</strong></p>
            <button className="dropdown-button" style={{display:'flex', alignItems:'center', gap:'5px'}} onClick={()=>saveProject(true)} disabled={projectTitle.length>0?false:true}>
               <Save size={15}/>
               <p style={{cursor:'pointer', margin:0}}>
@@ -13263,28 +13217,44 @@ const handleElementDragStart = (e, id) => {
             <button className="dropdown-button" style={{display:'flex', alignItems:'center', gap:'5px'}} onClick={()=>saveProject(false)} disabled={projectTitle.length>0?false:true}>
               <Save size={15}/>
               <p style={{cursor:'pointer', margin:0}}>
-                Save
+                Save To My Files
               </p>
             </button >
 
             </Dropdown>     
           <div style={{margin: '0px 15px'}}>
-            <input
-                style={{display:'none'}}
-                type="file"
-                accept=".danva"
-                className='btn secondary'
-                onChange={loadProjectFile}
-                id="file-upload"
+            <Dropdown
+            placeholder="Load Projects"
+            icon={Upload}
+            style="secondary"
+            width={200}
+            >
+
+              <p><strong>From My Files</strong></p>  
+              <MyProjects
+                userId={user.id}  
+                loadProject={loadProject}
               />
-              <label
-                className="btn secondary icon-button"
-                htmlFor="file-upload"
-              >
-              <Upload className='button-icon'/>
-              Load Project
-            </label>
+              <hr/>
+                <input
+                  style={{display:'none'}}
+                  type="file"
+                  accept=".danva"
+                  className='btn secondary'
+                  onChange={loadProjectFile}
+                  id="file-upload"
+                />
+                <label
+                  className="btn secondary icon-button"
+                  htmlFor="file-upload"
+                >
+                <Upload className='button-icon'/>
+                Load Project
+              </label>
+            </Dropdown>
           </div>
+
+
           <Dropdown
           placeholder="Export"
           icon={SquareArrowUpRight}
@@ -13319,6 +13289,9 @@ const handleElementDragStart = (e, id) => {
           }}>Save as PNG</p>
 
           <p><strong>Export locally</strong></p> 
+          <p className="dropdown-button" onClick={() => {
+            savePdf()
+          }}>Save as PDF</p>
           <p className="dropdown-button" onClick={() => {
             saveAsPng(projectTitle, lowerRef.current, 300)
           }}>Save as PNG</p>
@@ -17345,6 +17318,46 @@ export default function ExpandEditor({ file }) {
 export const Summarise = ({}) => {
   return(
     <div>
+    </div>
+  )
+}
+
+
+export const MyProjects = ({userId, loadProject}) => {
+  const [projects, setProjects] = useState([])  
+
+  console.log('userId', userId)
+
+
+  const getProjects = async() => {
+    try{
+      const data = await getProjectsDB(userId)
+      console.log('projects', data)
+      setProjects(data)
+    }catch(error){
+      showError(error)
+    }
+  }
+
+  useEffect(()=>{
+    if (userId){
+      getProjects()
+    }
+  },[userId]) 
+
+
+
+
+
+  return(
+    <div>
+      {projects.map((project, index)=>{
+        return(
+          <p className='dropdown-button' onClick={()=>loadProject(project.data)} key={index} style={{marginBottom:'10px'}}>
+            {project.title}
+          </p>
+        )
+      })}
     </div>
   )
 }
