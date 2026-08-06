@@ -1331,13 +1331,12 @@ const FeedsPanel = ({
         position:'relative',
         display: 'flex',
         flexWrap: 'wrap',
-        overflowY: 'scroll',
+        overflowY: posts.length>0 ? 'scroll' : 'hidden',
         overflowX: 'hidden',
         alignContent: 'flex-start',
         gap: '2%',
       }}>
         <div style={{
-
           display: loader?'block':'none',
           position: 'relative',
           height: '100px',
@@ -1346,7 +1345,7 @@ const FeedsPanel = ({
         }}
 
         className={'loader_screen'}>
-            <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+       <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
         </div>
         {noPosts &&
           <div className='alert alert-danger'>
