@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, useMemo } from "react";
 import { saveAsPng, saveAsjpg, exportWebm, savePngMyFiles, saveJpgMyFiles } from "@/lib/save-canvas"
 import { SketchPicker } from 'react-color'
+import ColorPicker, { useColorPicker } from 'react-best-gradient-color-picker'
 import { BufferedBrush } from "@/lib/buffered-brush"
 import '@/app/canvas_styles.css'
 import { convertMMToPixels } from "@/lib/calculations"
@@ -641,8 +642,15 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const brushTextureRef = useRef(null)
   const eraserTextureRef = useRef(null)
   const textHilightRef = useRef(false)
-  const [fillColour, setFillColour] = useState('rgba(0,0,0,1)');
-  const [strokeColour, setStrokeColour] = useState('rgba(0,0,0,1)');
+  const [fillColour, setFillColour] = useState(`rgba(255, 255, 255, 1)`);
+  const [strokeColour, setStrokeColour] = useState(`rgba(255, 255, 255, 1)`);
+    const [backgroundColour, setBackgroundColour] = useState(
+      {
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+      }
+    )
+
   const [strokeWeight, setStrokeWeight] = useState(0);
   const isPaintingRef = useState(null);
   const isErasingRef = useRef(false);
@@ -695,7 +703,6 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const [PAGE_HEIGHT, SET_PAGE_HEIGHT] = useState(1920);
   const [BLEED, SET_BLEED] = useState(0);
   const [currentPreset, setCurrentPreset]= useState(VIDEO_PRESETS[0])
-  const [backgroundColour, setBackgroundColour] = useState(`rgba(255, 255, 255, 1)`)
   const [projectTitle, setProjectTitle] = useState('')
   const [audioUrl, setAudioUrl] = useState(null);
   const [canvasLoader, setCanvasLoader] = useState(false);
@@ -944,7 +951,12 @@ export const Danva = (({postData, user, feeds}, ref) => {
       this.elements = elements??[];
       this.start = start??0;
       this.duration = duration??0
-      this.backgroundColour = backgroundColour? backgroundColour : 'rgba(255, 255, 255, 1)'
+      this.backgroundColour = backgroundColour? backgroundColour :
+      {
+        type:'fill',
+        cssValue:`rgba(255, 255, 255, 1)`,
+        colour:`rgba(255, 255, 255, 1)`
+      }
     }
 
     update(values) {
@@ -3265,10 +3277,20 @@ const createStoryScene = async (scene, image) => {
     const activeScene = sceneManagerRef.current.getActiveScene()
     const activeScenePostInfo = postDataArrayRef.current.find((data)=> data.sceneId === activeScene.id)
 
-    sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
+    sceneManagerRef.current.updateBackgroundColour(
+      {
+        type:'fill',
+        colour:`rgba(0, 0 0, 1)`
+      }
+    )
     onSceneUpdateProperty('duration', scene.duration)
 
-    setBackgroundColour('rgba(0,0,0,1)')
+    setBackgroundColour(
+            {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      }
+    )
 
 
     const newTextObj =  new Element({
@@ -3317,9 +3339,19 @@ const createStoryScene = async (scene, image) => {
     const newActiveScene = sceneManagerRef.current.getActiveScene()
     sceneManagerRef.current.addElement(newActiveScene.id, image)
 
-    sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
+    sceneManagerRef.current.updateBackgroundColour(
+      {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      }
+    )
     onSceneUpdateProperty('duration', scene.duration)
-    setBackgroundColour('rgba(0,0,0,1)')
+    setBackgroundColour(
+      {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      }
+    )
 
 
     const newTextObj =  new Element({
@@ -3368,9 +3400,17 @@ const createStoryScene = async (scene, image) => {
     const activeScene = sceneManagerRef.current.getActiveScene()
     createScene(scene.start, scene.duration, true)
     const newActiveScene = sceneManagerRef.current.getActiveScene()
-    sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
+    sceneManagerRef.current.updateBackgroundColour(
+      {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      })
     onSceneUpdateProperty('duration', scene.duration)
-    setBackgroundColour('rgba(0,0,0,1)')
+    setBackgroundColour(
+      {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      })
 
     sceneManagerRef.current.addElement(newActiveScene.id, image)
 
@@ -3515,8 +3555,16 @@ const applyTemplate = async(type, template) => {
   if (type === 'videos'){
 
     if ( template === 'Reel - Heading Only'){
-      setBackgroundColour('rgba(0,0,0,1)')
-      sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
+      setBackgroundColour(
+        {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      })
+      sceneManagerRef.current.updateBackgroundColour(
+        {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      })
 
       const newTextAnimations = [{
         id: generateUniqueId(),
@@ -3709,8 +3757,16 @@ const applyTemplate = async(type, template) => {
 
         addElement(newWebTextObj)
 
-        setBackgroundColour('rgba(0,0,0,1)')
-        sceneManagerRef.current.updateBackgroundColour('rgba(0,0,0,1)')
+        setBackgroundColour(
+          {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      })
+        sceneManagerRef.current.updateBackgroundColour(
+          {
+        type:'fill',
+        colour:`rgba(0, 0, 0, 1)`
+      })
 
     }
 
@@ -4175,11 +4231,7 @@ const getAnimatedProps = (element, localTime) => {
  element.animations.forEach(anim => {
 
    const progress = Math.max(0, Math.min(1, (time - anim.startTime) / anim.duration));
-
-
    const easingFn = Easings[anim.easing || 'linear'];
-
-
     let eased
 
    if (anim.easing === 'pulseScale'){
@@ -4208,6 +4260,20 @@ const getAnimatedProps = (element, localTime) => {
       if (anim.type === 'slideInBottom') props.cy = element.cy + 300;
       if (anim.type === 'scaleIn') props.scale = 0;
       if (anim.type === 'bounce') props.cy = element.cy - 400;
+      if (anim.type === 'drop') {
+        props.opacity = 0;
+        props.scale = 1.6;
+      }
+      if (anim.type === 'rotateInLeft') {
+        props.angle = (element.angle ?? 0) + degToRad(-120);
+        props.cx = element.cx - 300;
+        props.opacity = 0;
+      }
+      if (anim.type === 'rotateInRight') {
+        props.angle = (element.angle ?? 0) + degToRad(120);
+        props.cx = element.cx + 300;
+        props.opacity = 0;
+      }
       return;
     }
    if (time > anim.startTime + anim.duration) {
@@ -4224,7 +4290,7 @@ const getAnimatedProps = (element, localTime) => {
      if (anim.type === 'rotate') props.angle = (element.angle ?? 0) + degToRad(360);
      if (anim.type === 'grow') props.scale = 1.2 ; // <-- Add this line
      if (anim.type === 'bounce') props.cy = element.cy;
-     ///if (anim.type === 'drop') props.scale = 1.2;
+     //if (anim.type === 'drop') props.scale = 1.2;
 
      return;
    }
@@ -5944,8 +6010,17 @@ const clearAll = () => {
 
   const activeScene = sceneManagerRef.current.getActiveScene()
 
-  setBackgroundColour('rgba(255, 255, 255, 1)')
-  sceneManagerRef.current.updateBackgroundColour('rgba(255, 255, 255, 1)')
+  setBackgroundColour(
+      {
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+      })
+  sceneManagerRef.current.updateBackgroundColour(
+    
+    {
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+      })
 
   postDataArrayRef.current = postDataArrayRef.current.map((data)=> data.sceneId !== activeScene.id)
 
@@ -6028,6 +6103,45 @@ function buildCurve(c, pointList, close) {
   if (close) c.closePath();
 }
 
+
+const createCanvasGradient = (ctx, obj) => {
+
+  let gradient
+
+  if (obj.gradientType === "linear-gradient"){
+      gradient = ctx.createLinearGradient(
+          0,
+          0,
+          Math.cos(obj.angle * Math.PI / 180) * obj.width,
+          Math.sin(obj.angle * Math.PI / 180) * obj.height
+        );
+  }else{
+
+        const radius = Math.max(
+          obj.width,
+          obj.height
+        )
+
+        gradient = ctx.createRadialGradient(
+            obj.width/2,
+            obj.height/2,
+            0,
+            obj.width/2,
+            obj.height/2,
+            radius
+          );
+  }
+
+
+  obj.stops.forEach(stop => {
+    gradient.addColorStop(
+      stop.offset,
+      stop.colour
+    );
+  });
+
+  return gradient;
+};
   // Draw lower canvas (full resolution)
   const drawLower = (exportVideo = false) => {
 
@@ -6056,7 +6170,31 @@ function buildCurve(c, pointList, close) {
     ctx.save();
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
-    ctx.fillStyle = scene.backgroundColour?scene.backgroundColour:backgroundColour;
+
+    const backgroundColourCheck = scene.backgroundColour || backgroundColour
+
+    if (backgroundColourCheck){
+
+      if (backgroundColourCheck.type === 'fill'){
+          ctx.fillStyle = backgroundColourCheck.colour
+      }else{
+
+        const gradientObject = {
+          ...backgroundColourCheck,
+          width: ctx.canvas.width,
+          height: ctx.canvas.height
+        }
+
+       const grad = createCanvasGradient(ctx, gradientObject)
+
+       ctx.fillStyle = grad;
+
+      }
+
+
+    }
+
+    //ctx.fillStyle = scene.backgroundColour?scene.backgroundColour:backgroundColour;
     ctx.fillRect(0, 0, PAGE_WIDTH + (BLEED*2), PAGE_HEIGHT + (BLEED*2));
 
     if (isPanning.current) {
@@ -11497,12 +11635,15 @@ useEffect(()=>{
   }
 
   const backgroundColourCallBack = (colour) => {
-      setBackgroundColour(`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`)
-      sceneManagerRef.current.updateBackgroundColour(`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`)
+      console.log('colour', colour)
+      setBackgroundColour(colour)
+      sceneManagerRef.current.updateBackgroundColour(colour)
+
   }
 
 
   useEffect(()=>{
+    console.log('drawlower')
     drawLower()
   },[backgroundColour])
 
@@ -11822,8 +11963,6 @@ const onSceneUpdateProperty = (property, value) => {
 
 const onElementUpdateProperty = (property, value) => {
 
-
-
   const index = selectedIndexRef.current;
   const obj = getActiveElement()
   if (!obj) return
@@ -11861,6 +12000,12 @@ const onElementUpdateProperty = (property, value) => {
   }else{
     obj[property] = value
   }
+
+  if (property === 'strokeWeight' && value > 0 && obj.fill === null){
+    obj.strokeColour = fillColour
+    updates.strokeColour = fillColour
+  }
+
  const activeScene = sceneManagerRef.current.getActiveScene()
   handleUpdateElementState(activeScene.id, obj.id, updates)
   drawLower()
@@ -13095,7 +13240,7 @@ const handleElementDragStart = (e, id) => {
           activeTool={activeTool}
           position={'left'}
           fillColourCallBack={fillColourCallBack}
-          activeColour={activeElement?.fill?activeElement?.fill:null}
+          activeColour={activeElement?.fill?activeElement?.fill:fillColour}
           canvasEditorHeight={canvasEditorHeight}
         />
         <StrokeColourPicker
@@ -13105,9 +13250,10 @@ const handleElementDragStart = (e, id) => {
           activeTool={activeTool}
           position={'left'}
           strokeColourCallBack={strokeColourCallBack}
-          activeColour={activeElement?.strokeColour?activeElement?.strokeColour:null}
+          activeColour={activeElement?.strokeColour?activeElement?.strokeColour:strokeColour}
           canvasEditorHeight={canvasEditorHeight}
         />
+        {/*}
         <BackgroundColourPicker
           callBack={toolCallback}
           tool='background-colour-picker'
@@ -13115,7 +13261,17 @@ const handleElementDragStart = (e, id) => {
           activeTool={activeTool}
           position={'left'}
           backgroundColourCallBack={backgroundColourCallBack}
-          activeColour={backgroundColour}
+          activeColour={backgroundColour.cssValue}
+          canvasEditorHeight={canvasEditorHeight}
+        />*/}
+        <GradientBackgroundColourPicker
+          callBack={toolCallback}
+          tool='background-colour-picker'
+          label='Background Colour'
+          activeTool={activeTool}
+          position={'left'}
+          backgroundColourCallBack={backgroundColourCallBack}
+          activeColour={backgroundColour.cssValue}
           canvasEditorHeight={canvasEditorHeight}
         />
       </div>
@@ -13649,6 +13805,10 @@ const handleElementDragStart = (e, id) => {
                   canvasEditorHeight={canvasEditorHeight}
                 />
               </div>
+              {activeElement.clippingPath &&
+                 <img onClick={() => onElementUpdateProperty('clippingPath', null)} src='/remove-frame.svg' style={{width:'25px', marginRight: '10px'}} alt='Remove Frame'/>
+       
+               }
               <div style={{width:'24px', height:'24px', marginRight:'10px'}}>
                 <Replace width='25px' height='24px' onClick={replaceImageFunction}/>
               </div>
@@ -13956,11 +14116,22 @@ const handleChange = (color) => {
   };
 
 
-
     return (
       <div style={{width: '100%', padding: '5px 10px'}}>
         <div className={`${isWhite? 'colour-border':"" }`}
-          style={{margin:'0 auto', width:25, height:25, borderRadius:'50%', background: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`}}
+          style={{
+            margin:'0 auto', 
+            width:25, 
+            height:25, 
+            borderRadius:'50%', 
+            background:`
+              linear-gradient( 
+                ${activeColour? activeColour: `rgba(${colour.r}, ${colour.g}, ${colour.b}, ${colour.a})`},
+                ${activeColour? activeColour: `rgba(${colour.r}, ${colour.g}, ${colour.b}, ${colour.a})`}
+              ),
+              url("/transparent-background.jpg")
+            `
+          }}
           onClick={() => callBack(tool, !isOpen)}>
         </div>
         { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
@@ -14012,7 +14183,15 @@ const  handleChange = (color) => {
       <div style={{width: '100%', padding: '5px 10px'}}>
         <div
           className={`${isWhite? 'colour-border-stroke':"" }`}
-          style={{margin:'0 auto', width:30, height:30, borderRadius:'50%', borderStyle: 'solid', borderWidth: 5, borderColor: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`,}}
+          style={{
+            margin:'0 auto', 
+            width:30, 
+            height:30, 
+            borderRadius:'50%', 
+            borderStyle: 'solid', 
+            borderWidth: 5, 
+            borderColor: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`,
+          }}
           onClick={() => callBack(tool, !isOpen)}
         >
         </div>
@@ -14024,6 +14203,111 @@ const  handleChange = (color) => {
             onChangeComplete={handleChange}
             presetColors={["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF"]}
           />
+        </div> : null }
+      </div>
+    )
+
+}
+
+const GradientBackgroundColourPicker = ({
+  callBack,
+  tool,
+  label,
+  activeTool,
+  position,
+  backgroundColourCallBack,
+  activeColour,
+  canvasEditorHeight
+}) => {
+
+const [isOpen, setIsOpen] = useState(false);
+const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
+const { getGradientObject } = useColorPicker(colour, setColour);
+
+
+
+const isWhite = colour === 'rgba(255, 255, 255, 1)'
+
+useEffect(() => {
+  setIsOpen(activeTool === tool);
+}, [activeTool, tool]);
+
+const  handleClose = () => {
+    setIsOpen(false)
+  };
+
+const  handleChange = (colour) => {
+    setColour(colour)
+};
+
+const isFirstRender = useRef(true);
+
+useEffect(()=>{
+
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+  if (colour){
+      const gradientObject = getGradientObject();
+
+      let colourObject = {}
+
+      if (gradientObject.isGradient){
+
+        const stops = gradientObject.colors.map((c, index)=> {
+          return{
+            position: index,
+            offset: c.left / 100,
+            colour: c.value
+          }
+        })
+      
+        colourObject = {
+            type: "gradient",
+            colour:colour,
+            gradientType: gradientObject.gradientType,
+            angle: parseInt(gradientObject.degrees, 10),
+            stops: stops
+        }
+      }else{
+
+        colourObject = {
+            type: "fill",
+            colour:colour,
+        }
+
+      }
+
+      backgroundColourCallBack(colourObject)
+
+  }
+
+},[colour])
+
+    return (
+      <div style={{width: '100%', padding: '5px 10px'}}>
+        <div className={`${isWhite? 'colour-border':"" }`}
+          style={{
+            margin:'0 auto', 
+            width:25, 
+            height:25, 
+            borderRadius:'50%', 
+            background: `
+              linear-gradient(
+                ${colour},
+                ${colour}
+              ),
+              url("/transparent-background.jpg")
+            `
+          }}
+          onClick={() => callBack(tool, !isOpen)}
+        >
+        </div>
+        { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`, minWidth: '316px'}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
+          <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={handleClose} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
+          <ColorPicker value={colour} onChange={handleChange} />
         </div> : null }
       </div>
     )
@@ -14043,9 +14327,6 @@ const BackgroundColourPicker = ({
 
 const [isOpen, setIsOpen] = useState(false);
 const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
-
-
-
 const isWhite = colour === 'rgba(255, 255, 255, 1)'
 
 useEffect(() => {
@@ -14064,7 +14345,19 @@ const  handleChange = (color) => {
     return (
       <div style={{width: '100%', padding: '5px 10px'}}>
         <div className={`${isWhite? 'colour-border':"" }`}
-          style={{margin:'0 auto', width:25, height:25, borderRadius:'50%', background: activeColour?activeColour:`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`}}
+          style={{
+            margin:'0 auto', 
+            width:25, 
+            height:25, 
+            borderRadius:'50%', 
+            background:`
+              linear-gradient( 
+                ${activeColour? activeColour: `rgba(${colour.r}, ${colour.g}, ${colour.b}, ${colour.a})`},
+                ${activeColour? activeColour: `rgba(${colour.r}, ${colour.g}, ${colour.b}, ${colour.a})`}
+              ),
+              url("/transparent-background.jpg")
+            `
+          }}
           onClick={() => callBack(tool, !isOpen)}
         >
         </div>
@@ -15199,8 +15492,8 @@ useEffect(() => {
                               background: 'var(--md-sys-color-surface-container)',
                               borderRadius:'var(--input-border-radius)',
                               fontSize: '.75rem',
-                              lineHeight: '1rem',
-                              padding: '5px'
+                              lineHeight: '.6rem',
+                              padding: '5px 5px 5px 10px',
                             }}
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -16054,6 +16347,11 @@ const PropertiesPanel = ({
                             canvasEditorHeight={canvasEditorHeight}
                           />
                         </div>
+                        {element.clippingPath &&
+                          
+                            <img onClick={() => onElementUpdateProperty('clippingPath', null)} src='/remove-frame.svg' style={{width:'28px'}} alt='Remove Frame'/>
+                          
+                        }
                       </div>
                     </div>
                     <div className="property-container">

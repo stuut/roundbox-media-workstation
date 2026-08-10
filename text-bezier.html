@@ -1,0 +1,121 @@
+<canvas id="canvas" width="800" height="800"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+//cntrl_pnt_1_X, cntrl_pnt_1_Y, cntrl_pnt_2_X, cntrl_pnt_2_Y, end_pnt_X, end_pnt_y
+
+// Cubic bezier points
+const p0 = {x:50,  y:500};
+const p1 = {x:300, y:500};
+const p2 = {x:400, y:300};
+const p3 = {x:600, y:300};
+
+
+// Draw curve
+ctx.beginPath();
+ctx.moveTo(p0.x, p0.y);
+ctx.bezierCurveTo(
+    p1.x, p1.y,
+    p2.x, p2.y,
+    p3.x, p3.y
+);
+ctx.stroke();
+
+ctx.font = "100px Arial";
+
+drawTextOnBezier("Hello Canvas!", p0, p1, p2, p3);
+
+function drawTextOnBezier(text, p0, p1, p2, p3) {
+
+    let t = 0;
+
+    for (const letter of text) {
+
+        const pos = bezierPoint(t, p0, p1, p2, p3);
+        const tan = bezierTangent(t, p0, p1, p2, p3);
+
+        ctx.save();
+
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(Math.atan2(tan.y, tan.x));
+
+        ctx.fillText(letter, 0, 0);
+
+        ctx.restore();
+
+        // Advance along curve
+       // t += 0.06;
+        const width = ctx.measureText(letter).width;
+
+        console.log("width", width);
+        t = advanceAlongCurve(t, width);
+
+        console.log("t", t);
+    }
+}
+
+function advanceAlongCurve(t, distanceWanted) {
+
+    let travelled = 0;
+
+    let previous = bezierPoint(t, p0, p1, p2, p3);
+
+    while (travelled < distanceWanted && t < 1) {
+
+        t += 0.001;
+
+        const current = bezierPoint(t, p0, p1, p2, p3);
+
+        travelled += Math.hypot(
+            current.x - previous.x,
+            current.y - previous.y
+        );
+
+        console.log("travelled", travelled, "distanceWanted", distanceWanted);
+
+        previous = current;
+    }
+
+    return t;
+}
+
+// Position on cubic bezier
+function bezierPoint(t, p0, p1, p2, p3) {
+
+    const mt = 1 - t;
+
+    return {
+        x:
+            mt*mt*mt*p0.x +
+            3*mt*mt*t*p1.x +
+            3*mt*t*t*p2.x +
+            t*t*t*p3.x,
+
+        y:
+            mt*mt*mt*p0.y +
+            3*mt*mt*t*p1.y +
+            3*mt*t*t*p2.y +
+            t*t*t*p3.y
+    };
+}
+
+// Tangent of cubic bezier
+function bezierTangent(t, p0, p1, p2, p3) {
+
+    const mt = 1 - t;
+
+    return {
+        x:
+            3*mt*mt*(p1.x-p0.x) +
+            6*mt*t*(p2.x-p1.x) +
+            3*t*t*(p3.x-p2.x),
+
+        y:
+            3*mt*mt*(p1.y-p0.y) +
+            6*mt*t*(p2.y-p1.y) +
+            3*t*t*(p3.y-p2.y)
+    };
+}
+</script>
