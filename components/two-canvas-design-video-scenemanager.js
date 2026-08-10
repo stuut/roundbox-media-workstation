@@ -267,6 +267,7 @@ function getDisplayTime(text, options = {}) {
 
 
 function lightenRgba(rgba, amount = 0.5) {
+  console.log('rgba', rgba)
   const parts = rgba.match(/\d+(\.\d+)?/g).map(Number);
 
   const [r, g, b, a = 1] = parts;
@@ -642,7 +643,12 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const brushTextureRef = useRef(null)
   const eraserTextureRef = useRef(null)
   const textHilightRef = useRef(false)
-  const [fillColour, setFillColour] = useState(`rgba(255, 255, 255, 1)`);
+  const [fillColour, setFillColour] = useState(
+    {
+      type:'fill',
+      colour:`rgba(0, 0, 0, 1)`
+    }
+  );
   const [strokeColour, setStrokeColour] = useState(`rgba(255, 255, 255, 1)`);
     const [backgroundColour, setBackgroundColour] = useState(
       {
@@ -954,7 +960,6 @@ export const Danva = (({postData, user, feeds}, ref) => {
       this.backgroundColour = backgroundColour? backgroundColour :
       {
         type:'fill',
-        cssValue:`rgba(255, 255, 255, 1)`,
         colour:`rgba(255, 255, 255, 1)`
       }
     }
@@ -5067,11 +5072,24 @@ const pasteTextCallBack = useCallback((e) => {
       }
 
 
-
-
-
       if (object.type !== "pen" && object.type !== "image" && object.type !== "custom-shape"){
-        ctx.fillStyle = object.fill || "lightgray";
+           if (object.fill.type === 'fill'){
+              ctx.fillStyle = object.fill.colour
+            }else{
+
+              const gradientObject = {
+                ...object.fill,
+                width: object.width * scaleRef.current,
+                height: object.h * scaleRef.current,
+                x: 0 * scaleRef.current,
+                y: 0 * scaleRef.current
+              }
+            const grad = createCanvasGradient(ctx, gradientObject)
+            ctx.fillStyle = grad;
+
+        }
+
+       // ctx.fillStyle = object.fill || "lightgray";
         ctx.fill();
       }
       // Then stroke (optional)
@@ -6106,6 +6124,8 @@ function buildCurve(c, pointList, close) {
 
 const createCanvasGradient = (ctx, obj) => {
 
+  console.log('obj', obj)
+
   let gradient
 
   if (obj.gradientType === "linear-gradient"){
@@ -6123,11 +6143,11 @@ const createCanvasGradient = (ctx, obj) => {
         )
 
         gradient = ctx.createRadialGradient(
-            obj.width/2,
-            obj.height/2,
+            obj.x,
+            obj.y,
             0,
-            obj.width/2,
-            obj.height/2,
+            obj.x,
+            obj.y,
             radius
           );
   }
@@ -6182,7 +6202,9 @@ const createCanvasGradient = (ctx, obj) => {
         const gradientObject = {
           ...backgroundColourCheck,
           width: ctx.canvas.width,
-          height: ctx.canvas.height
+          height: ctx.canvas.height,
+          x: ctx.canvas.width/2,
+          y: ctx.canvas.height/2,
         }
 
        const grad = createCanvasGradient(ctx, gradientObject)
@@ -6421,7 +6443,25 @@ const createCanvasGradient = (ctx, obj) => {
       // Fill first
 
       if (object.type !== "pen" && object.type !== "image" && object.type !== "custom-shape"){
-        ctx.fillStyle = object.fill || "lightgray";
+      
+
+           if (object.fill.type === 'fill'){
+              ctx.fillStyle = object.fill.colour
+            }else{
+
+              const gradientObject = {
+                ...object.fill,
+                width: object.width,
+                height: object.h,
+                x:0,
+                y:0
+              }
+            const grad = createCanvasGradient(ctx, gradientObject)
+            ctx.fillStyle = grad;
+
+        }
+
+       // ctx.fillStyle = object.fill || "lightgray";
         ctx.fill();
       }
 
@@ -6432,7 +6472,7 @@ const createCanvasGradient = (ctx, obj) => {
         ctx.lineWidth = object.strokeWeight || 0
         // put stroke on outside
         ctx.strokeRect(
-          -object.width/ 2 - (object.strokeWeight/2),
+          -object.width / 2 - (object.strokeWeight/2),
           -object.h / 2 - (object.strokeWeight/2),
           object.width + object.strokeWeight,
           object.h + object.strokeWeight
@@ -10266,7 +10306,7 @@ const getClippingValues = (obj) => {
 
     const alpha = (brushOpacity * brushFlow) / 10000; // Combined opacity and flow
 
-    const [, r, g, b, a] = fillColour.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    const [, r, g, b, a] = fillColour.colour.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
 
 
     if (hard >= 0.999) {
@@ -11602,13 +11642,13 @@ useEffect(()=>{
 },[activeTool])
 
   const fillColourCallBack = (colour) => {
-      setFillColour(`rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`)
+      setFillColour(colour)
       const index = selectedIndexRef.current
       if (index !== null){
         const obj = getActiveElement()
         if (index !== null){
           if (obj.type !== "pen"){
-            obj.fill = `rgba(${ colour.r }, ${ colour.g }, ${ colour.b }, ${ colour.a })`
+            obj.fill = colour
             const activeScene = sceneManagerRef.current.getActiveScene()
             handleUpdateElementState( activeScene.id, obj.id, {fill: obj.fill})
           }
@@ -13233,6 +13273,7 @@ const handleElementDragStart = (e, id) => {
             />
           </div>
         </ToolSVG>
+        {/*}
         <FillColourPicker
           callBack={toolCallback}
           tool='fill-colour-picker'
@@ -13241,6 +13282,16 @@ const handleElementDragStart = (e, id) => {
           position={'left'}
           fillColourCallBack={fillColourCallBack}
           activeColour={activeElement?.fill?activeElement?.fill:fillColour}
+          canvasEditorHeight={canvasEditorHeight}
+        />*/}
+        <GradientFillColourPicker
+          callBack={toolCallback}
+          tool='fill-colour-picker'
+          label='Fill Colour'
+          activeTool={activeTool}
+          position={'left'}
+          fillColourCallBack={fillColourCallBack}
+          activeColour={activeElement?.fill.colour?activeElement?.fill.colour:fillColour.colour}
           canvasEditorHeight={canvasEditorHeight}
         />
         <StrokeColourPicker
@@ -13271,7 +13322,7 @@ const handleElementDragStart = (e, id) => {
           activeTool={activeTool}
           position={'left'}
           backgroundColourCallBack={backgroundColourCallBack}
-          activeColour={backgroundColour.cssValue}
+          activeColour={backgroundColour.colour}
           canvasEditorHeight={canvasEditorHeight}
         />
       </div>
@@ -13315,15 +13366,15 @@ const handleElementDragStart = (e, id) => {
               //onDrop={(e) => handleElementsDrop(e, null)}
               >
                     {[...activeSceneState.elements].reverse().map((element, index)=>{
-                      const isWhite = element?.fill === 'rgba(255,255,255,1)'
+                      const isWhite = element?.fill.colour === 'rgba(255,255,255,1)'
                       const isImage = element?.type === 'image'
 
                       var colour
                       var borderColour
 
-                      if (element?.fill){
-                        colour = element?.fill
-                        borderColour = lightenRgba(element?.fill, .5)
+                      if (element?.fill?.colour){
+                        colour = element?.fill?.colour
+                        borderColour = lightenRgba(element?.fill?.colour, .5)
                       }else{
                         colour = 'var(--md-sys-color-secondary-container)'
                         borderColour = 'var(--md-sys-color-secondary-container)'
@@ -14142,6 +14193,111 @@ const handleChange = (color) => {
             onChangeComplete={handleChange}
             presetColors={["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#00FFFF"]}
           />
+        </div> : null }
+      </div>
+    )
+
+}
+
+const GradientFillColourPicker = ({
+  callBack,
+  tool,
+  label,
+  activeTool,
+  position,
+  fillColourCallBack,
+  activeColour,
+  canvasEditorHeight
+}) => {
+
+const [isOpen, setIsOpen] = useState(false);
+const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
+const { getGradientObject } = useColorPicker(colour, setColour);
+
+
+
+const isWhite = colour === 'rgba(255, 255, 255, 1)'
+
+useEffect(() => {
+  setIsOpen(activeTool === tool);
+}, [activeTool, tool]);
+
+const  handleClose = () => {
+    setIsOpen(false)
+  };
+
+const  handleChange = (colour) => {
+    setColour(colour)
+};
+
+const isFirstRender = useRef(true);
+
+useEffect(()=>{
+
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+  if (colour){
+      const gradientObject = getGradientObject();
+
+      let colourObject = {}
+
+      if (gradientObject.isGradient){
+
+        const stops = gradientObject.colors.map((c, index)=> {
+          return{
+            position: index,
+            offset: c.left / 100,
+            colour: c.value
+          }
+        })
+      
+        colourObject = {
+            type: "gradient",
+            colour:colour,
+            gradientType: gradientObject.gradientType,
+            angle: parseInt(gradientObject.degrees, 10),
+            stops: stops
+        }
+      }else{
+
+        colourObject = {
+            type: "fill",
+            colour:colour,
+        }
+
+      }
+
+      fillColourCallBack(colourObject)
+
+  }
+
+},[colour])
+
+    return (
+      <div style={{width: '100%', padding: '5px 10px'}}>
+        <div className={`${isWhite? 'colour-border':"" }`}
+          style={{
+            margin:'0 auto', 
+            width:25, 
+            height:25, 
+            borderRadius:'50%', 
+            background: `
+              linear-gradient(
+                ${colour},
+                ${colour}
+              ),
+              url("/transparent-background.jpg")
+            `
+          }}
+          onClick={() => callBack(tool, !isOpen)}
+        >
+        </div>
+        { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`, minWidth: '316px'}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
+          <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={handleClose} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
+          <ColorPicker value={colour} onChange={handleChange} />
         </div> : null }
       </div>
     )
@@ -15416,7 +15572,7 @@ useEffect(() => {
 
                     if (element?.fill){
                       colour = element?.fill
-                      borderColour = lightenRgba(element?.fill, .5)
+                      borderColour = lightenRgba(element?.fill?.colour, .5)
                     }else{
                       colour = 'var(--md-sys-color-secondary-container)'
                       borderColour = 'var(--md-sys-color-secondary-container)'
