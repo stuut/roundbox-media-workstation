@@ -13288,7 +13288,7 @@ const handleElementDragStart = (e, id) => {
           activeTool={activeTool}
           position={'left'}
           fillColourCallBack={fillColourCallBack}
-          activeColour={activeElement?.fill.colour?activeElement?.fill.colour:fillColour.colour}
+          activeColour={activeElement?.fill?.colour?activeElement?.fill?.colour:fillColour.colour}
           canvasEditorHeight={canvasEditorHeight}
         />
         <StrokeColourPicker
@@ -13363,7 +13363,7 @@ const handleElementDragStart = (e, id) => {
               //onDrop={(e) => handleElementsDrop(e, null)}
               >
                     {[...activeSceneState.elements].reverse().map((element, index)=>{
-                      const isWhite = element?.fill.colour === 'rgba(255,255,255,1)'
+                      const isWhite = element?.fill?.colour === 'rgba(255,255,255,1)'
                       const isImage = element?.type === 'image'
 
                       var colour
