@@ -5021,11 +5021,12 @@ const pasteTextCallBack = useCallback((e) => {
           ctx.scale(animationProps.scale, animationProps.scale);
 
           if (object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates.some(coord => coord.x !== 0 || coord.y !== 0)) {
+
               ctx.roundRect(
                 -object.width / 2 * scaleRef.current,
                 -object.h / 2 * scaleRef.current,
                 object.width * scaleRef.current,
-                object.h,
+                object.h * scaleRef.current,
                 [
                   object.cornerRadius[0] * scaleRef.current,
                   object.cornerRadius[1] * scaleRef.current,
@@ -6257,33 +6258,7 @@ const createCanvasGradient = (ctx, obj) => {
             ctx.rotate(animationProps.angle);
             ctx.scale(animationProps.scale, animationProps.scale);
 
-            /*
-
-          if (groupTransform) {
-            // step 1 — translate to group center in screen space
-            const groupScreenCx = groupTransform.cx
-            const groupScreenCy = groupTransform.cy
-            ctx.translate(groupScreenCx, groupScreenCy);
-
-            // step 2 — rotate the whole group
-            ctx.rotate(groupTransform.angle);
-
-            // step 3 — translate to object center relative to group center
-            const relCx = (object.cx - groupTransform.cx)
-            const relCy = (object.cy - groupTransform.cy)
-            ctx.translate(relCx, relCy);
-
-            // step 4 — apply object's OWN rotation and scale on top
-            ctx.rotate(animationProps.angle);
-            ctx.scale(animationProps.scale, animationProps.scale);
-
-          } else {
-            const screenCx = animationProps.cx
-            const screenCy = animationProps.cy
-            ctx.translate(screenCx, screenCy);
-            ctx.rotate(animationProps.angle);
-            ctx.scale(animationProps.scale, animationProps.scale);
-          }*/
+       
 
         }
      
