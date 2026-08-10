@@ -6123,9 +6123,6 @@ function buildCurve(c, pointList, close) {
 
 
 const createCanvasGradient = (ctx, obj) => {
-
-  console.log('obj', obj)
-
   let gradient
 
   if (obj.gradientType === "linear-gradient"){
@@ -14214,8 +14211,6 @@ const [isOpen, setIsOpen] = useState(false);
 const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
 const { getGradientObject } = useColorPicker(colour, setColour);
 
-
-
 const isWhite = colour === 'rgba(255, 255, 255, 1)'
 
 useEffect(() => {
@@ -14227,6 +14222,9 @@ const  handleClose = () => {
   };
 
 const  handleChange = (colour) => {
+
+  
+
     setColour(colour)
 };
 
@@ -14258,7 +14256,7 @@ useEffect(()=>{
             type: "gradient",
             colour:colour,
             gradientType: gradientObject.gradientType,
-            angle: parseInt(gradientObject.degrees, 10),
+            angle: gradientObject.degrees === 'circle'?gradientObject.degrees:parseInt(gradientObject.degrees, 10),
             stops: stops
         }
       }else{
@@ -14276,24 +14274,39 @@ useEffect(()=>{
 
 },[colour])
 
+
     return (
       <div style={{width: '100%', padding: '5px 10px'}}>
-        <div className={`${isWhite? 'colour-border':"" }`}
-          style={{
-            margin:'0 auto', 
-            width:25, 
-            height:25, 
-            borderRadius:'50%', 
-            background: `
-              linear-gradient(
-                ${colour},
-                ${colour}
-              ),
-              url("/transparent-background.jpg")
-            `
+        <div style={{
+          position:'relative',
+          margin:'0 auto', 
+          width:25, 
+          height:25, 
           }}
-          onClick={() => callBack(tool, !isOpen)}
-        >
+          onClick={() => callBack(tool, !isOpen)}>
+          <div
+            style={{
+              position:'absolute',
+              left:'0px',
+              top:'0px',
+              width:25, 
+              height:25, 
+              borderRadius:'50%', 
+              background:  'url("/transparent-background.jpg")'
+            }}>
+          </div>
+          <div className={`${isWhite? 'colour-border':"" }`}
+            style={{
+              position:'absolute',
+              left:'0px',
+              top:'0px',
+              width:25, 
+              height:25, 
+              borderRadius:'50%', 
+              background: `${colour}`,
+            }}
+          >
+          </div>
         </div>
         { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`, minWidth: '316px'}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
           <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={handleClose} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
@@ -14380,8 +14393,6 @@ const [isOpen, setIsOpen] = useState(false);
 const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
 const { getGradientObject } = useColorPicker(colour, setColour);
 
-
-
 const isWhite = colour === 'rgba(255, 255, 255, 1)'
 
 useEffect(() => {
@@ -14393,6 +14404,7 @@ const  handleClose = () => {
   };
 
 const  handleChange = (colour) => {
+
     setColour(colour)
 };
 
@@ -14444,22 +14456,36 @@ useEffect(()=>{
 
     return (
       <div style={{width: '100%', padding: '5px 10px'}}>
-        <div className={`${isWhite? 'colour-border':"" }`}
-          style={{
-            margin:'0 auto', 
-            width:25, 
-            height:25, 
-            borderRadius:'50%', 
-            background: `
-              linear-gradient(
-                ${colour},
-                ${colour}
-              ),
-              url("/transparent-background.jpg")
-            `
+        <div style={{
+          position:'relative',
+          margin:'0 auto', 
+          width:25, 
+          height:25, 
           }}
-          onClick={() => callBack(tool, !isOpen)}
-        >
+          onClick={() => callBack(tool, !isOpen)}>
+          <div
+            style={{
+              position:'absolute',
+              left:'0px',
+              top:'0px',
+              width:25, 
+              height:25, 
+              borderRadius:'50%', 
+              background:  'url("/transparent-background.jpg")'
+            }}>
+          </div>
+          <div className={`${isWhite? 'colour-border':"" }`}
+            style={{
+              position:'absolute',
+              left:'0px',
+              top:'0px',
+              width:25, 
+              height:25, 
+              borderRadius:'50%', 
+              background: `${colour}`,
+            }}
+          >
+          </div>
         </div>
         { isOpen ? <div style={{maxHeight:`calc(${canvasEditorHeight}px - 10px)`, minWidth: '316px'}} className={`dropshadow ${position==='left'? 'side_menu_left':'side_menu_right'}`}>
           <div style={{display:'flex'}}><strong><p style={{paddingLeft:'10px'}}>{label}</p></strong><img onClick={handleClose} src='close.svg' style={{width:'20px', marginLeft:'auto'}}/></div>
