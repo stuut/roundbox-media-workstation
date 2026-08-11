@@ -302,6 +302,7 @@ outline: none;
 }
 
 hr {
+  margin: 25px 0px;
   border: none; /* Removes the default border/shading */
   height: 1px; /* Sets the line thickness */
   background-color: var(--md-sys-color-outline-variant); /* Sets the line color (modern browsers) */
@@ -336,7 +337,7 @@ hr {
   column-gap: 4%;
 }
 
-
+.input-label,
 .font-label{
   font-size:.6em;
   margin: 0
@@ -410,6 +411,7 @@ hr {
   width: 305px;
   height: 69vh;
   overflow-y:scroll;
+  overflow-x:hidden;
   top: 75px;
 }
 

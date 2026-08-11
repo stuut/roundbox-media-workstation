@@ -66,7 +66,8 @@ import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   StickyNote,
   RectangleHorizontal,
   RectangleVertical,
-  PenTool
+  PenTool,
+  Palette
 } from 'lucide-react';
 import { getFiles } from "@/lib/supabase";
 import { updateFileDescriptionValue } from "@/lib/supabase";
@@ -100,6 +101,26 @@ import  Dropdown  from  "@/components/dropdown"
 import { Recorder, RecorderStatus, Encoders } from "canvas-record";
 import createCanvasContext from "canvas-context";
 import { AVC } from "media-codecs";*/
+
+
+const blendModes = [
+"normal",
+"multiply",
+"screen",
+"overlay",
+"darken",
+"lighten",
+"color-dodge",
+"color-burn",
+"hard-light",
+"soft-light",
+"difference",
+"exclusion",
+"hue",
+"saturation",
+"color",
+"luminosity",
+]
 
 
 const designSample = {
@@ -1752,6 +1773,7 @@ const onSelectScene = (id) => {
     strokeColour = null,
     strokeWeight = 0,
     opacity = 1,
+    blendMode = 'normal',
     text = null,
     maxWidth = 200,
     lineHeight = null,
@@ -1814,7 +1836,7 @@ const onSelectScene = (id) => {
     this.strokeColour = strokeColour;
     this.strokeWeight = strokeWeight;
     this.opacity = opacity;
-
+    this.blendMode = blendMode;
     this.text = text;
     // ✅ Auto-generate font if not supplied
     this.fontFamily = fontFamily || `Arial`;
@@ -5760,6 +5782,8 @@ const drawElementControls = (ctx, object) => {
               // Draw rotate handle: top-center + distance
               ctx.beginPath();
               ctx.arc(screenLeft+(screenW/2), screenBottom + ROTATE_DISTANCE, HANDLE_SIZE * 2, 0, 2 * Math.PI);
+              ctx.fillStyle = '#ffffff';
+              ctx.fill();
               ctx.closePath();
               ctx.stroke();
               // Curved arrow
@@ -5796,6 +5820,8 @@ const drawElementControls = (ctx, object) => {
               ctx.strokeStyle = activeToolRef.current === 'cropping'? CROP_COLOUR : TRANSFORM_COLOUR;
               ctx.lineWidth = TRANSFORM_WIDTH;
               ctx.lineCap = 'round';
+
+
 
               ctx.stroke();
             }
@@ -6176,11 +6202,8 @@ const createCanvasGradient = (ctx, obj) => {
       const lower = lowerRef.current;
       if (!lower) return;
       ctx = lower.getContext("2d");
-
     }else{
-
       ctx = offscreenCanvasExportRef.current.getContext("2d");
-
     }
 
     if (!ctx) return;
@@ -6210,16 +6233,16 @@ const createCanvasGradient = (ctx, obj) => {
        ctx.fillStyle = grad;
 
       }
-
-
     }
 
     //ctx.fillStyle = scene.backgroundColour?scene.backgroundColour:backgroundColour;
     ctx.fillRect(0, 0, PAGE_WIDTH + (BLEED*2), PAGE_HEIGHT + (BLEED*2));
+    
 
     if (isPanning.current) {
       ctx.translate(panXRef.current, panYRef.current);
     }
+
 
 
     const localTime = currentTimeRef.current - scene.start;
@@ -6263,7 +6286,11 @@ const createCanvasGradient = (ctx, obj) => {
         }
      
       ctx.globalAlpha = animationProps.opacity;
+
+      ctx.globalCompositeOperation = object.blendMode === 'normal'? "source-over" : object.blendMode; 
       ctx.beginPath(); // 🟢 Always begin a new path for each object
+
+
 
       if (object.effects.length > 0){
         object.effects.forEach(effect => {
@@ -8774,8 +8801,6 @@ function getSelectionBounds(selectedObjects) {
       }
       // resizing corner radius
       if (resizingCornerRadius){
-
-        
         const object = getActiveElement()
 
         const animated = getAnimatedProps(object);
@@ -13766,10 +13791,11 @@ const handleElementDragStart = (e, id) => {
           left: '50%',
           top: '100px',
           background:'var(--md-sys-color-surface)',
-          padding:'7px',
+          padding:'5px 10px',
           transform: 'translate(-50%, 0%)',
           borderRadius:'var(--btn-border-radius)',
           alignItems:'center',
+          gap:'10px',
           display:'flex',
         }}>
           {(activeElement.type === 'text') &&
@@ -13815,9 +13841,9 @@ const handleElementDragStart = (e, id) => {
           {(activeElement.type === 'image') &&
             <>
               {/*}<img src='/replace_image.svg' onClick={handleReplaceImage} style={{width:'28px', marginRight:'10px'}} alt='Replace Image'/>*/}
-              <img src='/fit_width.svg' onClick={() => resizeImage('Fit Width')} style={{width:'28px', marginRight:'10px'}} alt='Fit Width'/>
-              <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px', marginRight:'5px'}} alt='Fit Page'/>
-              <div style={{width:'35px', height:'35px', marginRight:'5px'}} className='tool-tip-crop'>
+              <img src='/fit_width.svg' onClick={() => resizeImage('Fit Width')} style={{width:'28px'}} alt='Fit Width'/>
+              <img src='/fit_page.svg' onClick={() => resizeImage('Fit Page')} style={{width:'28px'}} alt='Fit Page'/>
+              <div style={{width:'35px', height:'35px'}} className='tool-tip-crop'>
                 <ToolSVG
                   icon={Frame}
                   callBack={toolCallback}
@@ -13829,17 +13855,17 @@ const handleElementDragStart = (e, id) => {
                 />
               </div>
               {activeElement.clippingPath &&
-                 <img onClick={() => onElementUpdateProperty('clippingPath', null)} src='/remove-frame.svg' style={{width:'25px', marginRight: '10px'}} alt='Remove Frame'/>
+                 <img onClick={() => onElementUpdateProperty('clippingPath', null)} src='/remove-frame.svg' style={{width:'25px'}} alt='Remove Frame'/>
        
                }
-              <div style={{width:'24px', height:'24px', marginRight:'10px'}}>
+              <div style={{width:'24px', height:'24px'}}>
                 <Replace width='25px' height='24px' onClick={replaceImageFunction}/>
               </div>
-              <img onClick={editInPhotoshop} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px', marginRight:'10px'}}/>
+              <img onClick={editInPhotoshop} src='/Adobe_Photoshop_CC_icon.png' style={{width:'28px'}}/>
               <Sparkles onClick={editImage}/>
           </>
           }
-          <div style={{margin: '0px 0px 0px 15px'}}>
+          
             <button className={`btn  ${showEffects? 'primary':''}`} onClick={()=> {
               setShowEffects(prev => !prev)
               if (!showEffects){
@@ -13849,8 +13875,8 @@ const handleElementDragStart = (e, id) => {
             }
           }
             >Effects</button>
-          </div>
-          <div style={{margin: '0px 0px 0px 15px'}}>
+          
+      
             <button className={`btn  ${showAnimate? 'primary':''}`} onClick={()=> {
               setShowAnimate(prev => !prev)
                 if (!showAnimate){
@@ -13860,8 +13886,8 @@ const handleElementDragStart = (e, id) => {
               }
             }
             >Animate</button>
-          </div>
-          <div style={{margin: '0px 0px 0px 15px'}}>
+          
+        
             <button className={`btn  ${showProperties? 'primary':''}`} onClick={()=> {
               setShowProperties(prev => !prev)
               if (!showProperties){
@@ -13871,7 +13897,9 @@ const handleElementDragStart = (e, id) => {
             }
           }
             >Properties</button>
-          </div>
+
+         
+          <button style={{}} onClick={() => removeElement(activeElement)} className='btn btn-sm danger'><Trash2 style={{verticalAlign: 'middle'}}/></button>
         </div>
        }
 
@@ -16505,9 +16533,7 @@ const PropertiesPanel = ({
                           />
                         </div>
                         {element.clippingPath &&
-                          
                             <img onClick={() => onElementUpdateProperty('clippingPath', null)} src='/remove-frame.svg' style={{width:'28px'}} alt='Remove Frame'/>
-                          
                         }
                       </div>
                     </div>
@@ -16566,9 +16592,20 @@ const PropertiesPanel = ({
               <button className="btn secondary icon-button btn-sm" onClick={moveBackwards} style={{flex:1}}><BringToFront className='button-icon'/>Backward</button>
               <button className="btn secondary icon-button btn-sm" onClick={moveForward} style={{flex:1}}><SendToBack className='button-icon'/>Forward</button>
             </div>*/}
+             <hr/>
+          </div>
+
+
+        <div className="property-container">  
+          <div className="property-label"><Palette className="property-icon" /><p>Styles</p></div> 
+          <div style={{margin: '25px 0px 0px 0px'}}>
+            <BlendingModes
+              activeElement={element}
+              onElementUpdateProperty={onElementUpdateProperty}
+            /> 
           </div>
           {(element.type !== 'text') &&
-            <div style={{margin: '10px 0px 0px 0px'}}>
+            <div style={{margin: '25px 0px 0px 0px'}}>
               <p className='font-label'>Stroke Weight</p>
               <input
                 id='stroke-weight'
@@ -16606,6 +16643,13 @@ const PropertiesPanel = ({
               max={360}
               step={1}
             />
+          </div>
+          <div style={{margin: '25px 0px 0px 0px'}}>
+            <CornerRadius
+              activeElement={element}
+              onElementUpdateProperty={onElementUpdateProperty}
+            /> 
+          </div>
           </div>
         </div>
       </div>
@@ -18071,6 +18115,73 @@ export const MyProjects = ({userId, loadProject}) => {
           </p>
         )
       })}
+    </div>
+  )
+}
+
+const BlendingModes = ({
+  activeElement,
+  onElementUpdateProperty
+}) => {
+  return(
+    <div>
+      <p className="input-label" >Blend Mode</p>
+      <select id='blending_modes' className="form-input select" value={activeElement.blendMode??'normal'} onChange={e => onElementUpdateProperty('blendMode', e.target.value)}>
+        {blendModes.map((blendMode, index)=>{
+          return(
+            <option key={index}>
+              {blendMode}
+            </option>
+          )
+        })
+
+        }
+      </select>
+
+    </div>
+  )
+}
+
+const CornerRadius = ({
+  activeElement,
+  onElementUpdateProperty
+}) => {
+
+  const onChange = (value, index) => {
+    const array = [...activeElement.cornerRadius]
+    array[index] = value
+    onElementUpdateProperty('cornerRadius', array)
+  }
+
+  return(
+    <div>
+      <p style={{fontSize: '.8em'}}><strong>Corner Radius</strong></p>
+      <div style={{display:'flex', gap:'5px'}}>
+      {activeElement.cornerRadius.map((corner, index)=>{
+
+           let activeCorner
+            switch (index) {
+                case 0: activeCorner = 'Top Left'; break;
+                case 1: activeCorner = 'Top Right'; break;
+                case 2: activeCorner = 'Bottom Left'; break;
+                case 3: activeCorner = 'Bottom Right'; break;
+            } 
+
+        return(
+          <div key={index}>
+            <p className ='input-label'>{activeCorner}</p>
+            <input 
+            type='number' 
+            className="form-input input" 
+            value={corner} 
+            onChange={(e) => onChange(e.target.value, index)}
+            />
+          </div>
+        )
+      })
+
+    }
+    </div>
     </div>
   )
 }
