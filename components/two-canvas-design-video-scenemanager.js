@@ -25,6 +25,7 @@ import { getPostsWithDate } from "@/lib/supabase";
 import { updatePostPublication } from "@/lib/supabase";
 import { createVideoFromImages } from  "@/lib/createVideoFromImages"
 import Cropper from 'cropperjs';
+import Radio from '@mui/material/Radio';
 import { Summary } from '@/components/summary'
 import Slider from '@mui/material/Slider';
 import { Caption } from '@/components/caption'
@@ -33,7 +34,7 @@ import { useEditItemContext } from "@/context/edit-item-context"
 import { formatR2Url } from "@/lib/format-rs-url"
 import { useSearchParams } from 'next/navigation'
 import { ReactSortable } from "react-sortablejs";
-
+import { Share as SocialShare } from '@/components/scheduler'
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
   Film, Clock, Loader2, Trash2, Maximize2, Upload, Download, Music,
@@ -288,7 +289,6 @@ function getDisplayTime(text, options = {}) {
 
 
 function lightenRgba(rgba, amount = 0.5) {
-  console.log('rgba', rgba)
   const parts = rgba.match(/\d+(\.\d+)?/g).map(Number);
 
   const [r, g, b, a = 1] = parts;
@@ -2831,7 +2831,7 @@ drawTextChars(ctx, animationProps, editingText=false, scale=1) {
       const fontWeight = style?.fontWeight || this.fontWeight || "";
       const fontStyle = style?.fontStyle || this.fontStyle || "";
       const fontFamily = style?.fontFamily || this.fontFamily;
-      const fill = style?.fill || this.fill || "#000";
+      const fill = style?.fill?.colour || this.fill.colour || "#000";
       const charFontSize = style?.fontSize || fontSize;
 
       ctx.font = `${fontStyle} ${fontWeight} ${charFontSize  * scale }px ${fontFamily}`;
@@ -3328,7 +3328,10 @@ const createStoryScene = async (scene, image) => {
       fontSize:120,
       fontWeight:900,
       text:scene.text,
-      fill:'rgba(255,255,255,1)',
+      fill:{
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+      },
       textAlign:'left',
       width : PAGE_WIDTH - 200,
       lineHeight : 140,
@@ -3389,7 +3392,10 @@ const createStoryScene = async (scene, image) => {
       fontSize:100,
       fontWeight:900,
       text:scene.text,
-      fill:'rgba(255,255,255,1)',
+      fill:{
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+      },
       textAlign:'left',
       width : PAGE_WIDTH - 200,
       lineHeight : 120,
@@ -3487,7 +3493,10 @@ const createStoryScene = async (scene, image) => {
       fontSize:50,
       fontWeight:900,
       text:scene.text,
-      fill:'rgba(255,255,255,1)',
+      fill:{
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+      },
       textAlign:'center',
       width : PAGE_WIDTH - 200,
       lineHeight : 60,
@@ -3555,7 +3564,10 @@ const applyTemplate = async(type, template) => {
     fontSize:120,
     fontWeight:900,
     text:activeScenePostInfo.title,
-    fill:'rgba(255,255,255,1)',
+    fill:{
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+    },
     width : PAGE_WIDTH - 100,
     lineHeight : 140,
     type:'text',
@@ -3571,7 +3583,10 @@ const applyTemplate = async(type, template) => {
     fontSize:50,
     fontWeight:900,
     text:CTA,
-    fill:'rgba(255,255,255,1)',
+    fill:{
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+    },
     textAlign:'center',
     width : PAGE_WIDTH,
     lineHeight : 60,
@@ -3849,7 +3864,10 @@ const loadPost = async (postData) => {
     fontSize:120,
     fontWeight:900,
     text:postData.title,
-    fill:'rgba(255,255,255,1)',
+    fill:{
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+    },
     textAlign:'center',
     width : PAGE_WIDTH,
     lineHeight : 140,
@@ -3870,7 +3888,10 @@ const loadPost = async (postData) => {
      fontSize:50,
      fontWeight:900,
      text:CTA,
-     fill:'rgba(255,255,255,1)',
+     fill:{
+        type:'fill',
+        colour:`rgba(255, 255, 255, 1)`
+     },
      textAlign:'center',
      width : PAGE_WIDTH,
      lineHeight : 60,
@@ -5114,6 +5135,8 @@ const pasteTextCallBack = useCallback((e) => {
 
        // ctx.fillStyle = object.fill || "lightgray";
         ctx.fill();
+        console.log('ctx.fillStyle artboard', ctx.fillStyle)
+       console.log('ctx.fill artboard', ctx.fill())
       }
       // Then stroke (optional)
       if (object.strokeColour && object.strokeWeight && object.type !== 'image' && object.type !== "custom-shape"){
@@ -6150,6 +6173,7 @@ function buildCurve(c, pointList, close) {
 
 
 const createCanvasGradient = (ctx, obj) => {
+  
   let gradient
 
   if (obj.gradientType === "linear-gradient"){
@@ -6237,6 +6261,8 @@ const createCanvasGradient = (ctx, obj) => {
 
     //ctx.fillStyle = scene.backgroundColour?scene.backgroundColour:backgroundColour;
     ctx.fillRect(0, 0, PAGE_WIDTH + (BLEED*2), PAGE_HEIGHT + (BLEED*2));
+
+    //ctx.restore();
     
 
     if (isPanning.current) {
@@ -6280,9 +6306,6 @@ const createCanvasGradient = (ctx, obj) => {
             ctx.translate(screenCx, screenCy);
             ctx.rotate(animationProps.angle);
             ctx.scale(animationProps.scale, animationProps.scale);
-
-       
-
         }
      
       ctx.globalAlpha = animationProps.opacity;
@@ -6291,7 +6314,7 @@ const createCanvasGradient = (ctx, obj) => {
       ctx.beginPath(); // 🟢 Always begin a new path for each object
 
 
-
+        
       if (object.effects.length > 0){
         object.effects.forEach(effect => {
           applyEffect(ctx, effect)
@@ -6299,24 +6322,24 @@ const createCanvasGradient = (ctx, obj) => {
       }
 
       if (object.type === "rectangle") {
-        //ctx.beginPath(); // 🟢 Always begin a new path for each object
 
+    
         ctx.roundRect(-object.width/ 2, -object.h / 2, object.width, object.h, object.cornerRadius || 0);
-     
-
-         //ctx.closePath();
+    
       } else if (object.type === "ellipse") {
 
         ctx.ellipse(0, 0, object.width/ 2, object.h / 2, 0, 0, Math.PI * 2);
+        
       } else if (object.type === "triangle"){
 
         ctx.moveTo(0, -object.h / 2);
         ctx.lineTo(-object.width/2, object.h / 2);
         ctx.lineTo(object.width/2, object.h / 2);
 
+
       } else if (object.type === "custom-shape"){
 
-
+        
           if (object.type === 'custom-shape' && !object.closed) {
            
             buildCurve(ctx, object.points, object.closed);
@@ -6330,6 +6353,7 @@ const createCanvasGradient = (ctx, obj) => {
             ctx.fill();
           
           }
+            
 
 
       }else if (object.type === "text"){
@@ -6339,7 +6363,12 @@ const createCanvasGradient = (ctx, obj) => {
         }else{
           object.drawTextChars(ctx, animationProps, editingAnimatedText)
         }
+      
+
+        
       }else if (object.type === "image"){
+
+        
 
         if (object.clippingPath){
 
@@ -6405,19 +6434,23 @@ const createCanvasGradient = (ctx, obj) => {
           );
         }
 
-
-
+        
+       
       }else if (object.type === "video"){
 
-
+        
         object.redrawVideo(ctx, animationProps)
+        
 
       }else if (object.type === "pen"){
+        
               ctx.save();
               ctx.setTransform(1, 0, 0, 1, 0, 0);
               drawPen(ctx, object.points, object.fill, object.brushSize);
               ctx.restore();
+              
        }else if (object.type === "air brush"){
+        
 
             if (object.airbrushBuffer){
               ctx.save();
@@ -6427,7 +6460,9 @@ const createCanvasGradient = (ctx, obj) => {
               ctx.globalAlpha = 1;
               ctx.restore();
             }
+              
        }else if (object.type === 'eraser'){
+        
          if (object.eraserBuffer){
            ctx.save();
            ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -6437,17 +6472,20 @@ const createCanvasGradient = (ctx, obj) => {
            //ctx.globalAlpha = 1;
            ctx.restore();
          }
+           
        }
+     
 
       // Fill first
 
       if (object.type !== "pen" && object.type !== "image" && object.type !== "custom-shape"){
       
-
            if (object.fill.type === 'fill'){
-              ctx.fillStyle = object.fill.colour
-            }else{
 
+              ctx.fillStyle = object.fill.colour
+              
+            }else{
+              
               const gradientObject = {
                 ...object.fill,
                 width: object.width,
@@ -6457,16 +6495,16 @@ const createCanvasGradient = (ctx, obj) => {
               }
             const grad = createCanvasGradient(ctx, gradientObject)
             ctx.fillStyle = grad;
+             console.log('ctx.fillStyle lower grad', ctx.fillStyle) 
 
         }
 
-       // ctx.fillStyle = object.fill || "lightgray";
-        ctx.fill();
+       ctx.fill();
       }
 
       // Then stroke (optional)
       if (object.strokeColour && object.strokeWeight && object.type !== 'image' && object.type !== 'custom-shape'){
-
+        
         ctx.strokeStyle = object.strokeColour || "black";
         ctx.lineWidth = object.strokeWeight || 0
         // put stroke on outside
@@ -6476,6 +6514,7 @@ const createCanvasGradient = (ctx, obj) => {
           object.width + object.strokeWeight,
           object.h + object.strokeWeight
         );
+        
       }
 
       ctx.closePath();
@@ -8357,7 +8396,6 @@ function getSelectionBounds(selectedObjects) {
           //update object width and height based on points
         }else{
 
-          console.log('add new path')
               // path is closed, start a new pat
             const newObj =  new Element({
               id: generateUniqueId(),
@@ -8819,14 +8857,12 @@ function getSelectionBounds(selectedObjects) {
         const cos = Math.cos(-animated.angle);
         const sin = Math.sin(-animated.angle);
 
-
         // Mouse position in object-local coordinates
         const mouseLocalX =
           (dx * cos - dy * sin) / animated.scale;
 
         const mouseLocalY =
           (dx * sin + dy * cos) / animated.scale;
-
 
         // -----------------------------------------
         // Normal corner index
@@ -8864,8 +8900,6 @@ function getSelectionBounds(selectedObjects) {
           halfHeight = object.h / 2;
 
         }
-
-
 
           const corners = {
             0: {
@@ -8924,8 +8958,6 @@ function getSelectionBounds(selectedObjects) {
         distanceX = Math.max(CORNER_RADIUS_OFFSET + HANDLE_SIZE, distanceX);
         distanceY = Math.max(CORNER_RADIUS_OFFSET + HANDLE_SIZE, distanceY);
 
-
-
         // Radius follows the smaller distance
         let radius = Math.min(
           distanceX,
@@ -8938,8 +8970,6 @@ function getSelectionBounds(selectedObjects) {
           halfWidth,
           halfHeight
         );
-
-
 
         radius = Math.min(
           radius,
@@ -8983,7 +9013,7 @@ function getSelectionBounds(selectedObjects) {
 
         if (e.shiftKey) {
 
-      for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 4; i++) {
 
             object.cornerRadius[radiusMap[i]] = radius;
 
@@ -9003,10 +9033,7 @@ function getSelectionBounds(selectedObjects) {
 
           radiusCoOr[cornerIndex] = getCornerRadiusPosition(
             cornerIndex,
-             Math.min(
-                radius,
-                maxPosition
-            ),
+             Math.min(radius, maxPosition),
             corners
           );
       }
@@ -13363,8 +13390,14 @@ const handleElementDragStart = (e, id) => {
               //onDrop={(e) => handleElementsDrop(e, null)}
               >
                     {[...activeSceneState.elements].reverse().map((element, index)=>{
-                      const isWhite = element?.fill?.colour === 'rgba(255,255,255,1)'
+                      const isWhite = element?.fill?.colour === 'rgba(255, 255, 255, 1)' || element?.fill?.colour === 'rgba(255,255,255,1)'
                       const isImage = element?.type === 'image'
+
+                      if (!isImage){
+                        console.log('isWhite', isWhite)
+                        console.log('element', element.fill.colour)
+                      }
+                     
 
                       var colour
                       var borderColour
@@ -13427,7 +13460,7 @@ const handleElementDragStart = (e, id) => {
                               }
                               {element.type === 'text'&&
                                 <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
-                                  {element.type === 'text' ? `"${element.text?.slice(0, 20) || 'Text'}..."` :
+                                  {element.type === 'text' ? `"${element.text?.slice(0, 35) || 'Text'}..."` :
                                   element.type}
                                 </span>
                               }
@@ -13576,6 +13609,8 @@ const handleElementDragStart = (e, id) => {
             toolCallback={toolCallback}
             activeTool={activeTool}
             canvasEditorHeight={canvasEditorHeight}
+            scale={scaleRef.current}
+            getCornerRadiusPosition={getCornerRadiusPosition}
             />
           }
       </div>
@@ -14214,7 +14249,16 @@ const [isOpen, setIsOpen] = useState(false);
 const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
 const { getGradientObject } = useColorPicker(colour, setColour);
 
-const isWhite = colour === 'rgba(255, 255, 255, 1)'
+
+const isWhite = colour === 'rgba(255,255,255,1)' || 
+colour === 'rgb(255, 255, 255)' || 
+colour === 'rgb(255,255,255)' || 
+colour === 'rgba(255, 255, 255, 1)' || 
+colour === 'rgba(255,255,255, 1)'
+
+console.log('colour', colour)
+
+console.log('isWhite', isWhite)
 
 useEffect(() => {
   setIsOpen(activeTool === tool);
@@ -14396,7 +14440,11 @@ const [isOpen, setIsOpen] = useState(false);
 const [colour, setColour] = useState(activeColour?activeColour:'rgba(255, 255, 255, 1)')
 const { getGradientObject } = useColorPicker(colour, setColour);
 
-const isWhite = colour === 'rgba(255, 255, 255, 1)'
+const isWhite = colour === 'rgba(255,255,255,1)' || 
+colour === 'rgb(255, 255, 255)' || 
+colour === 'rgb(255,255,255)' || 
+colour === 'rgba(255, 255, 255, 1)' || 
+colour === 'rgba(255,255,255, 1)'
 
 useEffect(() => {
   setIsOpen(activeTool === tool);
@@ -15594,7 +15642,7 @@ useEffect(() => {
                     </div>
                   </div>
                   {[...scene.elements].reverse().map((element, index)=>{
-                    const isWhite = element?.fill === 'rgba(255,255,255,1)'
+                    const isWhite = element?.fill?.colour === 'rgba(255, 255, 255, 1)' || element?.fill?.colour === 'rgba(255,255,255,1)'
                     const isImage = element?.type === 'image'
                     var colour
                     var borderColour
@@ -16397,7 +16445,9 @@ const PropertiesPanel = ({
   moveForward,
   toolCallback,
   activeTool,
-  canvasEditorHeight
+  canvasEditorHeight,
+  scale,
+  getCornerRadiusPosition
 }) => {
 
 
@@ -16648,6 +16698,8 @@ const PropertiesPanel = ({
             <CornerRadius
               activeElement={element}
               onElementUpdateProperty={onElementUpdateProperty}
+              scale={scale}
+              getCornerRadiusPosition={getCornerRadiusPosition}
             /> 
           </div>
           </div>
@@ -16689,6 +16741,8 @@ const Share = ({
   const [buttonText, setButtonText]= useState('Schedule')
   const [isInstagram, setIsInstagram] = useState(false)
   const [instagramCaptionError, setInstagramCaptionError] = useState(false)
+  const [addComment, setAddComment] = useState(true)
+  const [addCaptionLink, setAddCaptionLink] = useState(true)
 
 
 
@@ -17223,7 +17277,7 @@ const getPostsScheduledPosts = async() => {
 
                 <ChannelSelector userId={userId} postInfo={postInfo} callback={channelSelectorCallback}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>
-                  <p className='font-label'>Post Type</p>
+                  <p className='label'>Post Type</p>
                   <input
                     style={{marginRight:'5px'}}
                     type="radio"
@@ -17273,35 +17327,38 @@ const getPostsScheduledPosts = async() => {
                 <Summary text={caption} defaultPlatform={'facebook'}/>
                 <div className="properties-container" style={{margin:'15px 0px'}}>
                   <p className='font-label'>Schedule Date & Time</p>
-                  <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
-                    <div style={{display:'flex', alignItems:'center'}}>
-                      <input
-                        style={{marginRight:'5px'}}
-                        type="radio"
-                        value="SCHEDULE"
-                        checked={postState === 'SCHEDULE'}
-                        onChange={handlePostStateChange}
-                      /><strong style={{fontSize:'.9em'}}>Schedule</strong>
-                    </div>
-                    <div style={{display:'flex', alignItems:'center'}}>
-                      <input
-                        style={{marginRight:'5px'}}
-                        type="radio"
-                        value="PUBLISH"
-                        checked={postState === 'PUBLISH'}
-                        onChange={handlePostStateChange}
-                      /><strong style={{fontSize:'.9em'}}>Publish Now</strong>
-                    </div>
-                    <div style={{display:'flex', alignItems:'center', marginLeft: 'auto', display:'none'}}>
-                      <input
-                        style={{marginRight:'5px'}}
-                        type="radio"
-                        value="DRAFT"
-                        checked={postState === 'DRAFT'}
-                        onChange={handlePostStateChange}
-                      /><span style={{fontSize:'.9em'}}>Set as draft</span>
-                    </div>
+                <div style={{margin:'10px 0px 5px 0px', display:'flex', gap:'10px'}}>
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginRight:'0px'}}
+                      type="radio"
+                      value="SCHEDULE"
+                      checked={postState === 'SCHEDULE'}
+                      onChange={handlePostStateChange}
+                      disabled={status === 'published'}
+                    /><strong style={{fontSize:'.9em'}}>Schedule</strong>
                   </div>
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <Radio
+                      style={{marginRight:'0px'}}
+                      type="radio"
+                      value="PUBLISH"
+                      checked={postState === 'PUBLISH'}
+                      onChange={handlePostStateChange}
+                      disabled={status === 'published'}
+                    /><strong style={{fontSize:'.9em'}}>Publish Now</strong>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center', marginLeft: 'auto', display:'none'}}>
+                    <input
+                      style={{marginRight:'5px'}}
+                      type="radio"
+                      value="DRAFT"
+                      checked={postState === 'DRAFT'}
+                      onChange={handlePostStateChange}
+                      disabled={status === 'published'}
+                    /><span style={{fontSize:'.9em'}}>Set as draft</span>
+                  </div>
+                </div>
                   <DatePicker
                     style={{minWidth:'300px'}}
                     minDate={moment().toDate()}
@@ -18144,14 +18201,94 @@ const BlendingModes = ({
 
 const CornerRadius = ({
   activeElement,
-  onElementUpdateProperty
+  onElementUpdateProperty,
+  scale,
+  getCornerRadiusPosition
 }) => {
 
   const onChange = (value, index) => {
     const array = [...activeElement.cornerRadius]
     array[index] = value
     onElementUpdateProperty('cornerRadius', array)
+
+    let radiusCoOr
+    const object = activeElement
+    let halfWidth
+    let halfHeight
+
+    if (object.clippingPath) {
+        const clipWidth = object.clippingPath.right - object.clippingPath.left;
+        const clipHeight = object.clippingPath.bottom - object.clippingPath.top;
+          radiusCoOr = object.cornerRadiusCoordinates ?? [
+                { x: -clipWidth/2, y: -clipHeight/2, default:true}, // top-left
+                { x: clipWidth/2, y: -clipHeight/2, default:true}, // top-right
+                { x: -clipWidth/2, y: clipHeight/2, default:true}, // bottom-left
+                { x: clipWidth/2, y: clipHeight/2, default:true}, // bottom-right
+          ] 
+          halfWidth = (object.clippingPath.right - object.clippingPath.left) / 2;
+          halfHeight = (object.clippingPath.bottom - object.clippingPath.top) / 2;
+
+        }else{
+
+          radiusCoOr = object.cornerRadiusCoordinates ?? [
+                { x: -object.width/2, y: -object.h/2, default:true}, // top-left
+                { x: object.width/2, y: -object.h/2, default:true}, // top-right
+                { x: -object.width/2, y: object.h/2, default:true}, // bottom-left
+                { x: object.width/2, y: object.h/2, default:true}, // bottom-right
+          ] 
+
+          halfWidth = object.width / 2;
+          halfHeight = object.h / 2;
+      } 
+
+      const radiusMap = [0, 1, 3, 2];
+
+      const maxPosition = Math.min(
+          halfWidth - ((CORNER_RADIUS_OFFSET * scale + (CORNER_RADIUS_OFFSET + HANDLE_SIZE*2))),
+          halfHeight - ((CORNER_RADIUS_OFFSET * scale + (CORNER_RADIUS_OFFSET + HANDLE_SIZE*2))),
+      );
+
+      const corners = {
+            0: {
+              x: -halfWidth + CORNER_RADIUS_OFFSET,
+              y: -halfHeight + CORNER_RADIUS_OFFSET
+            },
+            1: {
+              x: halfWidth - CORNER_RADIUS_OFFSET,
+              y: -halfHeight + CORNER_RADIUS_OFFSET
+            },
+            2: {
+              x: -halfWidth + CORNER_RADIUS_OFFSET,
+              y: halfHeight - CORNER_RADIUS_OFFSET
+            },
+            3: {
+              x: halfWidth - CORNER_RADIUS_OFFSET,
+              y: halfHeight - CORNER_RADIUS_OFFSET
+            }
+      };
+
+     let radiusIndex
+      switch (index) {
+        case 0: radiusIndex = 0; break;
+        case 1: radiusIndex = 1; break;
+        case 2: radiusIndex = 3; break;
+        case 3: radiusIndex = 2; break;
+      }
+
+      radiusCoOr[radiusIndex] = getCornerRadiusPosition(
+            index,
+             Math.min(value, maxPosition),             
+            corners
+          );
+
+       //console.log('radiusCoOr', radiusCoOr)   
+
+       onElementUpdateProperty('cornerRadiusCoordinates', radiusCoOr)
+
   }
+
+
+
 
 
   
@@ -18166,8 +18303,8 @@ const CornerRadius = ({
             switch (index) {
                 case 0: activeCorner = 'Top Left'; break;
                 case 1: activeCorner = 'Top Right'; break;
-                case 2: activeCorner = 'Bottom Left'; break;
-                case 3: activeCorner = 'Bottom Right'; break;
+                case 2: activeCorner = 'Bottom Right'; break;
+                case 3: activeCorner = 'Bottom Left'; break;
             } 
 
         return(

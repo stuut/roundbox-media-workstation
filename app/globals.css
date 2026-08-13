@@ -1766,7 +1766,7 @@ background: rgba(65, 95, 145, .5)
 }
 
 .media-image-selected{
-  border-radius: var(--media-image-border-radius)
+  border-radius: var(--input-border-radius)
 }
 
 .message-right .message-avatar{

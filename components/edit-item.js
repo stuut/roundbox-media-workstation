@@ -4,6 +4,7 @@ import { useEditItemContext } from "@/context/edit-item-context"
 import { useUserContext } from "@/context/user-context"
 import Cropper from 'react-easy-crop'
 import Slider from '@mui/material/Slider';
+import { ImageUpload } from "@/components/image-upload"
 import {
 Palette,
 Square,
@@ -21,7 +22,8 @@ import "cropperjs/dist/cropper.css";
 import { dataURLToFile } from '@/lib/utils'
 import { handleDownload } from '@/lib/utils'
 import { uploadFile } from '@/lib/upload-file'
-
+import { e } from 'mathjs';
+import { urlToFile } from '@/lib/utils'
 
 
 export default function EditFile() {
@@ -125,6 +127,7 @@ return(
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "upscale"? 'active':''}`}onClick={() => setActiveTool('upscale')}> Upscale </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "reframe"? 'active':''}`}onClick={() => setActiveTool('reframe')}> Recompose </p>
                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "remove background"? 'active':''}`}onClick={() => setActiveTool('remove background')}> Remove Background </p>
+                 <p style={{cursor:'pointer'}} className={`edit_image_menu_item ${activeTool === "create video"? 'active':''}`}onClick={() => setActiveTool('create video')}> Create Video </p>
 
               </div>
               <div style={{flex:4, position:'relative'}}>
@@ -206,6 +209,17 @@ return(
                         setApplyChanges={setApplyChanges}
                         setLoader={setLoader}
                       />
+                      }
+
+                      {activeTool === 'create video' &&
+
+                        <CreateVideo
+                          user={user}
+                          image={workingFile}
+                          setWorkingFile={setWorkingFile}
+                          setApplyChanges={setApplyChanges}
+                          setLoader={setLoader}
+                        />
                       }
                 
                 </>
@@ -326,6 +340,159 @@ const Recompose = ({
   )
 }
 
+const CreateVideo = ({
+  user,
+  image,
+  setWorkingFile,
+  setApplyChanges,
+  setLoader
+
+})=>{
+
+  const [referenceImage, setReferenceImage] = useState(null)
+  const [resultUrl, setResultUrl] = useState(null)
+  const [prompt, setPrompt] = useState('')
+
+    const handleImageSelect = imageData => {
+      setReferenceImage(imageData || null)
+    }
+
+
+  useEffect(()=>{
+    async function loadImage(image){
+
+      console.log('image', image)
+           try {
+
+            const proxiedUrl = `/api/image-proxy?url=${image.file_url}`
+
+            const response = await fetch(proxiedUrl)
+
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            const blob = await response.blob()
+            const reader = new FileReader()
+
+            reader.onload = event => {
+              if (event.target && event.target.result) {
+                const result = event.target.result
+                setReferenceImage(result)               
+              }
+            }
+
+            reader.onerror = error => {
+              console.error("Error reading file:", error)
+            }
+
+            reader.readAsDataURL(blob)
+          } catch (error) {
+            console.error("Error fetching image:", error)
+          }
+
+    }
+
+   
+
+    if (image){
+      loadImage(image)
+    }
+
+
+  },[image])
+
+
+const upscale = async () => {
+
+  try {
+    setLoader(true)
+      const response = await fetch(`/api/stability/remove-background`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        imageUrl: image.file_url,
+        fileName: image.file_name,
+        fileType: image.file_type,
+      }),
+    })
+
+    if (!response.ok) {
+      showError(`Image Error: ${response.status}`)
+      return
+    }
+
+    const result = await response.json()
+
+    if (response.ok) {
+
+      const fileinfo = await storeFileInfo({
+        user_id: user.id,
+        file_url: result.url,
+        file_type: image.file_type,
+        file_name: result.fileName,
+        file_description: image.file_description ?? null
+      })
+
+      setFileUrl(result.url)
+
+      setWorkingFile({
+        created_at: fileinfo.created_at,
+        file_type: image.file_type,
+        file_url: result.url,
+        file_name: result.fileName,
+        file_description: image.file_description??null,
+        id: fileinfo.id,
+        user_id: user.id
+      })
+      setApplyChanges(true)
+
+    }
+  }catch(error){
+    showError('Upscale error: ' + error.message)
+  }finally{
+    setLoader(false)
+  }
+}
+
+
+
+
+
+
+
+  return(
+    <div>
+      {resultUrl&&
+         <video
+          src={resultUrl}
+          controls
+          autoPlay={false}
+          className="video_thumb"
+          playsInline
+          style={{minWidth:'unset'}}
+        />
+      }
+      <div className="properties-container">
+      <p className='label'><strong>Reference Image</strong></p>
+      
+      <ImageUpload
+        onImageSelect={handleImageSelect}
+        currentImage={referenceImage}
+        filename={image.file_name}
+        user={user}
+      />
+      <p>Describe the video you want to create</p>
+      <textarea id="prompt" className="form-input" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+      <button className='btn primary' onClick={upscale}>Remove Background</button>
+      </div>
+    </div>
+  )
+}
+
+
 const RemoveBackground = ({
   user,
   image,
@@ -395,9 +562,9 @@ const upscale = async () => {
 
 
   return(
-    <div>
+    <div style={{height:'100%'}}>
       <img src={fileUrl} style={{maxWidth:'600px'}} />
-      <button className='btn primary' onClick={upscale}>Remove Background</button>
+      <button className='btn primary' onClick={upscale}>Create Video</button>
     </div>
   )
 }

@@ -1403,7 +1403,7 @@ const ExternalEvent = memo(({data}) => {
   )
 })
 
-const Share = ({
+export const Share = ({
   postData,
   userId,
   deletePostCallBack,
