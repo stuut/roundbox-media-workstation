@@ -2354,11 +2354,7 @@ measureTextWidthHilight(line, lineIndex, ctx, startCharIndex = 0) {
       ctx.fillRect(startX * scale, startY, selectedWidth * scale, hilightHeight * scale);
     });
     ctx.restore();
-
-
     this.drawTextChars(ctx, animationProps, editingText, scale)
-
-
   }
 
 font(){
@@ -2368,18 +2364,12 @@ font(){
 async drawVideoInit(ctx) {
   return new Promise((resolve) => {
     const videoEl = document.createElement('video');
-
     videoEl.crossOrigin = 'anonymous';
-
     const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(this.videoSrc)}`;
-
-
     videoEl.src = proxiedUrl;
-
     videoEl.muted = true;
     videoEl.preload = 'auto';
     videoEl.playsInline = true;   // important on iOS
-
 
     videoEl.addEventListener('loadedmetadata', async () => {
       videoEl.pause();
@@ -2399,7 +2389,6 @@ async drawVideoInit(ctx) {
           this.width,
           this.h
         );
-
       });
 
       videoRegistryRef.current.set(this.id, this.video);
@@ -2409,6 +2398,8 @@ async drawVideoInit(ctx) {
     });
   });
 }
+
+
 
 
 
@@ -2449,42 +2440,72 @@ async captureFrames() {
 
 };
 
-async generateThumbnails(){
+async generateThumbnails() {
 
-  return new Promise( async(resolve) => {
+  console.log('generateThumbnails START');
 
-    await this.video.play().catch(() => {}); // some browsers require play before seeking
-    this.video.pause();
+  await this.video.play().catch(() => {});
+  console.log('after play');
 
-    const count = Math.round(this.video.duration) // number of thumbnails
-    const urls = [];
+  this.video.pause();
 
-    for (let i = 0; i < count; i++) {
-      const t = (i / (count - 1)) * this.video.duration;
-      this.video.currentTime = t;
-      // wait until frame is ready
-      await new Promise((resolve) =>
-        this.video.requestVideoFrameCallback(() => resolve())
-      );
+  console.log('duration:', this.video.duration);
+  console.log('videoWidth:', this.video.videoWidth);
+  console.log('videoHeight:', this.video.videoHeight);
+  console.log('readyState:', this.video.readyState);
 
-      // draw to offscreen canvas
-      const offscreen = new OffscreenCanvas(this.video.videoWidth, this.video.videoHeight);
-      const ctx = offscreen.getContext("2d");
-      ctx.drawImage(this.video, 0, 0);
+  const count = Math.round(this.video.duration);
+  console.log('count:', count);
 
-      // convert to blob → URL
-      const blob = await offscreen.convertToBlob({ type: "image/png" });
-      const url = URL.createObjectURL(blob);
-      urls.push(url);
-    }
+  const urls = [];
 
+for (let i = 0; i < count; i++) {
 
+  const t = (i / (count - 1)) * this.video.duration;
 
-    this.thumbnails = urls
-    resolve()
-  })
+  await new Promise((resolve, reject) => {
 
-};
+    const onSeeked = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onError = () => {
+      cleanup();
+      reject(this.video.error);
+    };
+
+    const cleanup = () => {
+      this.video.removeEventListener("seeked", onSeeked);
+      this.video.removeEventListener("error", onError);
+    };
+
+    this.video.addEventListener("seeked", onSeeked);
+    this.video.addEventListener("error", onError);
+
+    this.video.currentTime = t;
+  });
+
+  const offscreen = new OffscreenCanvas(
+    this.video.videoWidth,
+    this.video.videoHeight
+  );
+
+  const ctx = offscreen.getContext("2d");
+
+  ctx.drawImage(this.video, 0, 0);
+
+  const blob = await offscreen.convertToBlob({
+    type: "image/jpeg"
+  });
+
+  urls.push(URL.createObjectURL(blob));
+}
+
+  this.thumbnails = urls;
+
+  console.log('generateThumbnails COMPLETE');
+}
 
 
 getFrameAtTime(time) {
@@ -2498,6 +2519,102 @@ getFrameAtTime(time) {
   return this.frames[frameIndex]?.bitmap || null;
 }
 
+async updateVideo(video){
+  return new Promise((resolve) => {
+
+    const ctx = lowerRef.current.getContext('2d');
+    if (!ctx) return;
+
+    const videoEl = document.createElement('video');
+    videoEl.crossOrigin = 'anonymous';
+    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(this.videoSrc)}`;
+    videoEl.src = proxiedUrl;
+    videoEl.muted = true;
+    videoEl.preload = 'auto';
+    videoEl.playsInline = true;   // important on iOS
+
+    videoEl.addEventListener('loadedmetadata', async () => {
+      videoEl.pause();
+      videoEl.currentTime = 0;
+      this.video = videoEl;
+      this.width = videoEl.videoWidth;
+      this.h = videoEl.videoHeight;
+      this.originalWidth = videoEl.videoWidth;
+      this.originalHeight = videoEl.videoHeight;
+      this.videoDuration = videoEl.duration;
+      this.videoSrc = video
+
+
+
+      videoRegistryRef.current.set(this.id, this.video);
+      await this.generateThumbnails()
+      this.video.currentTime = 0
+      resolve(true);
+    });
+
+  });
+}
+
+async replaceImageWithVideo(video){
+  console.log('video', video)
+
+  return new Promise((resolve) => {
+    const ctx = lowerRef.current.getContext('2d');
+    if (!ctx) return;
+
+    const videoEl = document.createElement('video');
+    videoEl.crossOrigin = 'anonymous';
+    const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(video)}`;
+    
+    videoEl.src = proxiedUrl;
+    videoEl.muted = true;
+    videoEl.preload = 'auto';
+    videoEl.playsInline = true;   // important on iOS
+
+    videoEl.addEventListener('loadedmetadata', async () => {
+
+      videoEl.pause();
+      videoEl.currentTime = 0;
+      this.video = videoEl;
+      this.width = videoEl.videoWidth;
+      this.h = videoEl.videoHeight;
+      this.originalWidth = videoEl.videoWidth;
+      this.originalHeight = videoEl.videoHeight;
+      this.videoDuration = videoEl.duration;
+      this.imageSrc = null
+      this.img = null;
+      this.type = 'video';
+      this.videoSrc = video
+
+      /*
+      videoEl.requestVideoFrameCallback(() => {
+        ctx.drawImage(
+          this.video,
+          this.cx - this.width / 2,
+          this.cy - this.h / 2,
+          this.width,
+          this.h
+        );
+      });*/
+
+      videoRegistryRef.current.set(this.id, this.video);
+      
+      try{
+         await this.generateThumbnails()
+      }catch(er){
+        console.log(er)
+      }
+     
+
+      this.video.currentTime = 0
+      console.log('resolve')
+      resolve(true);
+    });
+  });
+}
+
+
+
 async updateImage(image){
 
   return new Promise( async(resolve, reject) => {
@@ -2510,35 +2627,18 @@ async updateImage(image){
     const img = new Image();
     img.crossOrigin = "anonymous";
 
-
-
     const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(image)}`;
-
-
-
-
     img.src = proxiedUrl
-
     await img.decode(); // waits until fully loaded
-
-    const scale = Math.min(
-      this.originalWidth / img.naturalWidth,
-      this.originalHeight / img.naturalHeight
-    )
-
 
     this.img = img;
     this.width = img.naturalWidth * scaleX;
     this.h = img.naturalHeight * scaleY;
-    //this.width = img.naturalWidth * scale;
-    //this.h = img.naturalHeight * scale;
     this.originalWidth = img.naturalWidth
     this.originalHeight = img.naturalHeight
     this.imageSrc = img.src
-
     resolve(true);
   })
-
 }
 
 async replaceImage(image){
@@ -2549,13 +2649,8 @@ async replaceImage(image){
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-
-
     const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(image)}`;
-
-
     img.src = proxiedUrl
-
     await img.decode(); // waits until fully loaded
     this.img = img;
     this.width = img.naturalWidth;
@@ -2563,15 +2658,6 @@ async replaceImage(image){
     this.originalWidth = img.naturalWidth
     this.originalHeight = img.naturalHeight
     this.imageSrc = img.src
-    /*
-    ctx.drawImage(
-      img,
-      this.cx - this.width / 2,
-      this.cy - this.h / 2,
-      this.width,
-      this.h
-    );
-    */
 
     resolve(true);
   })
@@ -3234,7 +3320,20 @@ const addVideos = (videos) => {
 
 }
 
+const checkVideoMinDuration = () => {
 
+  let length = 0
+  const videos = objectsRef.current.filter((el) => el.type === 'video')
+  for (const video of videos) {
+    console.log('video', video)
+    length += video.videoDuration
+  }
+  //console.log('length', length)
+  setDuration(length)
+  const activeScene = sceneManagerRef.current.getActiveScene()
+  activeScene.duration = length
+
+}
 
 const addVideo = async (video) => {
 
@@ -3258,6 +3357,7 @@ const addVideo = async (video) => {
 
     selectedIndexRef.current = objectsRef.current.length - 1
     setActiveElementId(objectsRef.current.length - 1)
+    checkVideoMinDuration()
 
     setCanvasLoader(false)
 
@@ -5106,6 +5206,26 @@ const pasteTextCallBack = useCallback((e) => {
 
       }else if (object.type === "video"){
 
+
+          if (object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates.some(coord => coord.x !== 0 || coord.y !== 0)) {
+
+              ctx.roundRect(
+                -object.width / 2 * scaleRef.current,
+                -object.h / 2 * scaleRef.current,
+                object.width * scaleRef.current,
+                object.h * scaleRef.current,
+                [
+                  object.cornerRadius[0] * scaleRef.current,
+                  object.cornerRadius[1] * scaleRef.current,
+                  object.cornerRadius[2] * scaleRef.current,
+                  object.cornerRadius[3] * scaleRef.current,
+                ]
+              )
+
+              ctx.clip();
+
+          }
+
         ctx.drawImage(
           object.video,
           (-object.width / 2) * scaleRef.current,
@@ -5116,9 +5236,9 @@ const pasteTextCallBack = useCallback((e) => {
       }
 
 
-      if (object.type !== "pen" && object.type !== "image" && object.type !== "custom-shape"){
-           if (object.fill.type === 'fill'){
-              ctx.fillStyle = object.fill.colour
+      if (object.type !== "pen" && object.type !== "image" && object.type !== "video"){
+           if (object?.fill?.type === 'fill'){
+              ctx.fillStyle = object?.fill?.colour
             }else{
 
               const gradientObject = {
@@ -6301,9 +6421,7 @@ const createCanvasGradient = (ctx, obj) => {
 
         if (object.type !== 'image'){
 
-           const screenCx = animationProps.cx
-            const screenCy = animationProps.cy
-            ctx.translate(screenCx, screenCy);
+            ctx.translate(animationProps.cx, animationProps.cy);
             ctx.rotate(animationProps.angle);
             ctx.scale(animationProps.scale, animationProps.scale);
         }
@@ -6322,8 +6440,6 @@ const createCanvasGradient = (ctx, obj) => {
       }
 
       if (object.type === "rectangle") {
-
-    
         ctx.roundRect(-object.width/ 2, -object.h / 2, object.width, object.h, object.cornerRadius || 0);
     
       } else if (object.type === "ellipse") {
@@ -6367,8 +6483,6 @@ const createCanvasGradient = (ctx, obj) => {
 
         
       }else if (object.type === "image"){
-
-        
 
         if (object.clippingPath){
 
@@ -6438,6 +6552,19 @@ const createCanvasGradient = (ctx, obj) => {
        
       }else if (object.type === "video"){
 
+        if (object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates.some(coord => coord.x !== 0 || coord.y !== 0)) {
+              ctx.roundRect(
+                -object.width / 2,
+                -object.h / 2,
+                object.width,
+                object.h,
+                object.cornerRadius || 0
+              )
+
+              ctx.clip();
+
+        }
+
         
         object.redrawVideo(ctx, animationProps)
         
@@ -6478,9 +6605,9 @@ const createCanvasGradient = (ctx, obj) => {
 
       // Fill first
 
-      if (object.type !== "pen" && object.type !== "image" && object.type !== "custom-shape"){
+      if (object.type !== "pen" && object.type !== "image" && object.type !== "video"){
       
-           if (object.fill.type === 'fill'){
+           if (object?.fill?.type === 'fill'){
 
               ctx.fillStyle = object.fill.colour
               
@@ -6495,7 +6622,6 @@ const createCanvasGradient = (ctx, obj) => {
               }
             const grad = createCanvasGradient(ctx, gradientObject)
             ctx.fillStyle = grad;
-             console.log('ctx.fillStyle lower grad', ctx.fillStyle) 
 
         }
 
@@ -12889,21 +13015,106 @@ const editImage = () => {
 
 const handleEditReplace = async(newItem) => {
 
+
   const obj = getActiveElement()
   if (!obj) return
 
-  await obj.updateImage(newItem.file_url)
-  const activeScene = sceneManagerRef.current.getActiveScene()
-  handleUpdateElementState(
-    activeScene.id,
-    obj.id,
-    {
-      img: obj.img,
-      imageSrc: obj.imageSrc,
-      originalWidth: obj.originalWidth,
-      originalHeight: obj.originalHeight
+
+  // replace image
+  if (['image/png', 'image/jpeg'].includes(newItem.file_type) && obj.type === 'image'){
+      
+    try{
+    setCanvasLoader(true)
+     await obj.updateImage(newItem.file_url)
+     const activeScene = sceneManagerRef.current.getActiveScene()
+
+    handleUpdateElementState(
+      activeScene.id,
+      obj.id,
+      {
+        img: obj.img,
+        imageSrc: obj.imageSrc,
+        originalWidth: obj.originalWidth,
+        originalHeight: obj.originalHeight
+      }
+    )
+    }catch(er){
+      console.log(er)
+    }finally{
+      setCanvasLoader(false)
     }
-  )
+
+
+
+
+  } else if (['video/mp4', 'video/webm'].includes(newItem.file_type) && obj.type === 'image'){
+
+    try{
+      setCanvasLoader(true)
+
+      await addVideo(newItem)
+
+
+      /*
+      await obj.replaceImageWithVideo(newItem.file_url)
+      const activeScene = sceneManagerRef.current.getActiveScene()
+
+      handleUpdateElementState(
+        activeScene.id,
+        obj.id,
+        {
+          img: null,
+          imageSrc: null,
+          video: obj.video,
+          videoSrc: obj.videoSrc,
+          originalWidth: obj.originalWidth,
+          originalHeight: obj.originalHeight
+        }
+      )*/
+    }catch(er){
+      console.log(er)
+    }finally{
+      setCanvasLoader(false)
+    }
+
+
+
+
+  }else if (['video/mp4', 'video/webm'].includes(newItem.file_type) && obj.type === 'video'){
+
+     try{
+      setCanvasLoader(true)
+        await obj.updateVideo(newItem.file_url)
+        const activeScene = sceneManagerRef.current.getActiveScene()
+
+
+        handleUpdateElementState(
+          activeScene.id,
+          obj.id,
+          {
+            video: obj.video,
+            videoSrc: obj.videoSrc,
+            originalWidth: obj.originalWidth,
+            originalHeight: obj.originalHeight
+          }
+        )
+
+        }catch(er){
+      console.log(er)
+    }finally{
+     setCanvasLoader(false)
+    }
+
+
+
+
+  }
+
+ 
+  
+
+
+
 
 
  drawLower()
@@ -13392,11 +13603,9 @@ const handleElementDragStart = (e, id) => {
                     {[...activeSceneState.elements].reverse().map((element, index)=>{
                       const isWhite = element?.fill?.colour === 'rgba(255, 255, 255, 1)' || element?.fill?.colour === 'rgba(255,255,255,1)'
                       const isImage = element?.type === 'image'
+                      const isVideo = element?.type === 'video'
 
-                      if (!isImage){
-                        console.log('isWhite', isWhite)
-                        console.log('element', element.fill.colour)
-                      }
+      
                      
 
                       var colour
@@ -14255,10 +14464,6 @@ colour === 'rgb(255, 255, 255)' ||
 colour === 'rgb(255,255,255)' || 
 colour === 'rgba(255, 255, 255, 1)' || 
 colour === 'rgba(255,255,255, 1)'
-
-console.log('colour', colour)
-
-console.log('isWhite', isWhite)
 
 useEffect(() => {
   setIsOpen(activeTool === tool);

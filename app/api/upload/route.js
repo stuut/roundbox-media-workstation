@@ -28,10 +28,14 @@ export async function POST(req) {
   .replace(/-+/g, '-')
   .replace(/^-|-$/g, '');
 
+  console.log('safeName', safeName)
+
   let fileName = `${Date.now()}-${safeName}`
   if (tag) {
     fileName += `-${tag}`;
   }
+
+  console.log('fileName upload', fileName)
 
 
   const command = new PutObjectCommand({

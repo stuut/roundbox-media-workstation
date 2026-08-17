@@ -155,9 +155,6 @@ export function ImageUpload({ onImageSelect, currentImage, user, filename }) {
 }
 
 
-  // Update the selected file when the current image changes
-
-
   const onDrop = useCallback(
 
     acceptedFiles => {
@@ -204,7 +201,7 @@ export function ImageUpload({ onImageSelect, currentImage, user, filename }) {
       <div>
         <div style={{display:'flex', gap:'10px', margin:'15px 0px', alignItems: 'center',}}>
           <div
-            onClick={handleRemove}
+            onClick={()=>setShowMyFiles(false)}
             style={{
               backgroundColor: 'var(--md-sys-color-error)',
               color: '#ffffff',
@@ -308,8 +305,8 @@ export function ImageUpload({ onImageSelect, currentImage, user, filename }) {
                 onClick={handleRemove}
                 style={{
                   position: 'absolute',
-                  top: '10px',
-                  right: '10px',
+                  top: '5px',
+                  right: '5px',
                   backgroundColor: 'var(--md-sys-color-error)',
                   color: '#ffffff',
                   borderRadius: '50%',               
