@@ -94,6 +94,7 @@ const workflowJson = require('../outpainting_api.json');
 import { FONTS } from '@/utils/fonts.config.js';
 import { FontDropdown } from  "@/components/font-dropdown"
 import  Dropdown  from  "@/components/dropdown"
+import { uploadFile as uploadFileLib } from "@/lib/upload-file";
 //const workflowJson = require('../outpainting_api_v2.json');
 
 
@@ -478,17 +479,20 @@ const TEMPLATES = {
   videos : [
     {
       label:'Reel - Heading Only',
-      image:''
+      image:'',
+      preset:'Reel (9:16)'
     },
     {
       label:'Reel - Full Story',
-      image:''
+      image:'',
+      preset:'Reel (9:16)'
     }
   ],
   images : [
     {
       label:'Story',
-      image:''
+      image:'',
+      preset:'Story (9:16)'
     }
   ]
 
@@ -802,6 +806,8 @@ export const Danva = (({postData, user, feeds}, ref) => {
   const rotateStartAngleRef = useRef(null)
 
   const hasRun = useRef(false)
+
+  const [shareData, setShareData] = useState(null)
 
 
 
@@ -1281,12 +1287,13 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
         }else{
           showSuccess('Converted To Video')
-          return mp4Blob
+         
           if (showCanvasLoader){
             setCanvasLoader(false)
           }
           setVideoFrameProgress(0)
           setVideoConvertProgress(0)
+          return mp4Blob
         }
 
 
@@ -3625,8 +3632,26 @@ const createStoryScene = async (scene, image) => {
   drawUpper()
 }
 
-const applyTemplate = async(type, template) => {
+const applyTemplate = async(type, template, preset) => {
   setCanvasLoader(true)
+
+  console.log('template', template)
+  console.log('type', type)
+
+  if (template){
+    if (type === 'images'){
+
+      const templatePreset = PRINT_PRESETS.find((imgPreset) => imgPreset.label === preset)
+      handlePresetChange(templatePreset)
+
+
+    }else if (type === 'videos'){
+
+      const templatePreset = VIDEO_PRESETS.find((vidPreset) => vidPreset.label === preset)
+      handlePresetChange(templatePreset)
+
+    }
+  }
 
   const lower = lowerRef.current;
   if (!lower) return;
@@ -4026,6 +4051,7 @@ const onDrop = async(e) => {
       addImage(dragMedia)
     }else if (dragMedia.type === 'post'){
       loadPost(dragMedia.data)
+      console
       setPostInfo(dragMedia)
     }
     toolCallback('size-position', true)
@@ -4534,6 +4560,8 @@ const addText = () => {
     cy:PAGE_HEIGHT/2,
     fontFamily:selectedFont,
     fontSize:fontSize,
+    fontStyle:selectedFontStyle,
+    fontWeight:selectedFontWeight,
     text:text,
     fill:fillColour,
     textAlign:selectedTextAlignment,
@@ -12034,7 +12062,7 @@ useEffect(()=>{
 
   const fontSizeInputCallback = (value) => {
 
-    setSelectedFontStyle(value)
+    setFontSize(value)
     const active = getActiveElement();
     if (!active || active.type !== "text") return;
 
@@ -12254,7 +12282,7 @@ const savePdf = async () => {
 
     const response = await fetch('/api/save-pdf', {
       method: 'POST',
-      body: JSON.stringify({ canvasPngBytes, width: PAGE_WIDTH, height: PAGE_HEIGHT })
+      body: JSON.stringify({ canvasPngBytes, width: PAGE_WIDTH, height: PAGE_HEIGHT, elements: objectsRef.current })
     });
     if (!response.ok) throw new Error('Failed to create PDF');
     const blob = await response.blob(); // no JSON parsing needed
@@ -13166,10 +13194,137 @@ const handleElementDragStart = (e, id) => {
   e.dataTransfer.setData('id', id);
 };
 
+const shareSocial = async () => {
+
+  if (currentPreset.media === 'video'){
+      try{
+        setCanvasLoader(true)
+        const videoBlob = await exportVideoFrames(false, false)
+
+        const file = new File([videoBlob],  `video-${Date.now()}-${projectTitle}.mov`, { type: "video/mp4"});
+
+        const uploadedFile = await uploadFileLib(
+          file, 
+          null, 
+          {
+            file_description: postInfo.data.file_description??null
+          }, 
+          user
+        )
+
+
+        console.log('postInfo', postInfo)
+
+        // upload blob
+        let link = null
+
+        if (postInfo?.data.base_url && postInfo?.data.slug){
+          link = `https://${postInfo?.data.base_url}/${postInfo?.data.slug}`
+        }
+
+
+
+        const postData = {
+          id:postInfo?.data.id,
+          title: projectTitle,
+          caption: postInfo? postInfo?.data.caption : '',
+          schedule_date: postInfo?.data?.scheduleDate?new Date(postInfo.data.scheduleDate):new Date(),
+          published_at: null,
+          link: link,
+          slug: postInfo?.data.slug??null,
+          base_url: postInfo?.data.base_url??null,
+          status: 'unpublished',
+          type:currentPreset.label === 'Reel (9:16)'? 'video_reels':'video',
+          media: [
+            {
+              ...uploadedFile,
+              source: 'internal'
+            }
+          ],
+          error: null,
+          database_info:{
+            post_publications_id:null,
+          },
+          meta_data: null,
+          platform_account:{
+            external_account_id:postInfo.data.facebook_page_id
+          },
+          add_comment:true
+        }
+
+        setShareData(postData)
+
+      } catch (error){
+        showError('Error creating video ' + error)
+        return
+      } finally{
+        setCanvasLoader(false)
+      }
+
+  }else if ((currentPreset.media === 'print')){
+
+
+
+  }
+
+}
+
+const schedulePostCallBack = (postData, status, savedPostPublications) => {
+
+  console.log('postData', postData)
+
+  console.log('postData', posts)
+
+
+    setPosts(prev =>
+      prev.map((post)=>{
+       
+        if (post.id === postData.id){
+
+          post.status = status
+          
+        }
+
+        return post
+      })
+    )
+
+
+
+    setPostInfo(prevState => ({
+      ...prevState, // Copy top-level properties
+      data: {
+        ...prevState.data, // Copy nested 'profile' properties
+        status: status // Overwrite 'notifications'
+      }
+    }));
+
+}
+
   return (
     <>
     <div style={canvasLoader? {display:'block'}:{display:'none'}} className={'loader_screen'}>
-        <div className="loader"></div>
+      <div style={{transform:'translate(-50%, -50%)'}}  className="loader"></div>
+          {videoFrameProgress > 0 &&
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, calc(-50% + 75px))',
+              width:'100%',
+              textAlign:'center'
+            }}>{`Creating Video Frames ${videoFrameProgress}%`}</div>
+          }
+          {videoConvertProgress > 0 &&
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, calc(-50% + 105px))',
+              width:'100%',
+              textAlign:'center'
+            }}>{`Converting Video To Mp4 ${videoConvertProgress}%`}</div>
+          }
     </div>
     <div
       ref={containerRef}
@@ -13669,7 +13824,7 @@ const handleElementDragStart = (e, id) => {
                               }
                               {element.type === 'text'&&
                                 <span style={{color:`${isWhite? activeElement?.id === element.id?'#ffffff':'#000000':'#ffffff'}`,paddingLeft:'10px', fontSize:'.8em'}} className="truncate">
-                                  {element.type === 'text' ? `"${element.text?.slice(0, 35) || 'Text'}..."` :
+                                  {element.type === 'text' ? `"${element.text?.slice(0, 25) || 'Text'}..."` :
                                   element.type}
                                 </span>
                               }
@@ -14013,10 +14168,22 @@ const handleElementDragStart = (e, id) => {
       
           }}>Export Video</p>
 
+          {/*}
+
           <p><strong>Export Social</strong></p> 
             <button
               onClick={() => {
                 setShowShare(true)
+              }} style={{flex: 2, marginBottom:0}} className='btn secondary icon-button'>
+              <CalendarDays className='button-icon'/>
+              Share Social
+            </button>
+            */}
+
+          <p><strong>Export Social</strong></p> 
+            <button
+              onClick={() => {
+                shareSocial(true)
               }} style={{flex: 2, marginBottom:0}} className='btn secondary icon-button'>
               <CalendarDays className='button-icon'/>
               Share Social
@@ -14193,6 +14360,19 @@ const handleElementDragStart = (e, id) => {
         exportVideoFrames={exportVideoFrames}
         videoConvertProgress={videoConvertProgress}
         postScheduled={postScheduled}
+      />
+    }
+    {shareData&&
+      <SocialShare
+        postData={shareData}
+        userId={user.id}
+        close={setShareData}
+        deletePostCallBack={null}
+        scheduleCallBack={schedulePostCallBack}
+        calendarEvents={null}
+        setCalendarEvents={null}
+        updateFacebookPostScheduleDate={null}
+        autoClose={false}
       />
     }
     {showFileEdit&&
@@ -16149,14 +16329,14 @@ const TemplatePanel = ({
           <p className='font-label'>Videos</p>
           {TEMPLATES.videos.map((videoTemp, index) => {
             return(
-              <button key={videoTemp.label} onClick={() => applyTemplate('videos', videoTemp.label)} className='btn btn-secondary'>{videoTemp.label}</button>
+              <button key={videoTemp.label} onClick={() => applyTemplate('videos', videoTemp.label, videoTemp.preset)} className='btn btn-secondary'>{videoTemp.label}</button>
 
             )
           })}
           <p className='font-label'>Images</p>
           {TEMPLATES.images.map((imageTemp, index) => {
             return(
-              <button key={imageTemp.label} onClick={() => applyTemplate('image', imageTemp.label)} className='btn btn-secondary'>{imageTemp.label}</button>
+              <button key={imageTemp.label} onClick={() => applyTemplate('image', imageTemp.label, imageTemp.preset)} className='btn btn-secondary'>{imageTemp.label}</button>
 
             )
           })}
@@ -16404,9 +16584,11 @@ const FeedsPanel = ({
           </div>
         }
         {posts.map((post, index)=>{
+          console.log('post', post)
+          console.log(post.status === 'scheduled' || post.status === 'published')
           const facebook = {facebook_page_id:selectedFeed.facebook_page_id}
           return(
-            <div key={index} style={{width:'48%'}} className={`post_image ${post.scheduled? 'active': ''}`}>
+            <div key={index} style={{width:'48%'}} className={`post_image ${post.status === 'scheduled' || post.status === 'published'? 'active': ''}`}>
               <img
                 style={{
                   height:'100px',

@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 import { v4 as uuidv4 } from 'uuid'
 
@@ -42,6 +43,30 @@ class CustomCanvasFactory {
 
 
 export const runtime = 'nodejs'; // not 'edge'
+
+async function uploadImage(buffer, fileType, fileName){
+  const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  });
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.AWS_S3_BUCKET,
+    Key: `extract-pdf-images/${fileName}`,
+    Body: buffer,
+    ContentType: fileType,
+    //ACL: 'public-read', // optional
+  })
+
+   await s3.send(command)
+
+  const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/extract-pdf-images/${encodeURIComponent(fileName)}`
+  return fileUrl
+
+}
 
 /**
  * Helper: convert PDF.js text items into simple blocks
@@ -233,16 +258,21 @@ async function extractImageCanvas(box, page, scale, removeWhiteSpace=true){
       .sharpen() // Applies a fast, standard sharpen filter
       .toBuffer();
 
+        // upload to sw3
+    
+    const fileName = uuidv4()+'.png'
+    const fileUrl = await uploadImage(sharpenFile, 'image/png', fileName)
+
+
     return {
       id: uuidv4(),
-      file_name: uuidv4()+'.png',
+      file_name: fileName,
       file_type: 'image/png',
       width:box.width-(inset*2),
       height:box.height-(inset*2),
-      file_url:`data:image/png;base64,${sharpenFile.toString('base64')}`
+      //file_url:`data:image/png;base64,${sharpenFile.toString('base64')}`
+      file_url: fileUrl
     };
-
-
 }
 
 

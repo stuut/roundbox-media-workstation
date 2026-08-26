@@ -17,6 +17,11 @@
   --sm-btn-padding-x:11px;
   --active-border-width:5px;
   --media-image-border-radius:25px;
+  --fc-border-color:rgb(185 199 229);
+  --fc-button-bg-color: rgb(81 95 121);
+  --fc-button-border-color: rgb(81 95 121);
+  --fc-button-active-bg-color: rgb(54, 68, 94);
+  --fc-button-active-border-color: rgb(54, 68, 94);
 
 }
 
@@ -25,11 +30,13 @@
 
 .light {
   --md-sys-color-primary: rgb(54 94 157);
+  --md-sys-color-primary-dark: rgb(34, 67, 120);
   --md-sys-color-surface-tint: rgb(54 94 157);
   --md-sys-color-on-primary: rgb(255 255 255);
   --md-sys-color-primary-container: rgb(118 156 223);
   --md-sys-color-on-primary-container: rgb(0 50 106);
   --md-sys-color-secondary: rgb(81 95 121);
+  --md-sys-color-secondary-dark: rgb(54, 68, 94);
   --md-sys-color-on-secondary: rgb(255 255 255);
   --md-sys-color-secondary-container: rgb(210 224 255);
   --md-sys-color-on-secondary-container: rgb(85 99 125);
@@ -76,11 +83,13 @@
 }
 .dark {
   --md-sys-color-primary: rgb(170 199 255);
+  --md-sys-color-primary-dark: rgb(127, 167, 246);
   --md-sys-color-surface-tint: rgb(170 199 255);
   --md-sys-color-on-primary: rgb(0 47 100);
   --md-sys-color-primary-container: rgb(118 156 223);
   --md-sys-color-on-primary-container: rgb(0 50 106);
   --md-sys-color-secondary: rgb(185 199 229);
+  --md-sys-color-secondary-dark: rgb(150, 172, 219);
   --md-sys-color-on-secondary: rgb(35 49 72);
   --md-sys-color-secondary-container: rgb(60 73 98);
   --md-sys-color-on-secondary-container: rgb(171 185 214);

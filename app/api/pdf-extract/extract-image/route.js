@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 import { v4 as uuidv4 } from 'uuid'
 
@@ -55,6 +56,31 @@ async function extractTextFromItems(items, viewport, rect, page) {
 }
 
 
+async function uploadImage(buffer, fileType, fileName){
+  const s3 = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  });
+
+  const command = new PutObjectCommand({
+    Bucket: process.env.AWS_S3_BUCKET,
+    Key: `extract-pdf-images/${fileName}`,
+    Body: buffer,
+    ContentType: fileType,
+    //ACL: 'public-read', // optional
+  })
+
+   await s3.send(command)
+
+  const fileUrl = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/extract-pdf-images/${encodeURIComponent(fileName)}`
+  return fileUrl
+
+}
+
+
 async function extractImagesCanvas(rect, page, removeWhiteSpace, outputScale = 1){
 
   const scale = 3;
@@ -88,89 +114,47 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace, outputScale = 1
 
   if (removeWhiteSpace) {
 
-    /*
-
-    const imageData = croppedCtx.getImageData(
-      0,
-      0,
-      cropWidth,
-      cropHeight
-    );
-
-    const data = imageData.data;
-
-    let minX = cropWidth;
-    let minY = cropHeight;
-    let maxX = 0;
-    let maxY = 0;
-
-    const threshold = 250; // treat near-white as white
-
-    for (let y = 0; y < cropHeight; y++) {
-      for (let x = 0; x < cropWidth; x++) {
-
-        const i = (y * cropWidth + x) * 4;
-
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-
-        const isWhite =
-          r >= threshold &&
-          g >= threshold &&
-          b >= threshold &&
-          a > 0;
-
-        if (!isWhite) {
-          if (x < minX) minX = x;
-          if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-
-    const width = maxX - minX + 1;
-    const height = maxY - minY + 1;
-
-    const finalCanvas = createCanvas(width, height);
-    const finalCtx = finalCanvas.getContext('2d');
-
-    finalCtx.drawImage(
-      croppedCanvas,
-      minX, minY, width, height,
-      0, 0, width, height
-    );
-    */
-
-
     const imageBuffer = croppedCanvas.toBuffer('image/png');
-
 
     const trimmedFile =  await sharp(imageBuffer)
     .trim({ threshold: 25, background: '#ffffff' })
     .toBuffer();
 
+    // upload to sw3
+
+    const fileName = uuidv4()+'.png'
+    const fileUrl = await uploadImage(trimmedFile, 'image/png', fileName)
+
 
     return {
       id: uuidv4(),
-      file_name: uuidv4()+'.png',
+      file_name: fileName,
       file_type: 'image/png',
       width:cropWidth,
       height:cropWidth,
-      file_url: `data:image/png;base64,${trimmedFile.toString('base64')}`
+      //file_url: `data:image/png;base64,${trimmedFile.toString('base64')}`
+      file_url: fileUrl
     }
   }else{
 
+
     const imageBuffer = croppedCanvas.toBuffer('image/png');
+
+     // upload to sw3
+
+     const fileUrl = await uploadImage(imageBuffer, 'image/png', fileName)
+     const fileName = uuidv4()+'.png'
+
     return {
       id: uuidv4(),
-      file_name: uuidv4()+'.png',
+      file_name: fileName,
       file_type: 'image/png',
       width:cropWidth,
       height:cropHeight,
-      file_url:`data:image/png;base64,${imageBuffer.toString('base64')}`
+      //file_url:`data:image/png;base64,${imageBuffer.toString('base64')}`
+
+      file_url: fileUrl
+
     };
   }
 }

@@ -192,6 +192,7 @@ if (customCaptionsToggle){
 
 
 const handleBlur = async() =>{
+  
   if (publicationId){
     await updatePostPublication(publicationId,
       {
@@ -201,7 +202,7 @@ const handleBlur = async() =>{
   }
 
 
-  if (postId){
+  if (postId && setCalendarEvents){
     setCalendarEvents(prev =>
         prev.map(event =>
           event.id === postId

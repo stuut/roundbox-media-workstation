@@ -1,55 +1,146 @@
 {
   "Poppins": {
     "normal": {
-      "100": "Poppins-100-normal.woff2",
-      "200": "Poppins-200-normal.woff2",
-      "300": "Poppins-300-normal.woff2",
-      "400": "Poppins-400-normal.woff2",
-      "700": "Poppins-700-normal.woff2",
-      "800": "Poppins-800-normal.woff2",
-      "900": "Poppins-900-normal.woff2"
+      "100": {
+        "web": "Poppins-100-normal.woff2",
+        "print": "Poppins-100-normal.ttf"
+      },
+      "200": {
+        "web": "Poppins-200-normal.woff2",
+        "print": "Poppins-200-normal.ttf"
+      },
+      "300": {
+        "web": "Poppins-300-normal.woff2",
+        "print": "Poppins-300-normal.ttf"
+      },
+      "400": {
+        "web": "Poppins-400-normal.woff2",
+        "print": "Poppins-400-normal.ttf"
+      },
+      "700": {
+        "web": "Poppins-700-normal.woff2",
+        "print": "Poppins-700-normal.ttf"
+      },
+      "800": {
+        "web": "Poppins-800-normal.woff2",
+        "print": "Poppins-800-normal.ttf"
+      },
+      "900": {
+        "web": "Poppins-900-normal.woff2",
+        "print": "Poppins-900-normal.ttf"
+      }
     },
     "italic": {
-      "100": "Poppins-100-italic.woff2",
-      "200": "Poppins-200-italic.woff2",
-      "300": "Poppins-300-italic.woff2",
-      "400": "Poppins-400-italic.woff2",
-      "700": "Poppins-700-italic.woff2",
-      "800": "Poppins-800-italic.woff2",
-      "900": "Poppins-900-italic.woff2"
+      "100": {
+        "web": "Poppins-100-italic.woff2",
+        "print": "Poppins-100-italic.ttf"
+      },
+      "200": {
+        "web": "Poppins-200-italic.woff2",
+        "print": "Poppins-200-italic.ttf"
+      },
+      "300": {
+        "web": "Poppins-300-italic.woff2",
+        "print": "Poppins-300-italic.ttf"
+      },
+      "700": {
+        "web": "Poppins-700-italic.woff2",
+        "print": "Poppins-700-italic.ttf"
+      },
+      "800": {
+        "web": "Poppins-800-italic.woff2",
+        "print": "Poppins-800-italic.ttf"
+      },
+      "900": {
+        "web": "Poppins-900-italic.woff2",
+        "print": "Poppins-900-italic.ttf"
+      }
     }
   },
   "Raleway": {
     "normal": {
-      "100": "Raleway-100-normal.woff2",
-      "200": "Raleway-200-normal.woff2",
-      "300": "Raleway-300-normal.woff2",
-      "400": "Raleway-400-normal.woff2",
-      "700": "Raleway-700-normal.woff2",
-      "800": "Raleway-800-normal.woff2",
-      "900": "Raleway-900-normal.woff2"
+      "100": {
+        "web": "Raleway-100-normal.woff2",
+        "print": "Raleway-100-normal.ttf"
+      },
+      "200": {
+        "web": "Raleway-200-normal.woff2",
+        "print": "Raleway-200-normal.ttf"
+      },
+      "300": {
+        "web": "Raleway-300-normal.woff2",
+        "print": "Raleway-300-normal.ttf"
+      },
+      "400": {
+        "web": "Raleway-400-normal.woff2",
+        "print": "Raleway-400-normal.ttf"
+      },
+      "700": {
+        "web": "Raleway-700-normal.woff2",
+        "print": "Raleway-700-normal.ttf"
+      },
+      "800": {
+        "web": "Raleway-800-normal.woff2",
+        "print": "Raleway-800-normal.ttf"
+      },
+      "900": {
+        "web": "Raleway-900-normal.woff2",
+        "print": "Raleway-900-normal.ttf"
+      }
     },
     "italic": {
-      "100": "Raleway-100-italic.woff2",
-      "200": "Raleway-200-italic.woff2",
-      "300": "Raleway-300-italic.woff2",
-      "400": "Raleway-400-italic.woff2",
-      "700": "Raleway-700-italic.woff2",
-      "800": "Raleway-800-italic.woff2",
-      "900": "Raleway-900-italic.woff2"
+      "100": {
+        "web": "Raleway-100-italic.woff2",
+        "print": "Raleway-100-italic.ttf"
+      },
+      "200": {
+        "web": "Raleway-200-italic.woff2",
+        "print": "Raleway-200-italic.ttf"
+      },
+      "300": {
+        "web": "Raleway-300-italic.woff2",
+        "print": "Raleway-300-italic.ttf"
+      },
+      "700": {
+        "web": "Raleway-700-italic.woff2",
+        "print": "Raleway-700-italic.ttf"
+      },
+      "800": {
+        "web": "Raleway-800-italic.woff2",
+        "print": "Raleway-800-italic.ttf"
+      },
+      "900": {
+        "web": "Raleway-900-italic.woff2",
+        "print": "Raleway-900-italic.ttf"
+      }
     }
   },
   "Inter": {
     "normal": {
-      "400": "Inter-400-normal.woff2",
-      "500": "Inter-500-normal.woff2",
-      "600": "Inter-600-normal.woff2",
-      "700": "Inter-700-normal.woff2"
+      "400": {
+        "web": "Inter-400-normal.woff2",
+        "print": "Inter-400-normal.ttf"
+      },
+      "500": {
+        "web": "Inter-500-normal.woff2",
+        "print": "Inter-500-normal.ttf"
+      },
+      "600": {
+        "web": "Inter-600-normal.woff2",
+        "print": "Inter-600-normal.ttf"
+      },
+      "700": {
+        "web": "Inter-700-normal.woff2",
+        "print": "Inter-700-normal.ttf"
+      }
     }
   },
   "Chewy": {
     "normal": {
-      "400": "Chewy-400-normal.woff2"
+      "400": {
+        "web": "Chewy-400-normal.woff2",
+        "print": "Chewy-400-normal.ttf"
+      }
     }
   }
 }

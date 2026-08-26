@@ -352,7 +352,6 @@ export const Scheduler = ({user, feeds})=>{
 
     const newPosts = posts.map((post)=>{
 
-
       const media = post?.post_files
       .sort((a, b) => a.sort_order - b.sort_order)
       .filter((media) => media.file_id)
@@ -633,7 +632,7 @@ const hasRun = useRef(false);
 
     }
 
-    showSuccess('Date updated handleEventDrop')
+    showSuccess('Date updated')
 
   }
 
@@ -701,16 +700,12 @@ const hasRun = useRef(false);
       meta_data: null,
       platform_account:null,
       add_comment:false
-
     }
 
     setCalendarEvents(prev => [...prev, newEvent]);
 
     setPostData(newEvent)
   }
-
-
-
 
 
   function renderEventContent(eventInfo) {
@@ -883,6 +878,7 @@ const hasRun = useRef(false);
         calendarEvents={calendarEvents}
         setCalendarEvents={setCalendarEvents}
         updateFacebookPostScheduleDate={updateFacebookPostScheduleDate}
+        autoClose={true}
 
       />
 
@@ -1353,6 +1349,7 @@ const FeedsPanel = ({
           </div>
         }
         {posts.map((post, index)=>{
+    
           return(
             <ExternalEvent key={post.id} data={post}/>
           )
@@ -1408,12 +1405,11 @@ export const Share = ({
   userId,
   deletePostCallBack,
   close,
-  cal,
   scheduleCallBack,
   calendarEvents,
   setCalendarEvents,
-  updateFacebookPostScheduleDate
-
+  updateFacebookPostScheduleDate,
+  autoClose
 }) => {
 
   const {showFiles, setShowFiles, selectedFiles, setSelectedFiles, setFilePicker, setFileLimit } = useFilesContext();
@@ -1463,6 +1459,16 @@ export const Share = ({
     const publicationId = postData?.database_info?.post_publications_id??null
     const channelId = postData?.platform_account?.id
     const channel = postData?.platform_account
+
+const getMinTime = () => {
+  const now = moment();
+
+  if (!scheduleDate || moment(scheduleDate).isSame(now, 'day')) {
+    return now.add(30, 'minutes').toDate();
+  }
+
+  return moment(scheduleDate).startOf('day').toDate();
+};
 
 
 const checkInstagramImages = async (images) => {
@@ -1818,6 +1824,7 @@ const checkInstagramImages = async (images) => {
 
           if (timeTravel(scheduleDate) && postState === 'SCHEDULE'){
             showError('No Time Travel')
+            setLoader(false)
             return
           }
 
@@ -2002,11 +2009,24 @@ const checkInstagramImages = async (images) => {
                   )
               }
 
-              scheduleCallBack(postData, 'scheduled', savedPostPublications)
+              let scheduleStatus
+              if (postState === 'SCHEDULE'){
+                scheduleStatus = 'scheduled'
+              }else if (postState === 'PUBLISH'){
+                scheduleStatus = 'published'
+              }
+
+              setStatus(scheduleStatus)
+              scheduleCallBack(postData, scheduleStatus, savedPostPublications)
 
               setLoader(false)
               showSuccess('All Posts Scheduled')
-              close(null)
+              if (autoClose){
+                close(null)
+              }
+
+              
+              
 
 
         }catch(error){
@@ -2160,12 +2180,13 @@ const getFacebookPostDataSchedule = async (postType, publication, channel) => {
           description = `${postCaption} ${addCaptionLink? `\n\n Full story here: ${postLink}` : ''}`
         }
 
+
       return {
         video_id: videoId,
         upload_phase: 'finish',
         video_state: video_state,
         description: description,
-        title: title==='null'?title:description
+        title: title??description
       }
 
     default:
@@ -2334,15 +2355,27 @@ const instagramPublish = async (
       return
     }
 
+
     if (postState === 'SCHEDULE'){
       data.scheduled_publish_time = scheduledPublishTime
-      data.published = false
+
+     
+      if (endPoint !== 'video_reels' && endPoint !== 'videos'){
+         console.log('endPoint', endPoint)
+        data.published = false
+      }
+     
 
     }else if (postState === 'PUBLISH'){
-      data.published = true
+
+      if (endPoint !== 'video_reels' && endPoint !== 'videos'){
+        data.published = true
+      }
     }
 
 
+    //return
+  
     try{
 
       const facebookResponse = await fetch(`/api/facebook/schedule`, {
@@ -2394,10 +2427,6 @@ const instagramPublish = async (
 
         showSuccess('Comment Added')
       }
-
-
-
-      let status
 
       const updateData  = {
         status: 'scheduled',
@@ -2460,9 +2489,7 @@ const createCaption = () => {
 
 const updateDate = async(date)=>{
 
-
-
-const scheduledAtUTC = new Date(date).toISOString()
+  const scheduledAtUTC = new Date(date).toISOString()
 
   setCalendarEvents(prev =>
       prev.map(event =>
@@ -2476,8 +2503,6 @@ const scheduledAtUTC = new Date(date).toISOString()
           : event
       )
     );
-
-
 
   if (publicationId){
 
@@ -2499,7 +2524,11 @@ const scheduledAtUTC = new Date(date).toISOString()
 const handleDateChange = (date) => {
 
   setScheduleDate(date)
-  updateDate(date)
+
+  if (setCalendarEvents && calendarEvents){
+     updateDate(date)
+  }
+ 
 
 }
 
@@ -2686,13 +2715,12 @@ const addNewFiles = async(selectedFiles) => {
                 postInfo={postData}
                 setSocialPagesParent={setSocialPages}
                 callback={channelSelectorCallback}
-
                 disabled={postData?.database_info?.post_publications_id}
               />
               {postData.title !== 'null'&&
                 <h4>{postData.title}</h4>
               }
-
+              <p>{postType}</p>
               <div className={`properties-container ${postData?.database_info?.post_publications_id?'disabled':''}`} style={{margin:'15px 0px'}}>
                 <p className='label' style={{paddingLeft:'10px'}}>Post Type</p>
                 <div style={{display:'flex', alignItems:'center'}}>
@@ -2863,7 +2891,7 @@ const addNewFiles = async(selectedFiles) => {
                     disabled={status === 'published'}
                     style={{minWidth:'300px'}}
                     minDate={moment().toDate()}
-                    minTime={calculateMinTime(scheduleDate)}
+                    minTime={getMinTime()}
                     maxTime={moment().endOf('day').toDate()}
                     selected={scheduleDate}
                     onChange={(date) => handleDateChange(date)}
@@ -2930,6 +2958,8 @@ const addNewFiles = async(selectedFiles) => {
                       }
                     </select>
                   }
+                  {console.log('media', media)}
+                  {console.log('postType ', postType )}
 
                     {(postType=== 'link' && selectedChannelPreview === 'facebook') &&
                       <>
@@ -2950,7 +2980,57 @@ const addNewFiles = async(selectedFiles) => {
                       </>
                     }
                     {(postType === 'video_reels' && media[0]?.file_type === "video/mp4") &&
-                      <div className="video-container">
+                      <div className="video-container" style={{position:'relative'}}>
+                        {selectedChannelPreview === 'facebook'&&
+                          <div style={{
+                              position: 'absolute',
+                              right: '5px',
+                              top: '10px',
+                              }}>
+                            <ThreeDotMenu>
+                              {status === 'unpublished'&&
+                                <>
+                                <div>
+                                    <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
+                                    <Checkbox
+                                      id={'add-comment'}
+                                      className="form-check-input"
+                                      type="checkbox"
+                                      onChange={() => setAddComment(prev => !prev)}
+                                      checked={addComment}
+                                      sx={{
+                                        color: 'var(--md-sys-color-secondary)',
+                                        '&.Mui-checked': {
+                                          color: 'var(--md-sys-color-primary)',
+                                        },
+                                      }}
+                                    />
+                                    Add First Comment with Link
+                                  </label>
+                                  </div>
+                                  <div style={{marginTop:'10px'}}>
+                                  <label style={{display: 'flex', alignItems: 'center', fontSize: 'var(--sm-font-size)', gap:'5px'}}>
+                                  <Checkbox
+                                    id={'add-comment'}
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    onChange={() => setAddCaptionLink(prev => !prev)}
+                                    checked={addCaptionLink}
+                                    sx={{
+                                      color: 'var(--md-sys-color-secondary)',
+                                      '&.Mui-checked': {
+                                        color: 'var(--md-sys-color-primary)',
+                                      },
+                                    }}
+                                  />
+                                  Add Link in Caption
+                                </label>
+                                </div>
+                                </>
+                              }
+                            </ThreeDotMenu>
+                          </div>
+                        }
                         <video
                           src={media[0]?.file_url}
                           controls // Adds play, pause, etc. controls
@@ -3046,9 +3126,6 @@ const FacebookLinkPreview = ({
 
 
   useEffect(() => {
-
-  
-
     if (customCaptions?.length>0 && customCaptionsToggle){
       const facebookCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
       setCaptionText(facebookCaption.caption)
@@ -3225,7 +3302,7 @@ return(
                         },
                       }}
                     />
-                    Add Link in Comment
+                    Add First Comment with Link
                   </label>
                   </div>
                    <div style={{marginTop:'10px'}}>
@@ -3737,7 +3814,10 @@ const FacebookPhotosPreview = ({
 
     if (customCaptions?.length>0 && customCaptionsToggle){
       const instagramCaption = customCaptions.find((cap)=> cap.platform === 'facebook')
-      setCaptionText(instagramCaption.caption)
+      if (instagramCaption){
+        setCaptionText(instagramCaption?.caption)
+      }
+      
     }else{
       setCaptionText(caption)
     }
@@ -3776,7 +3856,7 @@ const FacebookPhotosPreview = ({
                         },
                       }}
                     />
-                    Add Link in Comment
+                    Add First Comment with Link
                   </label>
                 </div>
            

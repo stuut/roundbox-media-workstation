@@ -298,6 +298,7 @@ const handleFileFunction = async (data) => {
 }
 
 const deleteSelectedFiles = async () => {
+  setLoader(true)
 
   const fileIds = selectedFiles.map((file)=>{
     return file.id
@@ -326,6 +327,8 @@ const deleteSelectedFiles = async () => {
   setSelectedFiles([])
 
   showSuccess('Files Deleted')
+
+  setLoader(false)
 
 }
 
@@ -414,6 +417,8 @@ const copyFileUrl = (url) => {
                             key={file.id}
                             fileFilters={fileFilters}
                             file={file}
+                            files={file}
+                            setFiles={setFiles}
                             editMedia={editMedia}
                             copyFileUrl={copyFileUrl}
                             selectedFiles={selectedFiles}
@@ -566,6 +571,8 @@ const copyFileUrl = (url) => {
                               key={file.id}
                               fileFilters={fileFilters}
                               file={file}
+                              files={file}
+                              setFiles={setFiles}
                               editMedia={editMedia}
                               copyFileUrl={copyFileUrl}
                               selectedFiles={selectedFiles}

@@ -9,6 +9,14 @@
   --toastify-icon-color-warning: rgb(186 26 26);
 }
 
+.fc .fc-day-today {
+  background-color: var(--md-sys-color-secondary-container) !important;
+}
+
+ .fc .fc-scrollgrid-liquid {
+    border-radius: 7px;
+} 
+
 .Toastify__toast--success .Toastify__toast-icon svg {
   fill: rgb(54 94 157);
 }
@@ -1865,6 +1873,10 @@ input:-webkit-autofill {
   color: var(--md-sys-color-on-secondary);
 }
 
+.btn.secondary:hover{
+  background-color: var(--md-sys-color-secondary-dark);
+}
+
 .primary{
   background-color: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
@@ -1882,7 +1894,7 @@ input:-webkit-autofill {
 }
 
 .btn.primary:hover {
-    background-color: var(--md-sys-color-secondary);
+    background-color: var( --md-sys-color-primary-dark);
 }
 
 input.form-input.column-name:disabled{

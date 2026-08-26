@@ -62,5 +62,5 @@ for (const { family, weights, styles } of FONTS) {
 }
 
 await fs.writeFile('../public/fonts/manifest.json', JSON.stringify(manifest, null, 2));
-await fs.writeFile('../app/fonts.css', cssOutput.trim() + '\n');
+await fs.writeFile('../fonts.css', cssOutput.trim() + '\n');
 console.log('Fonts fetched, manifest + fonts.css written');

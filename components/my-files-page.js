@@ -301,6 +301,8 @@ const handleFileFunction = async (data) => {
 
 const deleteSelectedFiles = async () => {
 
+  setLoader(true)
+
   const fileIds = selectedFiles.map((file)=>{
     return file.id
   })
@@ -328,6 +330,8 @@ const deleteSelectedFiles = async () => {
   setSelectedFiles([])
 
   showSuccess('Files Deleted')
+
+  setLoader(false)
 
 }
 
@@ -418,6 +422,8 @@ const copyFileUrl = (url) => {
                                 key={file.id}
                                 fileFilters={fileFilters}
                                 file={file}
+                                files={file}
+                                setFiles={setFiles}
                                 editMedia={editMedia}
                                 copyFileUrl={copyFileUrl}
                                 selectedFiles={selectedFiles}
@@ -425,6 +431,7 @@ const copyFileUrl = (url) => {
                                 width={'25%'}
                                 objectFit={false}
                                 showSelection={false}
+                                setLoader={setLoader}
                                 />
                               )
                           })}
@@ -570,6 +577,8 @@ const copyFileUrl = (url) => {
                             key={file.id}
                             fileFilters={fileFilters}
                             file={file}
+                            files={file}
+                            setFiles={setFiles}
                             editMedia={editMedia}
                             copyFileUrl={copyFileUrl}
                             selectedFiles={selectedFiles}
@@ -577,6 +586,7 @@ const copyFileUrl = (url) => {
                             width={'25%'}
                             objectFit={true}
                             showSelection={true}
+                            setLoader={setLoader}
                             />
                           )
                         })}
@@ -745,13 +755,16 @@ export const ImageTurbo = ({
 export const ImageComponent = ({
   fileFilters,
   file,
+  files,
+  setFiles,
   editMedia,
   copyFileUrl,
   selectedFiles,
   selectFileFunction,
   width,
   objectFit,
-  showSelection
+  showSelection,
+  setLoader
 })=>{
   const router = useRouter()
   const isVideo = file.file_type === "video/mp4" || file.file_type === 'video/webm' || file.file_url.match(/\.(mp4|mov|m4v)$/i);
@@ -778,6 +791,32 @@ export const ImageComponent = ({
       router.push(href)
     }
 
+
+    const deleteFile = async(file) => {
+
+      try{
+        setLoader(true)
+
+       await fetch('/api/delete-file', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: file.file_url }),
+        })
+
+        await deleteFiles([file.id]);
+
+        setFiles(prev =>
+            prev.filter((prev)=> prev.id !== file.id)
+        )
+
+       }catch(error){
+              showError(error)
+       }finally{
+        setLoader(false)
+       }
+
+    }
+
   return(
     <div  style={{
       //width:fileFilters.includes('audio')?'32%':'24%',
@@ -795,7 +834,7 @@ export const ImageComponent = ({
                 <button className='btn btn-sm dropdown-button' onClick={() => editMedia(file)}>Edit Image</button>
                 <button className='btn btn-sm dropdown-button' onClick={() => copyFileUrl(file.file_url)}>Copy File Url</button>
                 <button className='btn btn-sm dropdown-button' onClick ={openInDanva}>Open In Danva</button>
-                
+                <button className='btn btn-sm danger' onClick={() => deleteFile(file)}>Delete</button>
               </ThreeDotMenu>
             </div>
             <img
@@ -811,7 +850,8 @@ export const ImageComponent = ({
           <>
             <div style={{position:'absolute', right:'5px', top:'5px'}}>
               <ThreeDotMenu>
-                <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+                <button className='btn btn-sm dropdown-button' onClick={() => copyFileUrl(file.file_url)}>Copy File Url</button>
+                <button className='btn btn-sm danger' onClick={() => deleteFile(file)}>Delete</button>
               </ThreeDotMenu>
             </div>
             <img className={`${'media-file'} ${isObjectInArray(file, selectedFiles) && showSelection?'active':''}`} onClick={() => selectFileFunction(file) } src={'/pdf-icon.png'}/>
@@ -822,7 +862,8 @@ export const ImageComponent = ({
           <>
             <div style={{position:'absolute', right:'5px', top:'5px'}}>
               <ThreeDotMenu>
-                <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+                <button className='btn btn-sm dropdown-button' onClick={() => copyFileUrl(file.file_url)} >Copy File Url</button>
+                <button className='btn btn-sm danger' onClick={() => deleteFile(file)}>Delete</button>
               </ThreeDotMenu>
             </div>
             <div className={`${'media-file video'} ${isObjectInArray(file, selectedFiles) && showSelection?'active':''}`} onClick={() => selectFileFunction(file) }>
@@ -834,7 +875,8 @@ export const ImageComponent = ({
                 playsInline
                 style={{
                   minWidth:'unset',
-                  borderRadius: '5px'
+                  borderRadius: '5px',
+                  width:'100%'
                 }}
               />
             </div>
@@ -849,6 +891,7 @@ export const ImageComponent = ({
               <div style={{position:'absolute', right:'5px', top:'5px'}}>
                 <ThreeDotMenu>
                   <button onClick={() => copyFileUrl(file.file_url)} className='btn btn-sm clear'>Copy File Url</button>
+                  <button className='btn btn-sm danger' onClick={() => deleteFile(file)}>Delete</button>
                 </ThreeDotMenu>
               </div>
             <div className={`${'media-file'} ${isObjectInArray(file, selectedFiles) && showSelection?'active':''}`} onClick={() => selectFileFunction(file) }>
