@@ -2657,7 +2657,7 @@ const changeScheduleDate = (date) => {
                                           if (isInArray(ele.sys.id, selectedContentfulCategories)){
                                             return(
                                               <span
-                                                key={index} className="btn btn-sm pill">
+                                                key={index} className="btn btn-sm pill" style={{background:'var(--md-sys-color-primary'}}>
                                               {ele.fields.title}
                                               </span>
                                             )
@@ -2701,7 +2701,7 @@ const changeScheduleDate = (date) => {
                                             if (isInArray(ele.sys.id, selectedContentfulTags)){
                                               return(
                                                 <span
-                                                  key={index} className="btn btn-sm pill">
+                                                  key={index} className="btn btn-sm pill" style={{background:'var(--md-sys-color-primary'}}>
                                                 {ele.fields.title}
                                                 </span>
                                               )

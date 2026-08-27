@@ -224,7 +224,7 @@ async function extractImagesFromPdf(page, rect){
 async function extractImageCanvas(box, page, scale, removeWhiteSpace=true){
 
 
-  const inset = 0
+  const inset = 2
 
   const viewport = page.getViewport({ scale });
 

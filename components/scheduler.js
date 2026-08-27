@@ -3407,7 +3407,7 @@ const ThreeDotMenu = ({styles, children}) => {
             borderRadius:'var(--input-border-radius)',
             padding:'10px',
             right: 'calc(100% + -10px)',
-            minWidth: '220px'
+            minWidth: '250px'
           }} className='dropshadow'>
             <div>
               {children}

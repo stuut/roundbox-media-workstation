@@ -52,8 +52,8 @@ export async function POST(request) {
     if (previous_interaction_id){
         task = 'edit'
     }else if (image){
-        //task = 'image_to_video'
-        task = 'reference_to_video'
+        task = 'image_to_video'
+        //task = 'reference_to_video'
     }
 
 

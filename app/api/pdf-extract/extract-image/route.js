@@ -118,7 +118,24 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace, outputScale = 1
 
     const trimmedFile =  await sharp(imageBuffer)
     .trim({ threshold: 25, background: '#ffffff' })
+    .sharpen() 
     .toBuffer();
+
+    /*
+
+    const sharpenFile = await sharp(trimmedFile)
+      .sharpen({
+        sigma: 2.0,
+        m1: 1.0,
+        m2: 2.0,
+        x1: 2.0,
+        y2: 10.0,
+        y3: 20.0
+      })
+      .toBuffer();
+      */
+
+
 
     // upload to sw3
 
@@ -140,10 +157,14 @@ async function extractImagesCanvas(rect, page, removeWhiteSpace, outputScale = 1
 
     const imageBuffer = croppedCanvas.toBuffer('image/png');
 
-     // upload to sw3
+    const sharpenFile =  await sharp(imageBuffer)
+    .sharpen() 
+    .toBuffer();
 
-     const fileUrl = await uploadImage(imageBuffer, 'image/png', fileName)
-     const fileName = uuidv4()+'.png'
+     // upload to sw3
+      const fileName = uuidv4()+'.png'
+     const fileUrl = await uploadImage(sharpenFile, 'image/png', fileName)
+   
 
     return {
       id: uuidv4(),

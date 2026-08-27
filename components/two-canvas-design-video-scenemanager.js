@@ -35,6 +35,7 @@ import { formatR2Url } from "@/lib/format-rs-url"
 import { useSearchParams } from 'next/navigation'
 import { ReactSortable } from "react-sortablejs";
 import { Share as SocialShare } from '@/components/scheduler'
+import { v4 as uuidv4 } from 'uuid'
 import { Play, Pause, SkipBack, SkipForward, Video, Save, Undo, Redo, Settings,
   Smartphone, Monitor, Square, ChevronLeft,
   Film, Clock, Loader2, Trash2, Maximize2, Upload, Download, Music,
@@ -1089,6 +1090,60 @@ export const Danva = (({postData, user, feeds}, ref) => {
     };
 
 
+const seekVideoFrame = (video, time) => {
+  return new Promise((resolve, reject) => {
+
+    if (!video || !isFinite(video.duration)) {
+      resolve();
+      return;
+    }
+
+    const targetTime = Math.max(
+      0,
+      Math.min(time, video.duration)
+    );
+
+    // If we're already essentially at this position,
+    // there is no seek event coming.
+    if (Math.abs(video.currentTime - targetTime) < 0.0001) {
+      requestAnimationFrame(() => resolve());
+      return;
+    }
+
+    let done = false;
+
+    const cleanup = () => {
+      video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("error", onError);
+    };
+
+    const onSeeked = () => {
+      if (done) return;
+
+      done = true;
+      cleanup();
+
+      // Give the browser one render opportunity after seeking.
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    };
+
+    const onError = (e) => {
+      if (done) return;
+
+      done = true;
+      cleanup();
+      reject(e);
+    };
+
+    video.addEventListener("seeked", onSeeked);
+    video.addEventListener("error", onError);
+
+    video.currentTime = targetTime;
+  });
+};
+
     const exportVideoFrames = async (download = true, showCanvasLoader = true) => {
 
       activeToolRef.current = null
@@ -1124,7 +1179,6 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
                if (videos.length === 0) {
 
-
                  drawLower(true);
 
                  await new Promise(r => setTimeout(r, 0));
@@ -1136,8 +1190,64 @@ export const Danva = (({postData, user, feeds}, ref) => {
 
                  const localTime = currentTimeRef.current - scene.start;
 
+                 await Promise.all(
+                    videos.map(async (vidObject) => {
+
+                      const video = vidObject.video;
+
+                      if (!video || !isFinite(video.duration)) {
+                        return;
+                      }
+
+                      video.pause();
+
+                      await seekVideoFrame(video, localTime);
+                    })
+                  );
+
+                  drawLower(true);
+
+                 /*
+
+                   videos.forEach((vidObject, key) => {
+                      const video = vidObject.video
+                      if (!video || !isFinite(video.duration)) {
+                        pending--;
+                        if (pending === 0) drawLower(true);
+                        return;
+                      }
+
+                      const seekTime = localTime
+                      if (!video.paused) video.pause();
+
+                      let settled = false;
+
+                      const onFrame = () => {
+                        if (settled) return;
+                        settled = true;
+                        pending--;
+                        if (pending === 0) drawLower(true);
+                      };
+
+                      const onSeeked = () => {
+                        if (settled) return;
+                        settled = true;
+                        video.removeEventListener('seeked', onSeeked);
+                        pending--;
+                        if (pending === 0) drawLower(true);
+                      };
+                      video.addEventListener('seeked', onSeeked);
+                      video.currentTime = seekTime;
+                      video.requestVideoFrameCallback(onFrame);
+
+                      // Fallback: if rvfcb never fires (same frame / browser quirk), unblock after 100ms
+                      setTimeout(() => onFrame(), 100);
+                    });
+
+                 /*
+
                  videos.forEach((video) => {
-                     video.requestVideoFrameCallback(() => {
+                     video.video.requestVideoFrameCallback(() => {
                        pending--;
                        if (pending === 0) {
                          // all videos ready → render + capture
@@ -1149,6 +1259,7 @@ export const Danva = (({postData, user, feeds}, ref) => {
                      // trigger frame decode
                      video.currentTime = localTime;
                    });
+                   */
                }
 
                //const blob = await new Promise(resolve => lowerRef.current.toBlob(resolve, "image/jpeg", 0.9));
@@ -1644,8 +1755,11 @@ selectedIndexRef.current = 0
 setActiveElementId(0)
 
 
+objectsRef.current=newItemsArray
 // Update scene
 activeScene.elements = newItemsArray
+
+//only for UI
 handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
 
 drawLower()
@@ -1655,6 +1769,7 @@ drawLower()
 
 const bringToFront = () => {
 // 1. Filter out the object to move from its current position
+
 
 const activeElement = getActiveElement()
 if (!activeElement) return
@@ -1680,8 +1795,6 @@ objectsRef.current=newItemsArray
 activeScene.elements = newItemsArray
 //only for UI
 handleUpdateSceneState(activeScene.id, {objects:newItemsArray})
-
-
 
 drawLower()
 };
@@ -2924,7 +3037,7 @@ drawTextChars(ctx, animationProps, editingText=false, scale=1) {
       const fontWeight = style?.fontWeight || this.fontWeight || "";
       const fontStyle = style?.fontStyle || this.fontStyle || "";
       const fontFamily = style?.fontFamily || this.fontFamily;
-      const fill = style?.fill?.colour || this.fill.colour || "#000";
+      const fill = style?.fill?.colour || this.fill?.colour || "#000";
       const charFontSize = style?.fontSize || fontSize;
 
       ctx.font = `${fontStyle} ${fontWeight} ${charFontSize  * scale }px ${fontFamily}`;
@@ -3378,7 +3491,7 @@ const onDragOver = (e) => {
 }
 
 const onDragStart = (data) => {
-  console.log('data', data)
+ 
   setDragMedia(data);
 };
 
@@ -4177,14 +4290,22 @@ const renderSceneWorker = async (time) => {
 
 
 
-const updateVideosWorker = (time) => {
+const updateVideosWorker = async (time) => {
+
+
+
+
+/*
+
   let pending = videoRegistryRef.current.size;
 
   if (pending === 0) {
     renderSceneWorker(time);
     return;
   }
+  
 
+  
   videoRegistryRef.current.forEach((video, key) => {
     if (!video || !isFinite(video.duration)) {
       pending--;
@@ -4218,6 +4339,39 @@ const updateVideosWorker = (time) => {
     // Fallback: if rvfcb never fires (same frame / browser quirk), unblock after 100ms
     setTimeout(() => onFrame(), 100);
   });
+
+*/
+
+  
+    const scene = sceneManagerRef.current.getSceneAtTime(time);
+
+    if (!scene) return
+
+    const videos = scene.elements.filter(o => o.type === "video");
+
+
+    await Promise.all(
+      videos.map(async (vidObject) => {
+
+        const video = vidObject.video;
+
+        if (!video || !isFinite(video.duration)) {
+          return;
+        }
+
+        video.pause();
+
+        await seekVideoFrame(video, time);
+        console.log('seekVideoFrame')
+      })
+    );
+
+
+
+  renderSceneWorker(time)
+  
+
+  
 };
 
 
@@ -4691,7 +4845,7 @@ const handleUpdateSceneState = (sceneId, updates) => {
 
 useEffect(()=>{
 
-  console.log('activeSceneState update')
+ 
 
 },[activeSceneState])
 
@@ -5283,8 +5437,7 @@ const pasteTextCallBack = useCallback((e) => {
 
        // ctx.fillStyle = object.fill || "lightgray";
         ctx.fill();
-        console.log('ctx.fillStyle artboard', ctx.fillStyle)
-       console.log('ctx.fill artboard', ctx.fill())
+
       }
       // Then stroke (optional)
       if (object.strokeColour && object.strokeWeight && object.type !== 'image' && object.type !== "custom-shape"){
@@ -8327,7 +8480,7 @@ function getSelectionBounds(selectedObjects) {
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         if (objectsRef.current[i].type !== 'text'){
           const handle = checkCornerRadiusHandleHit(objectsRef.current[i], pos.x, pos.y);
-          console.log('corner handle', handle)
+          
           if (handle !== null){
             if (isElementInScene(objectsRef.current[i])){
               let activeCorner
@@ -11441,7 +11594,7 @@ const getHandlePosition = (obj) => {
         textEditRef.current.value = obj.text?obj.text:''
         textEditRef.current.focus();
         if (!obj.caretAbsIndex){
-            obj.caretAbsIndex = obj.text.length;
+            obj.caretAbsIndex = obj?.text?.length??0;
         }
 
         const lines = obj.getLines()
@@ -13168,12 +13321,17 @@ const handleElementsDrop = (e, id) => {
 
   if (id && draggedId !== id) {
 
+
     const activeScene = sceneManagerRef.current.getActiveScene()
     const draggedItemIndex = activeScene.elements.findIndex(item => item.id === draggedId);
     const targetItemIndex = activeScene.elements.findIndex(item => item.id === id);
     const items = activeScene.elements
     const [draggedItem] = items.splice(draggedItemIndex, 1);
     items.splice(targetItemIndex, 0, draggedItem);
+
+
+    const [draggedObject] = objectsRef.current.splice(draggedItemIndex, 1);
+    objectsRef.current.splice(targetItemIndex, 0, draggedObject);
 
   }
 
@@ -13201,19 +13359,18 @@ const shareSocial = async () => {
         setCanvasLoader(true)
         const videoBlob = await exportVideoFrames(false, false)
 
+
         const file = new File([videoBlob],  `video-${Date.now()}-${projectTitle}.mov`, { type: "video/mp4"});
+
 
         const uploadedFile = await uploadFileLib(
           file, 
           null, 
           {
-            file_description: postInfo.data.file_description??null
+            file_description: postInfo?.data?.file_description??null
           }, 
           user
         )
-
-
-        console.log('postInfo', postInfo)
 
         // upload blob
         let link = null
@@ -13222,12 +13379,10 @@ const shareSocial = async () => {
           link = `https://${postInfo?.data.base_url}/${postInfo?.data.slug}`
         }
 
-
-
         const postData = {
-          id:postInfo?.data.id,
-          title: projectTitle,
-          caption: postInfo? postInfo?.data.caption : '',
+          id:postInfo?.data?.id??uuidv4(),
+          title: projectTitle??'',
+          caption: postInfo?.data?.caption??'',
           schedule_date: postInfo?.data?.scheduleDate?new Date(postInfo.data.scheduleDate):new Date(),
           published_at: null,
           link: link,
@@ -13247,7 +13402,7 @@ const shareSocial = async () => {
           },
           meta_data: null,
           platform_account:{
-            external_account_id:postInfo.data.facebook_page_id
+            external_account_id:postInfo?.data?.facebook_page_id
           },
           add_comment:true
         }
@@ -13760,9 +13915,7 @@ const schedulePostCallBack = (postData, status, savedPostPublications) => {
                       const isImage = element?.type === 'image'
                       const isVideo = element?.type === 'video'
 
-      
-                     
-
+    
                       var colour
                       var borderColour
 
@@ -16029,12 +16182,13 @@ useEffect(() => {
                   {[...scene.elements].reverse().map((element, index)=>{
                     const isWhite = element?.fill?.colour === 'rgba(255, 255, 255, 1)' || element?.fill?.colour === 'rgba(255,255,255,1)'
                     const isImage = element?.type === 'image'
+                    const isVideo = element?.type === 'video'
                     var colour
                     var borderColour
 
-                    if (element?.fill){
-                      colour = element?.fill
-                      borderColour = lightenRgba(element?.fill?.colour, .5)
+                    if (element?.fill?.colour){
+                        colour = element?.fill?.colour
+                        borderColour = lightenRgba(element?.fill?.colour, .5)
                     }else{
                       colour = 'var(--md-sys-color-secondary-container)'
                       borderColour = 'var(--md-sys-color-secondary-container)'
