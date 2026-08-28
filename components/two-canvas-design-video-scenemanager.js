@@ -4399,10 +4399,12 @@ useEffect(() => {
       updateVideosWorker(currentTime)
 
     }else{
-    //renderSceneWorker(currentTime)
+    renderSceneWorker(currentTime)
+    /*
      drawLower()
      drawUpper()
      drawArtboard()
+     */
     }
   }
 
@@ -5942,65 +5944,74 @@ const drawElementControls = (ctx, object) => {
               screenH
             );
 
+            const getCornerRadiusCoordinate = (coordinate, fallback, offset) => {
+              if (!coordinate || coordinate === 0) {
+                return fallback;
+              }
+
+              return coordinate * scaleRef.current +
+                (coordinate.default ? offset : 0);
+            };
+
+            const cornerRadiusCorners = [
+              {
+                coordinate: object.cornerRadiusCoordinates?.[0],
+                xFallback: screenLeft + CORNER_RADIUS_OFFSET,
+                yFallback: screenTop + CORNER_RADIUS_OFFSET,
+                xOffset: CORNER_RADIUS_OFFSET,
+                yOffset: CORNER_RADIUS_OFFSET
+              },
+              {
+                coordinate: object.cornerRadiusCoordinates?.[1],
+                xFallback: screenRight - CORNER_RADIUS_OFFSET,
+                yFallback: screenTop + CORNER_RADIUS_OFFSET,
+                xOffset: -CORNER_RADIUS_OFFSET,
+                yOffset: CORNER_RADIUS_OFFSET
+              },
+              {
+                coordinate: object.cornerRadiusCoordinates?.[3],
+                xFallback: screenLeft + CORNER_RADIUS_OFFSET,
+                yFallback: screenBottom - CORNER_RADIUS_OFFSET,
+                xOffset: CORNER_RADIUS_OFFSET,
+                yOffset: -CORNER_RADIUS_OFFSET
+              },
+              {
+                coordinate: object.cornerRadiusCoordinates?.[2],
+                xFallback: screenRight - CORNER_RADIUS_OFFSET,
+                yFallback: screenBottom - CORNER_RADIUS_OFFSET,
+                xOffset: -CORNER_RADIUS_OFFSET,
+                yOffset: -CORNER_RADIUS_OFFSET
+              }
+            ].map(({ coordinate, xFallback, yFallback, xOffset, yOffset }) => ({
+              x: getCornerRadiusCoordinate(
+                coordinate?.x,
+                xFallback,
+                xOffset
+              ),
+              y: getCornerRadiusCoordinate(
+                coordinate?.y,
+                yFallback,
+                yOffset
+              ),
+              type: 'corner-radius'
+            }));
+
 
             const corners = [
-              { x: screenLeft,  y: screenTop, type:'corner', label:'top-left' }, // top-left
-              { x: screenRight, y: screenTop, type:'corner', label:'top-right' }, // top-right
-              { x: screenLeft, y:  screenBottom, type:'corner', label:'bottom-left' }, // bottom-left
-              { x: screenRight, y:  screenBottom, type:'corner', label:'bottom-right' }, // bottom-right
-              { x: screenLeft, y:  (screenTop + screenBottom)/2, type:'side-left', label:'side-left' }, // left
-              { x: screenRight, y:  (screenTop + screenBottom)/2, type:'side-right', label:'side-right' }, // right
-              { x: (screenLeft + screenRight)/2, y: screenTop, type:'side-top', label:'side-top' }, // top
-              { x: (screenLeft + screenRight)/2, y: screenBottom, type:'side-bottom', label:'side-bottom' }, // bottom
+              // Corners
+              { x: screenLeft,  y: screenTop,    type: 'corner', label: 'top-left' },
+              { x: screenRight, y: screenTop,    type: 'corner', label: 'top-right' },
+              { x: screenLeft,  y: screenBottom, type: 'corner', label: 'bottom-left' },
+              { x: screenRight, y: screenBottom, type: 'corner', label: 'bottom-right' },
 
-             
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[0]?.x !== 0?
-                object.cornerRadiusCoordinates[0].default? object.cornerRadiusCoordinates[0].x * scaleRef.current + CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[0].x * scaleRef.current
-                :
-                screenLeft + CORNER_RADIUS_OFFSET, 
+              // Sides
+              { x: screenLeft, y: (screenTop + screenBottom) / 2, type: 'side-left', label: 'side-left' },
+              { x: screenRight, y: (screenTop + screenBottom) / 2, type: 'side-right', label: 'side-right' },
+              { x: (screenLeft + screenRight) / 2, y: screenTop, type: 'side-top', label: 'side-top' },
+              { x: (screenLeft + screenRight) / 2, y: screenBottom, type: 'side-bottom', label: 'side-bottom' },
 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[0]?.y !== 0?
-                object.cornerRadiusCoordinates[0].default? object.cornerRadiusCoordinates[0].y * scaleRef.current + CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[0].y * scaleRef.current
-                :
-                screenTop + CORNER_RADIUS_OFFSET, 
-                
-                type:'corner-radius' 
-              }, // top-left
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[1]?.x !== 0?
-                object.cornerRadiusCoordinates[1].default? object.cornerRadiusCoordinates[1].x * scaleRef.current - CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[1].x * scaleRef.current 
-                :
-                screenRight - CORNER_RADIUS_OFFSET, 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[1]?.y !== 0?
-                object.cornerRadiusCoordinates[1].default? object.cornerRadiusCoordinates[1].y * scaleRef.current + CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[1].y * scaleRef.current 
-                :
-                screenTop + CORNER_RADIUS_OFFSET, 
-                type:'corner-radius' 
-              }, // top-right
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[3]?.x !== 0?
-                object.cornerRadiusCoordinates[3].default? object.cornerRadiusCoordinates[3].x * scaleRef.current - CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[3].x * scaleRef.current 
-                :
-                screenLeft + CORNER_RADIUS_OFFSET, 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[3]?.y !== 0?
-                object.cornerRadiusCoordinates[3].default? object.cornerRadiusCoordinates[3].y * scaleRef.current - CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[3].y * scaleRef.current 
-                :
-                screenBottom - CORNER_RADIUS_OFFSET, 
-                type:'corner-radius' 
-              }, // bottom-left
-
-              { x: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[2]?.x !== 0?
-                object.cornerRadiusCoordinates[2].default? object.cornerRadiusCoordinates[2].x * scaleRef.current + CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[2].x * scaleRef.current 
-                :
-                screenRight - CORNER_RADIUS_OFFSET, 
-                y: object.cornerRadiusCoordinates !== null && object.cornerRadiusCoordinates[2]?.y !== 0?
-                object.cornerRadiusCoordinates[2].default? object.cornerRadiusCoordinates[2].y * scaleRef.current - CORNER_RADIUS_OFFSET : object.cornerRadiusCoordinates[2].y * scaleRef.current 
-                :
-                screenBottom - CORNER_RADIUS_OFFSET, 
-                type:'corner-radius' 
-              }, // bottom-Right
-              
-
-              
-             
+              // Corner radius
+              ...cornerRadiusCorners
             ];
             corners.forEach((c, index) => {
               ctx.fillStyle = index === 0 ? HANDLE_FILL_COLOUR : HANDLE_FILL_COLOUR;
@@ -6611,7 +6622,6 @@ const createCanvasGradient = (ctx, obj) => {
         }
      
       ctx.globalAlpha = animationProps.opacity;
-
       ctx.globalCompositeOperation = object.blendMode === 'normal'? "source-over" : object.blendMode; 
       ctx.beginPath(); // 🟢 Always begin a new path for each object
 
@@ -6631,11 +6641,11 @@ const createCanvasGradient = (ctx, obj) => {
         ctx.ellipse(0, 0, object.width/ 2, object.h / 2, 0, 0, Math.PI * 2);
         
       } else if (object.type === "triangle"){
-
+        ctx.beginPath();
         ctx.moveTo(0, -object.h / 2);
         ctx.lineTo(-object.width/2, object.h / 2);
         ctx.lineTo(object.width/2, object.h / 2);
-
+        ctx.closePath();
 
       } else if (object.type === "custom-shape"){
 
@@ -6754,6 +6764,9 @@ const createCanvasGradient = (ctx, obj) => {
         
 
       }else if (object.type === "pen"){
+
+              if (!object.points || object.points.length < 2) return;
+
         
               ctx.save();
               ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -11112,6 +11125,7 @@ function drawPen(ctx, points, colour = "rgba(0,0,0,1)", brushSize = 50) {
 
   ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
   ctx.stroke();
+  ctx.closePath();
 
 //  ctx.globalCompositeOperation = 'source-over'; // (normal)
 }
@@ -13433,6 +13447,9 @@ const schedulePostCallBack = (postData, status, savedPostPublications) => {
 
   console.log('postData', posts)
 
+  if (posts.length === 0) return
+
+  if (postInfo === null) return
 
     setPosts(prev =>
       prev.map((post)=>{
@@ -13452,7 +13469,7 @@ const schedulePostCallBack = (postData, status, savedPostPublications) => {
     setPostInfo(prevState => ({
       ...prevState, // Copy top-level properties
       data: {
-        ...prevState.data, // Copy nested 'profile' properties
+        ...prevState?.data, // Copy nested 'profile' properties
         status: status // Overwrite 'notifications'
       }
     }));
